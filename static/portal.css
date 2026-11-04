@@ -126,6 +126,15 @@
 .stats-kpi .metric-value{font-size:24px}
 .refresh-note{white-space:nowrap;align-self:center}
 
+/* ===== блокировка регламентных заданий ===== */
+.jobs-toggle{border:1px solid var(--border);background:transparent;cursor:pointer;
+             display:inline-flex;align-items:center;gap:6px;padding:4px 10px;
+             font-size:calc(10px*var(--fs));transition:background .15s}
+.jobs-toggle:hover{background:var(--surface-hover)}
+.jobs-toggle svg{width:13px;height:13px}
+.jobs-form{display:flex;justify-content:flex-start}
+.base-card .jobs-form{margin-top:-4px}
+
 /* ===== подтверждение опасного действия ===== */
 .danger-modal{width:min(560px,calc(100% - 28px))}
 .warn-box{display:flex;gap:12px;margin:18px 0;padding:14px 16px;border:1px solid #fb829740;

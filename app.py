@@ -258,7 +258,13 @@ def index():
         JOIN access a ON a.base_id = b.id
         WHERE a.user_id = ? AND b.is_active = 1
         ORDER BY b.sort_order, b.title""", (session['uid'],)).fetchall()
-    return render_template('portal.html', bases=rows)
+    jobs = {}
+    if rows:
+        slugs = tuple(b['slug'] for b in rows)
+        info = _cached('counts:' + ','.join(slugs), 60,
+                       lambda: _session_counts(list(slugs)))
+        jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
+    return render_template('portal.html', bases=rows, jobs=jobs)
 
 
 # ---------------- шлюз к публикациям 1С ----------------
@@ -392,8 +398,11 @@ def _session_counts(slugs):
         counts = {}
         for line in (proc.stdout or '').splitlines():
             parts = line.split()
-            if len(parts) == 2 and parts[1].isdigit():
-                counts[parts[0]] = int(parts[1])
+            if len(parts) >= 2:
+                counts[parts[0]] = {
+                    'n': int(parts[1]) if parts[1].isdigit() else 0,
+                    'jobs': parts[2] if len(parts) > 2 else 'off',
+                }
         return counts
     except Exception:  # noqa: BLE001
         return {}
@@ -605,6 +614,46 @@ def base_kick(bid):
         flash('Не удалось отключить сеансы: %s' % exc)
     audit('base_kick', row['slug'])
     return redirect(url_for('admin', tab='bases'))
+
+
+def _toggle_jobs(slug):
+    """Переключает блокировку регламентных заданий и чистит кэш."""
+    try:
+        proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-jobs-deny', slug, 'toggle'],
+                              capture_output=True, text=True, timeout=60)
+        msg = (proc.stdout or proc.stderr or '').strip().splitlines()
+        flash(msg[-1] if msg else ('Код возврата: %s' % proc.returncode))
+    except Exception as exc:  # noqa: BLE001
+        flash('Не удалось изменить блокировку: %s' % exc)
+    _cache.clear()
+    audit('base_jobs', slug)
+
+
+@app.route('/admin/bases/<int:bid>/jobs', methods=['POST'])
+@admin_required
+def base_jobs(bid):
+    check_csrf()
+    row = db().execute("SELECT * FROM bases WHERE id = ?", (bid,)).fetchone()
+    if not row:
+        abort(404)
+    _toggle_jobs(row['slug'])
+    return redirect(url_for('admin', tab='bases'))
+
+
+@app.route('/portal/bases/<int:bid>/jobs', methods=['POST'])
+@login_required
+def portal_base_jobs(bid):
+    check_csrf()
+    row = db().execute("SELECT * FROM bases WHERE id = ? AND is_active = 1", (bid,)).fetchone()
+    if not row:
+        abort(404)
+    if session.get('role') != 'admin':
+        allowed = db().execute("SELECT 1 FROM access WHERE user_id = ? AND base_id = ?",
+                               (session['uid'], bid)).fetchone()
+        if not allowed:
+            abort(403)
+    _toggle_jobs(row['slug'])
+    return redirect(url_for('index'))
 
 
 @app.route('/admin/access', methods=['POST'])

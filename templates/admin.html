@@ -82,7 +82,7 @@
       </div>
       <div class="table-scroll">
         <table class="data-table">
-          <thead><tr><th>Код</th><th>Название</th><th>Организация</th><th>Адрес</th><th>Статус</th><th>Сейчас</th><th></th></tr></thead>
+          <thead><tr><th>Код</th><th>Название</th><th>Организация</th><th>Адрес</th><th>Статус</th><th>Сейчас</th><th>Задания</th><th></th></tr></thead>
           <tbody>
           {% for b in bases %}
             <tr>
@@ -91,7 +91,17 @@
               <td>{{ b.organization or '—' }}</td>
               <td class="mono">{{ b.url_path }}</td>
               <td>{% if b.is_active %}<span class="badge success">опубликована</span>{% else %}<span class="badge neutral">скрыта</span>{% endif %}</td>
-              <td>{% set n = sessions.get(b.slug) %}{% if n is none %}<span class="badge neutral" title="нет данных">—</span>{% elif n %}<span class="badge success" title="активных сеансов">{{ n }}</span>{% else %}<span class="badge neutral" title="нет активных сеансов">0</span>{% endif %}</td>
+              <td>{% set st = sessions.get(b.slug) %}{% if not st %}<span class="badge neutral" title="нет данных">—</span>{% elif st.n %}<span class="badge success" title="активных сеансов">{{ st.n }}</span>{% else %}<span class="badge neutral" title="нет активных сеансов">0</span>{% endif %}</td>
+              <td>
+                <form method="post" action="{{ url_for('base_jobs', bid=b.id) }}" onsubmit="return confirm('{{ 'Разблокировать' if st and st.jobs == 'on' else 'Заблокировать' }} регламентные задания базы «{{ b.slug }}»?')">
+                  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                  {% if st and st.jobs == 'on' %}
+                  <button class="badge warning jobs-toggle" type="submit" title="Нажмите, чтобы разблокировать"><i data-lucide="lock"></i>заблокированы</button>
+                  {% else %}
+                  <button class="badge success jobs-toggle" type="submit" title="Нажмите, чтобы заблокировать"><i data-lucide="unlock"></i>включены</button>
+                  {% endif %}
+                </form>
+              </td>
               <td>
                 <div class="row-actions">
                   <button class="icon-button" title="Отключить всех пользователей от базы" aria-label="Отключить пользователей" data-open="dlg-kick" data-id="{{ b.id }}" data-slug="{{ b.slug }}"><i data-lucide="user-x"></i></button>
