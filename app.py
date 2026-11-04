@@ -18,6 +18,8 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 # Контакты сопровождения (блок «Нужна помощь с платформой?»).
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
+# Версия портала — выводится в шапке и подвале.
+APP_VERSION = os.environ.get('PORTAL_VERSION', '1.0')
 
 app = Flask(__name__)
 _secret_file = os.path.join(BASE_DIR, '.secret_key')
@@ -143,6 +145,7 @@ app.jinja_env.globals['csrf_token'] = csrf_token
 app.jinja_env.globals['ic_host'] = IC_HOST
 app.jinja_env.globals['support_url'] = SUPPORT_URL
 app.jinja_env.globals['support_name'] = SUPPORT_NAME
+app.jinja_env.globals['app_version'] = APP_VERSION
 
 
 def check_csrf():

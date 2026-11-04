@@ -12,7 +12,7 @@
 <body>
   <div class="app-shell portal-shell">
     <header class="topbar">
-      <div class="brand topbar-brand"><img class="brand-mark" src="{{ url_for('static', filename='brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ url_for('static', filename='logo1c.png') }}" alt="1С"></span></div>
+      <div class="brand topbar-brand"><img class="brand-mark" src="{{ url_for('static', filename='brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ url_for('static', filename='logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></div>
       <nav class="tabs">
         <a class="tab {% if tab == 'users' %}active{% endif %}" href="{{ url_for('admin', tab='users') }}"><i data-lucide="users"></i>Клиенты</a>
         <a class="tab {% if tab == 'bases' %}active{% endif %}" href="{{ url_for('admin', tab='bases') }}"><i data-lucide="database"></i>Базы</a>
@@ -117,7 +117,7 @@
       {% endfor %}
       {% endif %}
 
-      <footer class="app-footer"><span>Портал 1С</span><span class="muted">1С.DGEK.RU · управление доступом</span></footer>
+      <footer class="app-footer"><span>Портал 1С · v{{ app_version }}</span><span class="muted">1С.DGEK.RU · управление доступом</span></footer>
       <div class="credits">проект подготовлен при участии <a href="https://focuslens.dev" target="_blank" rel="noopener">focuslens.dev</a></div>
     </main>
   </div>
