@@ -76,7 +76,7 @@
         <div><div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Базы</h1><p class="muted">Публикации 1С и их адреса</p></div>
         <div class="heading-actions">
           <span class="muted small refresh-note">обновлено в {{ refreshed }}</span>
-          <a class="button" href="{{ url_for('admin', tab='bases') }}"><i data-lucide="refresh-cw"></i>Обновить</a>
+          <a class="button" href="{{ url_for('admin', tab='bases', refresh=1) }}"><i data-lucide="refresh-cw"></i>Обновить</a>
           <button class="button primary" data-open="dlg-base"><i data-lucide="plus"></i>Добавить базу</button>
         </div>
       </div>
@@ -138,7 +138,7 @@
           <p class="muted">Кто, когда и что открывал — и сколько времени провёл в системе</p>
         </div>
         <div class="heading-actions">
-          <a class="button" href="{{ url_for('admin_stats') }}"><i data-lucide="refresh-cw"></i>Обновить</a>
+          <a class="button" href="{{ url_for('admin_stats', refresh=1) }}"><i data-lucide="refresh-cw"></i>Обновить</a>
           <form method="post" action="{{ url_for('admin_stats_clear') }}" onsubmit="return confirm('Очистить всю историю: журнал действий и сеансы?')">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
             <button class="button danger" type="submit"><i data-lucide="trash-2"></i>Очистить историю</button>

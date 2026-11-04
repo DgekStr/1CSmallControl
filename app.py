@@ -5,6 +5,7 @@ import re
 import sqlite3
 import secrets
 import subprocess
+import threading
 import time
 
 import metrics
@@ -124,6 +125,23 @@ def init_db():
         cols = [r[1] for r in conn.execute("PRAGMA table_info(%s)" % table)]
         if 'organization' not in cols:
             conn.execute("ALTER TABLE %s ADD COLUMN organization TEXT NOT NULL DEFAULT ''" % table)
+    conn.commit()
+    for idx in (
+        "CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit(ts)",
+        "CREATE INDEX IF NOT EXISTS idx_audit_action ON audit(action)",
+        "CREATE INDEX IF NOT EXISTS idx_visits_user ON visits(username)",
+        "CREATE INDEX IF NOT EXISTS idx_visits_started ON visits(started_at)",
+        "CREATE INDEX IF NOT EXISTS idx_metrics_ts ON metrics(ts)",
+        "CREATE INDEX IF NOT EXISTS idx_clients_last ON client_sessions(last_seen)",
+    ):
+        try:
+            conn.execute(idx)
+        except sqlite3.OperationalError:
+            pass
+    try:
+        conn.execute("DELETE FROM metrics WHERE id NOT IN (SELECT id FROM metrics ORDER BY id DESC LIMIT 500)")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     cur = conn.execute("SELECT COUNT(*) FROM users")
     if cur.fetchone()[0] == 0:
@@ -381,6 +399,51 @@ def _session_counts(slugs):
         return {}
 
 
+_cache = {}
+
+
+def _cached(key, ttl, fn):
+    """Простое кэширование тяжёлых вызовов (rac) с временем жизни."""
+    force = request.args.get('refresh') == '1'
+    now = time.time()
+    hit = _cache.get(key)
+    if hit and not force and now - hit[0] < ttl:
+        return hit[1]
+    value = fn()
+    _cache[key] = (now, value)
+    return value
+
+
+def _cache_stamp(key):
+    hit = _cache.get(key)
+    return time.strftime('%H:%M:%S', time.localtime(hit[0])) if hit else time.strftime('%H:%M:%S')
+
+
+def _warm_once():
+    """Обновляет кэш тяжёлых вызовов в фоне, чтобы страницы открывались мгновенно."""
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn.row_factory = sqlite3.Row
+    try:
+        slugs = tuple(r['slug'] for r in conn.execute("SELECT slug FROM bases WHERE is_active = 1"))
+    finally:
+        conn.close()
+    if slugs:
+        _cache['counts:' + ','.join(slugs)] = (time.time(), _session_counts(list(slugs)))
+    _cache['live'] = (time.time(), _sessions_snapshot())
+
+
+def _start_warmer():
+    def loop():
+        while True:
+            try:
+                _warm_once()
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(45)
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
 @app.route('/admin')
 @admin_required
 def admin():
@@ -388,9 +451,13 @@ def admin():
     bases = db().execute("SELECT * FROM bases ORDER BY sort_order, title").fetchall()
     links = {(r['user_id'], r['base_id']) for r in db().execute("SELECT * FROM access")}
     tab = request.args.get('tab', 'users')
-    counts = _session_counts([b['slug'] for b in bases]) if tab == 'bases' else {}
+    counts = {}
+    if tab == 'bases' and bases:
+        slugs = tuple(b['slug'] for b in bases)
+        counts = _cached('counts:' + ','.join(slugs), 60,
+                         lambda: _session_counts(list(slugs)))
     return render_template('admin.html', users=users, bases=bases, links=links, tab=tab,
-                           sessions=counts, refreshed=time.strftime('%H:%M:%S'))
+                           sessions=counts, refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
 
 
 def _pwd_ok(pwd):
@@ -601,10 +668,10 @@ def admin_stats():
         GROUP BY v.username
         ORDER BY seconds DESC""").fetchall()
 
-    live_sessions = _sessions_snapshot()
+    live_sessions = _cached('live', 30, _sessions_snapshot)
     client_history = db().execute("""
         SELECT username, app, host, started_at, first_seen, last_seen
-        FROM client_sessions ORDER BY last_seen DESC LIMIT 200""").fetchall()
+        FROM client_sessions ORDER BY last_seen DESC LIMIT 150""").fetchall()
 
     srv = metrics.collect()
     try:
@@ -632,23 +699,24 @@ def admin_stats():
         SELECT details AS slug, COUNT(*) AS n, COUNT(DISTINCT actor) AS people
         FROM audit WHERE action = 'open_base' GROUP BY details ORDER BY n DESC""").fetchall()
 
-    events = db().execute("SELECT * FROM audit ORDER BY id DESC LIMIT 500").fetchall()
+    events = db().execute("SELECT * FROM audit ORDER BY id DESC LIMIT 300").fetchall()
 
     visits = db().execute("""
         SELECT username, started_at, last_seen, ended_at, ip,
                (julianday(COALESCE(ended_at, last_seen)) - julianday(started_at)) * 86400 AS seconds
-        FROM visits ORDER BY id DESC LIMIT 300""").fetchall()
+        FROM visits ORDER BY id DESC LIMIT 200""").fetchall()
 
     total_seconds = db().execute("""
         SELECT COALESCE(SUM((julianday(COALESCE(ended_at, last_seen)) - julianday(started_at)) * 86400), 0)
         FROM visits""").fetchone()[0]
 
     return render_template('admin.html', users=[], bases=[], links=set(), tab='stats',
-                           sessions={}, refreshed='',
+                           sessions={},
                            stats_users=users, stats_opens=opens, stats_bases=opens_by_base,
                            stats_events=events, stats_visits=visits,
                            stats_total=total_seconds,
                            stats_live=live_sessions, stats_clients=client_history, srv=srv,
+                           refreshed=_cache_stamp('live'),
                            stats_visits_count=len(visits))
 
 
@@ -703,3 +771,5 @@ if __name__ == '__main__':
     app.run(host='127.0.0.1', port=int(os.environ.get('PORTAL_PORT', 8080)))
 else:
     init_db()
+    if os.environ.get('PORTAL_WARM') == '1':
+        _start_warmer()
