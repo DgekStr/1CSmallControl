@@ -122,6 +122,7 @@
 @media(max-width:620px){.srv-grid{grid-template-columns:1fr}}
 
 /* ===== статистика ===== */
+.stats-kpi{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
 .stats-kpi .metric{height:auto;min-height:118px}
 .stats-kpi .metric-value{font-size:24px}
 .refresh-note{white-space:nowrap;align-self:center}

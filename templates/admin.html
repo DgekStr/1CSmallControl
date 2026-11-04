@@ -222,6 +222,11 @@
           <div class="metric-caption">заходили хотя бы раз</div>
         </div>
         <div class="metric">
+          <div class="metric-label">Лицензии 1С</div>
+          <div class="metric-value">{{ lic.used }}<small> / {{ lic.total }}</small></div>
+          <div class="metric-caption">занято / всего · сетевых {{ lic.net }}, локальных {{ lic.local }}</div>
+        </div>
+        <div class="metric">
           <div class="metric-label">Открытий баз</div>
           <div class="metric-value">{{ stats_opens.values()|sum(attribute='n') if stats_opens else 0 }}</div>
           <div class="metric-caption">переходов в веб-клиент</div>

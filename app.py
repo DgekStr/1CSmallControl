@@ -446,6 +446,20 @@ def _cache_stamp(key):
     return time.strftime('%H:%M:%S', time.localtime(hit[0])) if hit else time.strftime('%H:%M:%S')
 
 
+def _licenses():
+    """Занято/всего клиентских лицензий 1С (ключи HASP + активные сеансы)."""
+    try:
+        proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-licenses'],
+                              capture_output=True, text=True, timeout=30)
+        parts = (proc.stdout or '').split()
+        if len(parts) >= 4:
+            return {'used': int(parts[0]), 'total': int(parts[1]),
+                    'net': int(parts[2]), 'local': int(parts[3])}
+    except Exception:  # noqa: BLE001
+        pass
+    return {'used': 0, 'total': 0, 'net': 0, 'local': 0}
+
+
 def _warm_once():
     """Обновляет кэш тяжёлых вызовов в фоне, чтобы страницы открывались мгновенно."""
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -747,6 +761,7 @@ def admin_stats():
         SELECT username, app, host, started_at, first_seen, last_seen
         FROM client_sessions ORDER BY last_seen DESC LIMIT 150""").fetchall()
 
+    lic = _cached('lic', 60, _licenses)
     srv = metrics.collect()
     try:
         db().execute("INSERT INTO metrics(cpu, rx, tx) VALUES(?,?,?)",
@@ -789,7 +804,7 @@ def admin_stats():
                            stats_users=users, stats_opens=opens, stats_bases=opens_by_base,
                            stats_events=events, stats_visits=visits,
                            stats_total=total_seconds,
-                           stats_live=live_sessions, stats_clients=client_history, srv=srv,
+                           stats_live=live_sessions, stats_clients=client_history, srv=srv, lic=lic,
                            refreshed=_cache_stamp('live'),
                            stats_visits_count=len(visits))
 
