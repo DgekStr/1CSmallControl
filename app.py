@@ -1,4 +1,5 @@
 """Портал доступа к базам 1С: клиентский вход + админка."""
+import http.client
 import os
 import re
 import sqlite3
@@ -7,7 +8,7 @@ import time
 from functools import wraps
 
 from flask import (Flask, g, redirect, render_template, request, session,
-                   url_for, abort, flash)
+                   url_for, abort, flash, Response)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -186,6 +187,66 @@ def index():
         WHERE a.user_id = ? AND b.is_active = 1
         ORDER BY b.sort_order, b.title""", (session['uid'],)).fetchall()
     return render_template('portal.html', bases=rows)
+
+
+# ---------------- шлюз к публикациям 1С ----------------
+# Наружу /WEB/ отдаётся только через портал: Apache проксирует запросы сюда,
+# портал проверяет сессию и право на базу, и лишь затем сам обращается к 1cws
+# на внутреннем порту (127.0.0.1:8081), который снаружи недоступен.
+BACKEND_HOST = os.environ.get('PORTAL_1C_BACKEND_HOST', '127.0.0.1')
+BACKEND_PORT = int(os.environ.get('PORTAL_1C_BACKEND_PORT', '8081'))
+HOP_BY_HOP = {
+    'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+    'te', 'trailers', 'transfer-encoding', 'upgrade', 'host',
+}
+WEB_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']
+
+
+@app.route('/WEB/<slug>', methods=['GET', 'HEAD'])
+@login_required
+def web_gate_redirect(slug):
+    return redirect('/WEB/%s/' % slug)
+
+
+@app.route('/WEB/<slug>/', defaults={'rest': ''}, methods=WEB_METHODS)
+@app.route('/WEB/<slug>/<path:rest>', methods=WEB_METHODS)
+@login_required
+def web_gate(slug, rest=''):
+    base = db().execute("SELECT * FROM bases WHERE slug = ? AND is_active = 1", (slug,)).fetchone()
+    if not base:
+        abort(404)
+    if session.get('role') != 'admin':
+        allowed = db().execute("SELECT 1 FROM access WHERE user_id = ? AND base_id = ?",
+                               (session['uid'], base['id'])).fetchone()
+        if not allowed:
+            audit('web_denied', slug)
+            abort(403)
+
+    path = '/WEB/%s/%s' % (slug, rest)
+    if request.query_string:
+        path += '?' + request.query_string.decode('latin-1')
+
+    body = None
+    if request.method not in ('GET', 'HEAD'):
+        body = request.get_data()
+
+    headers = {k: v for k, v in request.headers.items()
+               if k.lower() not in HOP_BY_HOP and k.lower() != 'content-length'}
+
+    try:
+        conn = http.client.HTTPConnection(BACKEND_HOST, BACKEND_PORT, timeout=300)
+        conn.request(request.method, path, body=body, headers=headers)
+        resp = conn.getresponse()
+        data = resp.read()
+        out = Response(data, status=resp.status)
+        for key, value in resp.getheaders():
+            if key.lower() not in HOP_BY_HOP and key.lower() != 'content-length':
+                out.headers.add(key, value)
+        conn.close()
+    except Exception as exc:  # noqa: BLE001
+        audit('web_error', '%s: %s' % (slug, exc))
+        return Response('1С недоступна: %s' % exc, status=502, mimetype='text/plain; charset=utf-8')
+    return out
 
 
 @app.route('/login', methods=['GET', 'POST'])

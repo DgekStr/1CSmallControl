@@ -49,7 +49,7 @@ Environment=PORTAL_IC_HOST=${PORTAL_IC_HOST:-1c.example.ru}
 Environment=PORTAL_SUPPORT_NAME=${PORTAL_SUPPORT_NAME:-example.ru}
 Environment=PORTAL_SUPPORT_URL=${PORTAL_SUPPORT_URL:-https://example.ru/contacts.html}
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/gunicorn --workers 2 --bind $BIND --timeout 120 app:app
+ExecStart=/usr/bin/gunicorn --worker-class gthread --workers 2 --threads 8 --bind $BIND --timeout 900 app:app
 Restart=always
 RestartSec=3
 PrivateTmp=true
@@ -62,15 +62,35 @@ systemctl enable --now "${SITE}.service"
 
 echo "=== 5/5 apache ==="
 a2enmod proxy proxy_http >/dev/null
+
+# Публикации 1С: отдельный каталог, подключаемый только внутренним vhost'ом.
+mkdir -p /etc/apache2/1c-publications
+cat > /etc/apache2/sites-available/1c-internal.conf <<EOS
+Listen 127.0.0.1:8081
+
+<VirtualHost 127.0.0.1:8081>
+    ServerName 1c-internal
+    DocumentRoot /var/www/html
+
+    # публикации 1С доступны только изнутри сервера
+    IncludeOptional /etc/apache2/1c-publications/*.conf
+
+    ErrorLog \${APACHE_LOG_DIR}/1c-internal-error.log
+    CustomLog \${APACHE_LOG_DIR}/1c-internal-access.log combined
+</VirtualHost>
+EOS
+a2ensite 1c-internal >/dev/null
+
 cat > "/etc/apache2/sites-available/${SITE}.conf" <<EOS
 <VirtualHost *:80>
     ServerName $SERVER_NAME
     DocumentRoot /var/www/html
 
-    # публикации 1С отдаёт модуль 1cws — их не проксируем
-    ProxyPass /WEB/ !
-
     ProxyPreserveHost On
+
+    # публикации 1С — только через портал: он проверяет сессию и право на базу
+    ProxyPass /WEB/ http://$BIND/WEB/
+
     ProxyPass / http://$BIND/ retry=0
     ProxyPassReverse / http://$BIND/
 

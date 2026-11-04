@@ -9,13 +9,17 @@ set -eu
 IC_HOST=${IC_HOST:-1c.example.ru}
 IC_BIN=${IC_BIN:-/opt/1cv8/x86_64/8.3.27.2342}
 IC_WWW=${IC_WWW:-/var/www/1c}
+# Публикации живут в отдельном каталоге и подключаются только внутренним
+# vhost'ом на 127.0.0.1:8081 — снаружи они доступны лишь через портал.
+CONF_DIR=/etc/apache2/1c-publications
 WEBINST=$IC_BIN/webinst
-CONF_DIR=/etc/apache2/conf-available
 
 if [ $# -lt 1 ]; then
   echo "usage: $0 <slug> [slug...]"
   exit 64
 fi
+
+mkdir -p "$CONF_DIR"
 
 for slug in "$@"; do
   echo "--- $slug ---"
@@ -25,8 +29,7 @@ for slug in "$@"; do
   PATH=/usr/sbin:/usr/bin:/sbin:/bin $WEBINST -apache24 -wsdir "WEB/$slug" \
     -dir "$IC_WWW/$slug" -connstr "Srvr=$IC_HOST;Ref=$slug;" -confpath "$CONF"
   sed -i '/LoadModule _1cws_module/d' "$CONF"
-  a2enconf "1c-$slug-web" >/dev/null
 done
 
 apache2ctl configtest >/dev/null && systemctl reload apache2
-echo "Готово: http://$IC_HOST/WEB/<slug>/"
+echo "Готово: http://$IC_HOST/WEB/<slug>/ (через портал, после входа)"
