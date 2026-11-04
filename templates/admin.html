@@ -94,7 +94,7 @@
               <td>{% set n = sessions.get(b.slug) %}{% if n is none %}<span class="badge neutral" title="нет данных">—</span>{% elif n %}<span class="badge success" title="активных сеансов">{{ n }}</span>{% else %}<span class="badge neutral" title="нет активных сеансов">0</span>{% endif %}</td>
               <td>
                 <div class="row-actions">
-                  <form method="post" action="{{ url_for('base_kick', bid=b.id) }}" onsubmit="return confirm('Отключить всех пользователей от базы «{{ b.slug }}»?')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="icon-button" title="Отключить всех пользователей от базы" aria-label="Отключить пользователей"><i data-lucide="user-x"></i></button></form>
+                  <button class="icon-button" title="Отключить всех пользователей от базы" aria-label="Отключить пользователей" data-open="dlg-kick" data-id="{{ b.id }}" data-slug="{{ b.slug }}"><i data-lucide="user-x"></i></button>
                   <button class="icon-button" title="Изменить" data-open="dlg-base-edit" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-title="{{ b.title }}" data-org="{{ b.organization or '' }}" data-description="{{ b.description }}" data-url="{{ b.url_path }}"><i data-lucide="pencil"></i></button>
                   <form method="post" action="{{ url_for('base_update', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Показать/скрыть" aria-label="Показать или скрыть"><i data-lucide="eye"></i></button></form>
                   <form method="post" action="{{ url_for('base_update', bid=b.id) }}" onsubmit="return confirm('Удалить базу и все доступы к ней?')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
@@ -315,6 +315,31 @@
     </form>
   </dialog>
 
+  <dialog class="modal danger-modal" id="dlg-kick">
+    <form method="post" id="kick-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <div class="modal-heading"><h2>Отключить всех пользователей?</h2><button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button></div>
+
+      <p class="muted">База: <strong id="kick-base" class="mono"></strong></p>
+
+      <div class="warn-box">
+        <i data-lucide="triangle-alert"></i>
+        <div>
+          <p><strong>Ответственность за отключение несёт администратор.</strong></p>
+          <p class="muted">Все сеансы будут завершены принудительно: пользователи потеряют несохранённые данные,
+            незавершённые документы и не успеют закрыть программы. Действие фиксируется в журнале.</p>
+        </div>
+      </div>
+
+      <label class="check-label ack"><input type="checkbox" id="kick-ack"> Я понимаю последствия и подтверждаю отключение</label>
+
+      <div class="modal-footer">
+        <button type="button" class="button" data-close>Отмена</button>
+        <button type="submit" class="button danger" id="kick-submit" disabled><i data-lucide="user-x"></i>Отключить всех</button>
+      </div>
+    </form>
+  </dialog>
+
   <script>
     document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });
     document.addEventListener('click', function (e) {
@@ -331,6 +356,16 @@
           f.querySelector('[name=username]').value = openBtn.dataset.login;
           f.querySelector('[name=full_name]').value = openBtn.dataset.name;
           f.querySelector('[name=organization]').value = openBtn.dataset.org;
+        }
+        if (openBtn.dataset.open === 'dlg-kick') {
+          const f = document.getElementById('kick-form');
+          f.action = '/admin/bases/' + openBtn.dataset.id + '/kick';
+          document.getElementById('kick-base').textContent = openBtn.dataset.slug;
+          const ack = document.getElementById('kick-ack');
+          const submit = document.getElementById('kick-submit');
+          ack.checked = false;
+          submit.disabled = true;
+          ack.onchange = function () { submit.disabled = !ack.checked; };
         }
         if (openBtn.dataset.open === 'dlg-base-edit') {
           const f = document.getElementById('base-form');

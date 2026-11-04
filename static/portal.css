@@ -105,6 +105,18 @@
 .stats-kpi .metric-value{font-size:24px}
 .refresh-note{white-space:nowrap;align-self:center}
 
+/* ===== подтверждение опасного действия ===== */
+.danger-modal{width:min(560px,calc(100% - 28px))}
+.warn-box{display:flex;gap:12px;margin:18px 0;padding:14px 16px;border:1px solid #fb829740;
+          border-left:3px solid var(--red);border-radius:0 10px 10px 0;background:#fb82970f}
+.warn-box svg{color:var(--red);width:20px;height:20px;flex:0 0 auto;margin-top:2px}
+.warn-box p{margin:0 0 6px;font-size:calc(11.5px*var(--fs));line-height:1.6}
+.warn-box p:last-child{margin-bottom:0}
+.warn-box strong{color:var(--text)}
+.check-label.ack{margin:6px 0 2px;font-size:calc(11.5px*var(--fs));color:var(--text);align-items:flex-start;gap:9px}
+.check-label.ack input{margin-top:2px}
+.button.danger:disabled{opacity:.45;cursor:not-allowed}
+
 /* ===== масштаб текста +20% ===== */
 :root{--fs:1.2}
 body{font-size:calc(13px*var(--fs))}
