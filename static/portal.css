@@ -103,6 +103,7 @@
 /* ===== статистика ===== */
 .stats-kpi .metric{height:auto;min-height:118px}
 .stats-kpi .metric-value{font-size:24px}
+.refresh-note{white-space:nowrap;align-self:center}
 
 /* ===== масштаб текста +20% ===== */
 :root{--fs:1.2}

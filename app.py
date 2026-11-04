@@ -1,4 +1,4 @@
-"""Портал доступа к базам 1С: клиентский вход + админка."""
+﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -21,7 +21,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '1.1')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '1.2')
 
 app = Flask(__name__)
 _secret_file = os.path.join(BASE_DIR, '.secret_key')
@@ -337,14 +337,34 @@ def open_base(slug):
 
 # ---------------- админка ----------------
 
+def _session_counts(slugs):
+    """Сколько активных сеансов 1С у каждой базы (через rac)."""
+    if not slugs:
+        return {}
+    try:
+        proc = subprocess.run(
+            ['sudo', '-n', '/usr/local/bin/1c-sessions-count'] + list(slugs),
+            capture_output=True, text=True, timeout=40)
+        counts = {}
+        for line in (proc.stdout or '').splitlines():
+            parts = line.split()
+            if len(parts) == 2 and parts[1].isdigit():
+                counts[parts[0]] = int(parts[1])
+        return counts
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 @app.route('/admin')
 @admin_required
 def admin():
     users = db().execute("SELECT * FROM users ORDER BY role, full_name").fetchall()
     bases = db().execute("SELECT * FROM bases ORDER BY sort_order, title").fetchall()
     links = {(r['user_id'], r['base_id']) for r in db().execute("SELECT * FROM access")}
-    return render_template('admin.html', users=users, bases=bases, links=links,
-                           tab=request.args.get('tab', 'users'))
+    tab = request.args.get('tab', 'users')
+    counts = _session_counts([b['slug'] for b in bases]) if tab == 'bases' else {}
+    return render_template('admin.html', users=users, bases=bases, links=links, tab=tab,
+                           sessions=counts, refreshed=time.strftime('%H:%M:%S'))
 
 
 def _pwd_ok(pwd):
@@ -559,6 +579,7 @@ def admin_stats():
         FROM visits""").fetchone()[0]
 
     return render_template('admin.html', users=[], bases=[], links=set(), tab='stats',
+                           sessions={}, refreshed='',
                            stats_users=users, stats_opens=opens, stats_bases=opens_by_base,
                            stats_events=events, stats_visits=visits,
                            stats_total=total_seconds,
