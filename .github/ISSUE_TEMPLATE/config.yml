@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Вопрос по установке и настройке
+    url: https://github.com/DgekStr/1CSmallControl/blob/main/CONTRIBUTING.md
+    about: Как развернуть портал, опубликовать базы и участвовать в проекте
+  - name: Уязвимость в системе защиты
+    url: https://github.com/DgekStr/1CSmallControl/security/advisories/new
+    about: Сообщите приватно — не создавайте публичный issue

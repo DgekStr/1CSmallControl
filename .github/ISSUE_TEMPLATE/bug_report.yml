@@ -1,0 +1,52 @@
+name: Сообщить об ошибке
+description: Что-то работает неправильно — расскажите, как воспроизвести
+title: "[Баг]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за отчёт! Перед созданием проверьте, нет ли уже похожего issue.
+        **Не публикуйте пароли, ключи и персональные данные.**
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Что произошло
+      description: Опишите фактическое поведение и ожидаемое
+      placeholder: Открываю раздел «Базы» — страница не загружается, в журнале ошибка...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: |
+        1. Войти как admin
+        2. Открыть «Базы»
+        3. Нажать «Отключить пользователей»
+    validations:
+      required: true
+  - type: input
+    id: portal-version
+    attributes:
+      label: Версия портала
+      description: Видна в шапке и подвале
+      placeholder: v1.3
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Окружение
+      description: ОС, версия 1С, браузер
+      placeholder: Ubuntu 24.04, 1С 8.3.27.2342, Yandex Browser
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Журнал и скриншоты
+      description: Вывод `journalctl -u 1c-portal -n 100`, скриншот, текст ошибки
+      render: shell
+    validations:
+      required: false

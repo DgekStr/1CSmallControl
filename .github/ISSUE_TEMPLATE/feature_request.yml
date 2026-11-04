@@ -1,0 +1,44 @@
+name: Предложить улучшение
+description: Идея новой возможности или улучшения интерфейса
+title: "[Идея]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Опишите задачу, которую нужно решить, — это важнее конкретной реализации.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую задачу решаем
+      description: Что сейчас неудобно или чего не хватает
+      placeholder: Клиенту нужно самому блокировать регламентные задания перед обновлением...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Предлагаемое решение
+      description: Как вы это видите в интерфейсе или API
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Альтернативы
+      description: Что ещё рассматривали
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Раздел
+      options:
+        - Кабинет клиента
+        - Админка
+        - Статистика
+        - Публикации 1С / шлюз доступа
+        - Развёртывание и обслуживание
+        - Документация
+    validations:
+      required: true

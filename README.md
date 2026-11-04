@@ -1,4 +1,4 @@
-﻿# 1C Small Control
+# 1C Small Control
 
 **Версия 1.3** · [страница проекта](docs/index.html)
 
@@ -184,3 +184,10 @@ sudo IC_HOST=1c.example.ru ./1c-prepare-base.sh buh2026
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE).
+
+## Участие и поддержка
+
+- [Правила участия](CONTRIBUTING.md) — как сообщить об ошибке, предложить идею и прислать изменения
+- [Кодекс поведения](CODE_OF_CONDUCT.md) — нормы общения в проекте
+- [Политика безопасности](SECURITY.md) — как приватно сообщить об уязвимости
+- [История изменений](CHANGELOG.md) · [Лицензия MIT](LICENSE)
