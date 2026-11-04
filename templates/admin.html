@@ -104,6 +104,7 @@
               </td>
               <td>
                 <div class="row-actions">
+                  <a class="icon-button" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener" title="Открыть базу в новом окне" aria-label="Открыть базу"><i data-lucide="external-link"></i></a>
                   <button class="icon-button" title="Отключить всех пользователей от базы" aria-label="Отключить пользователей" data-open="dlg-kick" data-id="{{ b.id }}" data-slug="{{ b.slug }}"><i data-lucide="user-x"></i></button>
                   <button class="icon-button" title="Изменить" data-open="dlg-base-edit" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-title="{{ b.title }}" data-org="{{ b.organization or '' }}" data-description="{{ b.description }}" data-url="{{ b.url_path }}"><i data-lucide="pencil"></i></button>
                   <form method="post" action="{{ url_for('base_update', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Показать/скрыть" aria-label="Показать или скрыть"><i data-lucide="eye"></i></button></form>

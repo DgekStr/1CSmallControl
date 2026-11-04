@@ -1,4 +1,4 @@
-"""Портал доступа к базам 1С: клиентский вход + админка."""
+﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -24,7 +24,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '1.2')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '1.3')
 
 app = Flask(__name__)
 _secret_file = os.path.join(BASE_DIR, '.secret_key')
