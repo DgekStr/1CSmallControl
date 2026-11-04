@@ -59,7 +59,7 @@
       <li>Конфигуратор есть только в <strong>толстом клиенте</strong> 1С:Предприятие 8.3 — в браузере и в тонком клиенте его нет.</li>
       <li>Установите 1С на компьютер (или откройте уже установленную) и запустите ярлык «1С:Предприятие».</li>
       <li>В окне запуска нажмите <strong>«Добавить»</strong> → «Добавление в список существующей информационной базы».</li>
-      <li>Выберите <strong>«На сервере 1С:Предприятия»</strong>: сервер — <code>1c.dgek.ru</code>, имя базы — <span class="help-placeholder">&lt;введите имя Вашей базы&gt;</span>.</li>
+      <li>Выберите <strong>«На сервере 1С:Предприятия»</strong>: сервер — <code>{{ ic_host }}</code>, имя базы — <span class="help-placeholder">&lt;введите имя Вашей базы&gt;</span>.</li>
       <li>Выделите базу в списке и нажмите кнопку <strong>«Конфигуратор»</strong> (или Shift + двойной клик по базе).</li>
       <li>Войдите под пользователем с правами администратора базы.</li>
     </ol>
@@ -78,8 +78,8 @@
       <div class="help-cta-icon"><i data-lucide="headset"></i></div>
       <div>
         <p class="help-cta-title">Нужна помощь с платформой?</p>
-        <p class="help-cta-text">Администраторы <strong>dgek.ru</strong> при необходимости обновят технологическую платформу 1С за вас — без вашего участия и простоя.</p>
-        <p class="help-cta-text muted">По вопросам стоимости обслуживания — <a href="https://dgek.ru/contacts.html" target="_blank" rel="noopener">dgek.ru/contacts.html</a></p>
+        <p class="help-cta-text">Администраторы <strong>{{ support_name }}</strong> при необходимости обновят технологическую платформу 1С за вас — без вашего участия и простоя.</p>
+        <p class="help-cta-text muted">По вопросам стоимости обслуживания — <a href="{{ support_url }}" target="_blank" rel="noopener">{{ support_url | replace('https://', '') }}</a></p>
       </div>
     </div>
 

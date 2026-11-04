@@ -13,6 +13,12 @@ from werkzeug.security import check_password_hash, generate_password_hash
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get('PORTAL_DB', os.path.join(BASE_DIR, 'portal.db'))
 
+# Имя сервера 1С, которое показывается клиентам в инструкции по Конфигуратору.
+IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
+# Контакты сопровождения (блок «Нужна помощь с платформой?»).
+SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
+SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
+
 app = Flask(__name__)
 _secret_file = os.path.join(BASE_DIR, '.secret_key')
 if os.path.exists(_secret_file):
@@ -134,6 +140,9 @@ def csrf_token():
 
 
 app.jinja_env.globals['csrf_token'] = csrf_token
+app.jinja_env.globals['ic_host'] = IC_HOST
+app.jinja_env.globals['support_url'] = SUPPORT_URL
+app.jinja_env.globals['support_name'] = SUPPORT_NAME
 
 
 def check_csrf():

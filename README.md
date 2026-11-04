@@ -119,6 +119,9 @@ curl -I http://127.0.0.1:8080/login
 | `PORTAL_SECRET_KEY_FILE` | файл с секретом сессий | `.secret_key` рядом с `app.py` |
 | `PORTAL_ADMIN_PASSWORD` | пароль администратора при первой инициализации | генерируется и печатается в лог |
 | `PORTAL_SEED_DEMO` | `1` — создать демо-клиентов и демо-базу | выключено |
+| `PORTAL_IC_HOST` | сервер 1С в инструкции по Конфигуратору | `1c.example.ru` |
+| `PORTAL_SUPPORT_NAME` | название в блоке «Нужна помощь с платформой?» | `example.ru` |
+| `PORTAL_SUPPORT_URL` | ссылка на контакты сопровождения | `https://example.ru/contacts.html` |
 
 ### Публикация баз 1С
 
