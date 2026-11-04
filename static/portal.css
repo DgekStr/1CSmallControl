@@ -100,6 +100,27 @@
             color:var(--text);background:var(--input);border:1px solid var(--border);border-radius:4px}
 .col-filter::placeholder{color:var(--muted);opacity:.7}
 
+/* ===== карточки сервера в статистике ===== */
+.srv-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.srv-card{position:relative;border:1px solid var(--border);border-radius:12px;padding:16px 18px 16px;
+          background:linear-gradient(155deg,var(--surface),var(--bg));min-height:158px;overflow:hidden}
+.srv-ico{position:absolute;top:15px;right:16px;width:16px;height:16px;color:var(--muted)}
+.srv-title{font-size:calc(11px*var(--fs));color:var(--muted);padding-right:24px}
+.srv-value{font-size:calc(24px*var(--fs));font-weight:800;line-height:1.12;margin-top:12px;letter-spacing:-.01em}
+.srv-value small{font-size:calc(12px*var(--fs));font-weight:600;color:var(--muted)}
+.srv-caption{margin-top:9px;font-size:calc(10px*var(--fs));color:var(--muted)}
+.srv-net{display:flex;flex-direction:column;gap:7px;margin-top:12px;position:relative;z-index:2}
+.srv-net div{display:flex;align-items:center;gap:8px;font-size:calc(17px*var(--fs));font-weight:750}
+.srv-net svg{width:15px;height:15px;color:var(--muted)}
+.srv-net small{font-size:calc(10px*var(--fs));font-weight:500;color:var(--muted);margin-left:2px}
+.srv-bar{height:4px;background:#ffffff14;border-radius:3px;overflow:hidden;margin-top:7px}
+.srv-bar>span{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--violet),var(--cyan))}
+.srv-disk{display:flex;justify-content:space-between;gap:10px;font-size:calc(10.5px*var(--fs));margin-top:10px;color:var(--text)}
+.srv-disk span:last-child{color:var(--muted);white-space:nowrap}
+.srv-spark{position:absolute;left:0;right:0;bottom:0;width:100%;height:46px;opacity:.75;pointer-events:none}
+@media(max-width:1100px){.srv-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.srv-grid{grid-template-columns:1fr}}
+
 /* ===== статистика ===== */
 .stats-kpi .metric{height:auto;min-height:118px}
 .stats-kpi .metric-value{font-size:24px}

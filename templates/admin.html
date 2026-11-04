@@ -146,6 +146,54 @@
         </div>
       </div>
 
+      <div class="srv-grid">
+        <div class="srv-card">
+          <i data-lucide="cpu" class="srv-ico"></i>
+          <div class="srv-title">Нагрузка CPU</div>
+          <div class="srv-value">{{ srv.cpu }}<small> %</small></div>
+          <div class="srv-caption">{{ srv.cores }} ядер всего · загрузка сейчас</div>
+          {% if srv.spark_cpu %}
+          <svg class="srv-spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+            <polyline fill="none" stroke="var(--violet)" stroke-width="1.2" vector-effect="non-scaling-stroke"
+              points="{% set n = srv.spark_cpu|length %}{% for v in srv.spark_cpu %}{{ (loop.index0 * (100 / (n - 1) if n > 1 else 100))|round(1) }},{{ (40 - (v|float * 0.38))|round(1) }} {% endfor %}"/>
+          </svg>
+          {% endif %}
+        </div>
+
+        <div class="srv-card">
+          <i data-lucide="memory-stick" class="srv-ico"></i>
+          <div class="srv-title">Память</div>
+          <div class="srv-value">{{ human_bytes(srv.ram_used) }}<small> / {{ human_bytes(srv.ram_total) }}</small></div>
+          <div class="srv-caption">использовано / всего</div>
+          <div class="srv-bar"><span style="width: {{ ((srv.ram_used / srv.ram_total * 100) if srv.ram_total else 0)|round(1) }}%"></span></div>
+        </div>
+
+        <div class="srv-card">
+          <i data-lucide="arrow-left-right" class="srv-ico"></i>
+          <div class="srv-title">Сеть</div>
+          <div class="srv-net">
+            <div><i data-lucide="arrow-down"></i>{{ human_bytes(srv.net_rx) }}<small>принято</small></div>
+            <div><i data-lucide="arrow-up"></i>{{ human_bytes(srv.net_tx) }}<small>отдано</small></div>
+          </div>
+          {% if srv.spark_net %}
+          <svg class="srv-spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+            <polyline fill="none" stroke="var(--cyan)" stroke-width="1.2" vector-effect="non-scaling-stroke"
+              points="{% set m = srv.spark_net|max %}{% set k = srv.spark_net|length %}{% for v in srv.spark_net %}{{ (loop.index0 * (100 / (k - 1) if k > 1 else 100))|round(1) }},{{ (40 - ((v / (m if m > 0 else 1)) * 36))|round(1) }} {% endfor %}"/>
+          </svg>
+          {% endif %}
+        </div>
+
+        <div class="srv-card">
+          <i data-lucide="hard-drive" class="srv-ico"></i>
+          <div class="srv-title">Диски</div>
+          {% for d in srv.disks %}
+          <div class="srv-disk"><span class="mono">{{ d.mount }}</span><span>{{ human_bytes(d.used) }} / {{ human_bytes(d.total) }}</span></div>
+          <div class="srv-bar"><span style="width: {{ ((d.used / d.total * 100) if d.total else 0)|round(1) }}%"></span></div>
+          {% endfor %}
+          {% if not srv.disks %}<div class="srv-caption">нет данных</div>{% endif %}
+        </div>
+      </div>
+
       <div class="metrics-grid stats-kpi">
         <div class="metric">
           <div class="metric-label">Сеансов всего</div>

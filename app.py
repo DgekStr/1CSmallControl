@@ -6,6 +6,8 @@ import sqlite3
 import secrets
 import subprocess
 import time
+
+import metrics
 from functools import wraps
 
 from flask import (Flask, g, redirect, render_template, request, session,
@@ -89,6 +91,13 @@ CREATE TABLE IF NOT EXISTS client_sessions (
     started_at TEXT NOT NULL DEFAULT '',
     first_seen TEXT NOT NULL DEFAULT (datetime('now')),
     last_seen TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL DEFAULT (datetime('now')),
+    cpu REAL NOT NULL DEFAULT 0,
+    rx INTEGER NOT NULL DEFAULT 0,
+    tx INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -573,6 +582,7 @@ def _client_label(app):
 
 
 app.jinja_env.globals['client_label'] = _client_label
+app.jinja_env.globals['human_bytes'] = metrics.human_bytes
 
 
 @app.route('/admin/stats')
@@ -595,6 +605,22 @@ def admin_stats():
     client_history = db().execute("""
         SELECT username, app, host, started_at, first_seen, last_seen
         FROM client_sessions ORDER BY last_seen DESC LIMIT 200""").fetchall()
+
+    srv = metrics.collect()
+    try:
+        db().execute("INSERT INTO metrics(cpu, rx, tx) VALUES(?,?,?)",
+                     (srv['cpu'], srv['net_rx'], srv['net_tx']))
+        db().commit()
+    except Exception:  # noqa: BLE001
+        pass
+    history = db().execute("SELECT cpu, rx, tx FROM metrics ORDER BY id DESC LIMIT 60").fetchall()[::-1]
+    srv['spark_cpu'] = [r['cpu'] for r in history]
+    srv['spark_net'] = []
+    prev = None
+    for r in history:
+        if prev:
+            srv['spark_net'].append(max(0, (r['rx'] + r['tx']) - (prev['rx'] + prev['tx'])) / 1024.0 / 1024.0)
+        prev = r
 
     opens = {}
     for r in db().execute("""
@@ -622,7 +648,7 @@ def admin_stats():
                            stats_users=users, stats_opens=opens, stats_bases=opens_by_base,
                            stats_events=events, stats_visits=visits,
                            stats_total=total_seconds,
-                           stats_live=live_sessions, stats_clients=client_history,
+                           stats_live=live_sessions, stats_clients=client_history, srv=srv,
                            stats_visits_count=len(visits))
 
 
