@@ -238,7 +238,9 @@ def web_gate(slug, rest=''):
         conn.request(request.method, path, body=body, headers=headers)
         resp = conn.getresponse()
         data = resp.read()
-        out = Response(data, status=resp.status)
+        # content_type=None — чтобы не подмешивать Content-Type Flask'а к ответу 1С
+        out = Response(data, status=resp.status, content_type=None)
+        out.headers.pop('Content-Type', None)
         for key, value in resp.getheaders():
             if key.lower() not in HOP_BY_HOP and key.lower() != 'content-length':
                 out.headers.add(key, value)
