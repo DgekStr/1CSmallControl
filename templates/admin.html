@@ -262,8 +262,8 @@
               <td class="mono">{{ s.user }}</td>
               <td><span class="badge {{ 'success' if s.app == 'WebClient' else 'warning' if s.app == 'Designer' else 'neutral' }}">{{ client_label(s.app) }}</span></td>
               <td class="mono muted">{{ s.host }}</td>
-              <td class="muted">{{ s.started }}</td>
-              <td class="muted">{{ s.last }}</td>
+              <td class="muted">{{ dt(s.started) }}</td>
+              <td class="muted">{{ dt(s.last) }}</td>
             </tr>
           {% else %}
             <tr><td colspan="5" class="muted">Активных подключений нет</td></tr>
@@ -282,8 +282,8 @@
               <td class="mono">{{ c.username }}</td>
               <td><span class="badge {{ 'success' if c.app == 'WebClient' else 'warning' if c.app == 'Designer' else 'neutral' }}">{{ client_label(c.app) }}</span></td>
               <td class="mono muted">{{ c.host }}</td>
-              <td class="muted">{{ c.started_at }}</td>
-              <td class="muted">{{ c.last_seen }}</td>
+              <td class="muted">{{ dt(c.started_at) }}</td>
+              <td class="muted">{{ dt(c.last_seen) }}</td>
             </tr>
           {% else %}
             <tr><td colspan="5" class="muted">Подключений пока не зафиксировано</td></tr>

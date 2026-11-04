@@ -1,4 +1,4 @@
-﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
+"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS users (
     pass_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'client',
     is_active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE TABLE IF NOT EXISTS bases (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS access (
 );
 CREATE TABLE IF NOT EXISTS audit (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts TEXT NOT NULL DEFAULT (datetime('now')),
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     actor TEXT NOT NULL,
     action TEXT NOT NULL,
     details TEXT NOT NULL DEFAULT ''
@@ -78,8 +78,8 @@ CREATE TABLE IF NOT EXISTS audit (
 CREATE TABLE IF NOT EXISTS visits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
-    started_at TEXT NOT NULL DEFAULT (datetime('now')),
-    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+    started_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    last_seen TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     ended_at TEXT,
     ip TEXT NOT NULL DEFAULT '',
     ua TEXT NOT NULL DEFAULT ''
@@ -90,12 +90,12 @@ CREATE TABLE IF NOT EXISTS client_sessions (
     app TEXT NOT NULL DEFAULT '',
     host TEXT NOT NULL DEFAULT '',
     started_at TEXT NOT NULL DEFAULT '',
-    first_seen TEXT NOT NULL DEFAULT (datetime('now')),
-    last_seen TEXT NOT NULL DEFAULT (datetime('now'))
+    first_seen TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    last_seen TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE TABLE IF NOT EXISTS metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts TEXT NOT NULL DEFAULT (datetime('now')),
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     cpu REAL NOT NULL DEFAULT 0,
     rx INTEGER NOT NULL DEFAULT 0,
     tx INTEGER NOT NULL DEFAULT 0
@@ -142,6 +142,24 @@ def init_db():
         conn.execute("DELETE FROM metrics WHERE id NOT IN (SELECT id FROM metrics ORDER BY id DESC LIMIT 500)")
     except sqlite3.OperationalError:
         pass
+    conn.execute("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY)")
+    if not conn.execute("SELECT 1 FROM migrations WHERE name = 'localtime_v1'").fetchone():
+        for sql in (
+            "UPDATE visits SET started_at = datetime(started_at, '+3 hours'), "
+            "last_seen = datetime(last_seen, '+3 hours'), ended_at = datetime(ended_at, '+3 hours') "
+            "WHERE ended_at IS NOT NULL",
+            "UPDATE visits SET started_at = datetime(started_at, '+3 hours'), "
+            "last_seen = datetime(last_seen, '+3 hours') WHERE ended_at IS NULL",
+            "UPDATE audit SET ts = datetime(ts, '+3 hours')",
+            "UPDATE metrics SET ts = datetime(ts, '+3 hours')",
+            "UPDATE client_sessions SET first_seen = datetime(first_seen, '+3 hours'), "
+            "last_seen = datetime(last_seen, '+3 hours')",
+        ):
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass
+        conn.execute("INSERT INTO migrations(name) VALUES('localtime_v1')")
     conn.commit()
     cur = conn.execute("SELECT COUNT(*) FROM users")
     if cur.fetchone()[0] == 0:
@@ -199,7 +217,7 @@ def _touch_visit():
         return
     session['seen'] = now
     try:
-        db().execute("UPDATE visits SET last_seen = datetime('now') WHERE id = ? AND ended_at IS NULL",
+        db().execute("UPDATE visits SET last_seen = datetime('now','localtime') WHERE id = ? AND ended_at IS NULL",
                      (vid,))
         db().commit()
     except Exception:
@@ -363,7 +381,7 @@ def login():
 def logout():
     audit('logout', session.get('user', ''))
     if session.get('visit'):
-        db().execute("UPDATE visits SET ended_at = datetime('now') WHERE id = ? AND ended_at IS NULL",
+        db().execute("UPDATE visits SET ended_at = datetime('now','localtime') WHERE id = ? AND ended_at IS NULL",
                      (session['visit'],))
         db().commit()
     session.clear()
@@ -699,6 +717,13 @@ def _client_label(app):
 
 app.jinja_env.globals['client_label'] = _client_label
 app.jinja_env.globals['human_bytes'] = metrics.human_bytes
+def _fmt_dt(value):
+    """2026-11-04T22:49:38 -> 2026-11-04 22:49:38"""
+    text = (value or '').replace('T', ' ')
+    return text[:19]
+
+
+app.jinja_env.globals['dt'] = _fmt_dt
 
 
 @app.route('/admin/stats')
@@ -715,7 +740,7 @@ def admin_stats():
                (SELECT ip FROM visits v2 WHERE v2.username = v.username ORDER BY v2.id DESC LIMIT 1) AS last_ip
         FROM visits v
         GROUP BY v.username
-        ORDER BY seconds DESC""").fetchall()
+        ORDER BY last_seen DESC""").fetchall()
 
     live_sessions = _cached('live', 30, _sessions_snapshot)
     client_history = db().execute("""
@@ -787,14 +812,15 @@ def _sessions_snapshot():
         for r in rows:
             db().execute("""
                 INSERT INTO client_sessions(sid, username, app, host, started_at, last_seen)
-                VALUES(?,?,?,?,?,datetime('now'))
+                VALUES(?,?,?,?,?,datetime('now','localtime'))
                 ON CONFLICT(sid) DO UPDATE SET
                     username = excluded.username, app = excluded.app, host = excluded.host,
-                    started_at = excluded.started_at, last_seen = datetime('now')""",
-                         (r['sid'], r['user'], r['app'], r['host'], r['started']))
+                    started_at = excluded.started_at, last_seen = datetime('now','localtime')""",
+                         (r['sid'], r['user'], r['app'], r['host'], (r['started'] or '').replace('T', ' ')[:19]))
         db().commit()
     except Exception:  # noqa: BLE001
         pass
+    rows.sort(key=lambda x: (x.get('started') or ''), reverse=True)
     return rows
 
 
