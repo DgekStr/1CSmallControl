@@ -12,7 +12,7 @@
 <body>
   <div class="app-shell portal-shell">
     <header class="topbar">
-      <div class="brand topbar-brand"><img src="{{ url_for('static', filename='brand.png') }}" alt=""><span>Портал<span class="brand-sub">1С</span></span></div>
+      <div class="brand topbar-brand"><img class="brand-mark" src="{{ url_for('static', filename='brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ url_for('static', filename='logo1c.png') }}" alt="1С"></span></div>
       <div class="topbar-right">
         <span class="account-name">{{ session.name }}</span>
         <span class="avatar">{{ (session.name or 'U')[0]|upper }}</span>
@@ -47,7 +47,11 @@
       {% else %}
       <div class="empty-state"><i data-lucide="database-zap"></i><strong>Нет доступных баз</strong>Обратитесь к администратору портала.</div>
       {% endif %}
-      <footer class="app-footer"><span>Портал 1С</span><span class="muted">DGEK.RU · сессия до 8 часов</span></footer>
+      <footer class="app-footer">
+        <span>Портал 1С</span>
+        <span class="muted">1С.DGEK.RU · сессия до 8 часов</span>
+      </footer>
+      <div class="credits">проект подготовлен при участии <a href="https://focuslens.dev" target="_blank" rel="noopener">focuslens.dev</a></div>
     </main>
   </div>
 
