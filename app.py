@@ -4,6 +4,7 @@ import os
 import re
 import sqlite3
 import secrets
+import subprocess
 import time
 from functools import wraps
 
@@ -472,6 +473,24 @@ def base_update(bid):
         db().commit()
         audit('base_edit', row['slug'])
         flash(f'База «{row["slug"]}» обновлена')
+    return redirect(url_for('admin', tab='bases'))
+
+
+@app.route('/admin/bases/<int:bid>/kick', methods=['POST'])
+@admin_required
+def base_kick(bid):
+    check_csrf()
+    row = db().execute("SELECT * FROM bases WHERE id = ?", (bid,)).fetchone()
+    if not row:
+        abort(404)
+    try:
+        proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-kick-sessions', row['slug']],
+                              capture_output=True, text=True, timeout=120)
+        out = (proc.stdout or proc.stderr or '').strip().splitlines()
+        flash(out[-1] if out else ('Код возврата: %s' % proc.returncode))
+    except Exception as exc:  # noqa: BLE001
+        flash('Не удалось отключить сеансы: %s' % exc)
+    audit('base_kick', row['slug'])
     return redirect(url_for('admin', tab='bases'))
 
 
