@@ -1,0 +1,3 @@
+www-data ALL=(root) NOPASSWD: /usr/local/bin/1c-import-base
+www-data ALL=(root) NOPASSWD: /usr/local/bin/1c-db-size
+www-data ALL=(root) NOPASSWD: /usr/local/bin/1c-prepare-base

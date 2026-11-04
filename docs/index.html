@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1C Small Control — портал доступа к базам 1С</title>
+<style>
+  :root{
+    --bg:#080b14; --surface:#10182a; --surface-2:#151f36; --border:#243049;
+    --text:#eef1fa; --muted:#9aa7c7; --violet:#8b5cf6; --cyan:#22d3ee; --green:#34d399;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:16px/1.65 "Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  header{padding:56px 0 34px;border-bottom:1px solid var(--border);
+         background:radial-gradient(1000px 380px at 15% -20%,#1d2a52 0%,transparent 70%)}
+  .eyebrow{font-size:12px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase;margin-bottom:10px}
+  h1{font-size:44px;line-height:1.15;margin:0 0 14px;font-weight:800;letter-spacing:-.02em}
+  .lead{font-size:19px;color:var(--muted);max-width:820px;margin:0}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+  .badge{border:1px solid var(--border);background:var(--surface);border-radius:999px;
+         padding:6px 14px;font-size:13px;color:var(--muted)}
+  .badge b{color:var(--text);font-weight:600}
+  section{padding:44px 0;border-bottom:1px solid var(--border)}
+  h2{font-size:27px;margin:0 0 6px;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:15px}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .card{background:linear-gradient(150deg,var(--surface),#0c1322);border:1px solid var(--border);
+        border-radius:14px;padding:20px}
+  .card h3{margin:0 0 10px;font-size:17px}
+  .card ul{margin:0;padding-left:18px;color:var(--muted);font-size:15px}
+  .card li{margin-bottom:6px}
+  .shots{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+  figure{margin:0;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  figure img{display:block;width:100%;height:auto;border-bottom:1px solid var(--border)}
+  figcaption{padding:10px 14px;font-size:13px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+  code{background:#ffffff10;border:1px solid var(--border);border-radius:6px;padding:2px 7px;
+       font:14px/1.4 Consolas,monospace;color:#a5f3d0}
+  pre{background:#0b1120;border:1px solid var(--border);border-radius:12px;padding:16px 18px;overflow:auto}
+  pre code{background:none;border:0;padding:0;color:#d6e2ff}
+  .tl{list-style:none;margin:0;padding:0}
+  .tl li{position:relative;padding:0 0 22px 30px;border-left:2px solid var(--border);margin-left:8px}
+  .tl li:last-child{border-left-color:transparent;padding-bottom:0}
+  .tl li::before{content:"";position:absolute;left:-7px;top:4px;width:12px;height:12px;
+                 border-radius:50%;background:var(--violet);box-shadow:0 0 0 3px #8b5cf622}
+  .tl .date{font-size:13px;color:var(--cyan);letter-spacing:.04em}
+  .tl .what{margin-top:2px}
+  .note{border-left:3px solid var(--violet);background:#8b5cf60f;border-radius:0 12px 12px 0;
+        padding:14px 18px;color:var(--muted);font-size:15px}
+  footer{padding:34px 0 56px;color:var(--muted);font-size:14px}
+  @media (max-width:640px){h1{font-size:32px}.lead{font-size:17px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Проект · веб-портал 1С</div>
+    <h1>1C Small Control</h1>
+    <p class="lead">Единая точка входа в базы 1С: клиент видит только свои базы и открывает их одним нажатием,
+      администратор управляет клиентами, базами и доступами из одной панели.</p>
+    <div class="badges">
+      <span class="badge"><b>Python</b> · Flask</span>
+      <span class="badge"><b>SQLite</b></span>
+      <span class="badge"><b>gunicorn</b> + Apache</span>
+      <span class="badge"><b>HTML/CSS/JS</b> без сборки</span>
+      <span class="badge">самостоятельный хостинг</span>
+      <span class="badge">без внешних CDN</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Что делает портал</h2>
+    <p class="sub">Тонкая прослойка между пользователем и кластером 1С — без дублирования учёта и без доступа к данным.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Для клиента</h3>
+        <ul>
+          <li>вход по логину и паролю портала</li>
+          <li>список только выданных баз</li>
+          <li>переход в веб-клиент 1С</li>
+          <li>инструкция по Конфигуратору и обновлению</li>
+          <li>адаптивная вёрстка</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Для администратора</h3>
+        <ul>
+          <li>клиенты: ФИО, организация, пароль, блокировка</li>
+          <li>базы: название, организация, адрес публикации</li>
+          <li>матрица доступов «клиент × база»</li>
+          <li>журнал действий</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Безопасность</h3>
+        <ul>
+          <li>PBKDF2 для паролей</li>
+          <li>CSRF-токен во всех формах</li>
+          <li>сессия 8 часов, подписанная cookie</li>
+          <li>роли на уровне маршрутов</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Интерфейс</h2>
+    <p class="sub">Скриншоты с рабочего стенда.</p>
+    <div class="shots">
+      <figure><img src="screenshots/01-login.png" alt="Страница входа"><figcaption>Вход в портал</figcaption></figure>
+      <figure><img src="screenshots/02-client-portal.png" alt="Кабинет клиента"><figcaption>Кабинет клиента: свои базы</figcaption></figure>
+      <figure><img src="screenshots/04-admin-clients.png" alt="Клиенты"><figcaption>Админка: клиенты и организации</figcaption></figure>
+      <figure><img src="screenshots/05-admin-bases.png" alt="Базы"><figcaption>Админка: базы и публикации</figcaption></figure>
+      <figure><img src="screenshots/06-admin-access.png" alt="Доступы"><figcaption>Матрица доступов</figcaption></figure>
+      <figure><img src="screenshots/07-client-configurator-help.png" alt="Инструкция по Конфигуратору"><figcaption>Инструкция: Конфигуратор и обновление</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Языки и технологии</h2>
+    <p class="sub">Всё, что используется в реализации.</p>
+    <table>
+      <tr><th>Слой</th><th>Технологии</th></tr>
+      <tr><td>Бэкенд</td><td>Python 3.12, Flask 3, Jinja2, werkzeug.security</td></tr>
+      <tr><td>Хранение</td><td>SQLite (WAL), таблицы <code>users</code>, <code>bases</code>, <code>access</code>, <code>audit</code></td></tr>
+      <tr><td>Отдача</td><td>gunicorn (WSGI), Apache 2.4 + mod_proxy, модуль 1CWS для публикаций</td></tr>
+      <tr><td>Фронтенд</td><td>HTML5, CSS3 (Grid/Flex, custom properties), JavaScript ES2017 без фреймворков</td></tr>
+      <tr><td>Оформление</td><td>Lucide (SVG-иконки), Manrope (woff2) — локально, без CDN</td></tr>
+      <tr><td>Эксплуатация</td><td>systemd, bash, dpkg/apt, webinst (1С), PostgreSQL для самих баз 1С</td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Вехи проекта</h2>
+    <p class="sub">Что сделано на сегодняшний день.</p>
+    <ul class="tl">
+      <li><div class="date">2026-02</div><div class="what">Серверная часть: Ubuntu 24.04, PostgreSQL Pro 1C 16, кластер 1С 8.3, публикации в Apache.</div></li>
+      <li><div class="date">2026-11-04</div><div class="what">Портал: вход, кабинет клиента, админка (клиенты, базы, доступы), журнал действий.</div></li>
+      <li><div class="date">2026-11-04</div><div class="what">Дизайн-система из SmallnGinxControl: тёмная тема, Manrope, Lucide, бренд-блок.</div></li>
+      <li><div class="date">2026-11-04</div><div class="what">Развёртывание: gunicorn + Apache, <code>1c-portal.service</code>, редиректы на <code>/WEB/&lt;база&gt;/</code>.</div></li>
+      <li><div class="date">2026-11-04</div><div class="what">Читаемость: масштаб текста и таблиц +20 %, крупные ячейки и подписи.</div></li>
+      <li><div class="date">2026-11-04</div><div class="what">Организации в карточках клиентов и баз, редактирование ФИО и организации.</div></li>
+      <li><div class="date">2026-11-04</div><div class="what">Инструкция «Конфигуратор и обновление 1С» в кабинете клиента.</div></li>
+      <li><div class="date">2026-11-04</div><div class="what">Платформа 1С на сервере обновлена до 8.3.27.2342: сервер, модуль веб-сервера, <code>ras</code>.</div></li>
+      <li><div class="date">2026-11-04</div><div class="what">Публикация проекта: README, эта страница, скриншоты, лицензия MIT.</div></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Развёртывание</h2>
+    <p class="sub">Ubuntu 22.04 / 24.04, один сервер.</p>
+    <pre><code>git clone &lt;repo&gt; 1CSmallControl
+cd 1CSmallControl
+sudo PORTAL_SERVER_NAME=portal.example.ru \
+     PORTAL_ADMIN_PASSWORD='&lt;надёжный пароль&gt;' \
+     ./deploy.sh
+
+# публикация баз 1С под /WEB/&lt;slug&gt;/
+sudo IC_HOST=1c.example.ru ./republish-web.sh dgek</code></pre>
+    <div class="note">
+      Автоматический импорт <code>.dt</code> в кластер не реализован: пакетный режим клиента 1С
+      на Linux в headless-окружении не запускается. База создаётся скриптом
+      <code>1c-prepare-base.sh</code>, данные загружаются из Конфигуратора
+      («Администрирование → Загрузить информационную базу»).
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    1C Small Control · MIT · <a href="https://github.com/DgekStr/1CSmallControl">github.com/DgekStr/1CSmallControl</a>
+  </div>
+</footer>
+</body>
+</html>

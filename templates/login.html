@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Вход | Портал 1С</title>
+  <link rel="icon" href="{{ url_for('static', filename='brand.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}?v=3">
+  <script src="{{ url_for('static', filename='vendor/lucide.js') }}" defer></script>
+</head>
+<body class="login-page">
+  <header class="login-header">
+    <a class="brand" href="/"><img src="{{ url_for('static', filename='brand.png') }}" alt=""><span>Портал<span class="brand-sub">1С</span></span></a>
+    <span class="muted small">DGEK / 1C WEB</span>
+  </header>
+  <main class="login-main">
+    <div class="login-heading">
+      <span class="eyebrow">ДОСТУП К БАЗАМ 1С</span>
+      <h1>Ваши базы — в одном окне.</h1>
+    </div>
+    <form method="post" class="login-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+      <h2>Вход в портал</h2>
+      <label>Логин<input name="username" autocomplete="username" required autofocus placeholder="логин" maxlength="32"></label>
+      <label>Пароль<span class="password-input"><input name="password" type="password" autocomplete="current-password" required placeholder="Введите пароль"><button class="icon-button" type="button" id="reveal-password" title="Показать пароль" aria-label="Показать пароль"><i data-lucide="eye"></i></button></span></label>
+      <button type="submit" class="button primary login-submit">Войти <i data-lucide="arrow-right"></i></button>
+      <div class="login-secure"><i data-lucide="shield-check"></i>Защищённая сессия портала</div>
+    </form>
+  </main>
+  <footer class="login-footer"><span>Портал 1С <span class="muted">/ v1.0</span></span><span class="muted">DGEK.RU</span></footer>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });
+    document.addEventListener('click', function (e) {
+      const b = e.target.closest('#reveal-password');
+      if (!b) return;
+      const inp = b.parentElement.querySelector('input');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    });
+  </script>
+</body>
+</html>

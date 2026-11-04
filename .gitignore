@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pylibs/
+
+# Данные и секреты
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.secret_key
+.env
+
+# Логи и временные файлы
+*.log
+*.tmp
+cookies*.txt
+*.tar.gz
+
+# Скриншоты, снятые локально (в репозитории только docs/screenshots)
+shots/
+shots*/
+
+# Node (инструмент скриншотов)
+node_modules/
+package-lock.json
+
+# ОС и редакторы
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

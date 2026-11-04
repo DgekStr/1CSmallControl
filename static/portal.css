@@ -1,0 +1,88 @@
+/* Портал 1С — надстройка над app.css */
+.portal-shell{margin-left:0}
+.topbar-brand{gap:8px}
+.topbar-brand img{width:32px;height:32px}
+.topbar-brand .brand-sub{font-size:13px;margin-top:0}
+
+.tabs{display:flex;gap:4px;margin-left:10px}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:6px;font-size:11px;font-weight:650;color:var(--muted);border:1px solid transparent}
+.tab:hover{background:var(--surface);color:var(--text)}
+.tab.active{background:#7955df16;border-color:#7955df29;color:#c2afff}
+.tab svg{width:14px;height:14px}
+
+.base-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;margin-bottom:28px}
+.base-actions{display:flex;gap:8px;align-items:stretch}
+.base-actions .base-open{flex:2 1 auto;justify-content:space-between}
+.base-actions .base-config{flex:0 0 auto;justify-content:center;gap:7px;white-space:nowrap;cursor:pointer}
+.modal-help{width:min(780px,92vw);max-height:88vh;overflow:auto;text-align:left}
+.modal-help h3.help-title{font-size:calc(13px*var(--fs));color:var(--green);margin:20px 0 8px}
+.help-list{margin:0;padding-left:22px}
+.help-list li{font-size:calc(11.5px*var(--fs));line-height:1.65;margin-bottom:8px;color:var(--text)}
+.help-list code,.modal-help code{font-family:Consolas,monospace;font-size:calc(10.5px*var(--fs));background:#ffffff12;border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:#9df0c8}
+.modal-help .modal-footer{margin-top:20px;justify-content:flex-end}
+.base-card{display:flex;flex-direction:column;gap:14px;border:1px solid var(--border);background:linear-gradient(120deg,var(--surface),var(--bg));border-radius:8px;padding:20px}
+.base-card-icon{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--cyan)}
+.base-card-body h2{font-size:15px;margin-bottom:5px}
+.base-card-body p{font-size:11px;line-height:1.6}
+.base-path{display:inline-block;margin-top:9px;font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:2px 7px}
+.base-open{justify-content:space-between;width:100%}
+
+.base-desc{display:block;font-size:9px;margin-top:2px}
+.imp-cell{min-width:190px}
+.imp-bar{height:6px;background:#ffffff14;border-radius:4px;overflow:hidden;margin-bottom:5px}
+.imp-fill{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,#7c5cff,#22d3ee);transition:width .45s ease}
+.imp-fill[data-status="running"]{background-image:linear-gradient(90deg,#7c5cff,#22d3ee,#7c5cff);background-size:200% 100%;animation:imp-move 1.6s linear infinite}
+.imp-fill[data-status="ok"]{background:#34d399}
+.imp-fill[data-status="error"]{background:#f87171}
+.imp-fill[data-status="removed"]{background:#64748b}
+.imp-text{font-size:calc(10.5px*var(--fs));white-space:nowrap}
+@keyframes imp-move{from{background-position:0 0}to{background-position:-200% 0}}
+.access-card{border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:14px;background:var(--surface)}
+.access-card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.access-card-head strong{font-size:13px}
+.access-list{display:flex;flex-wrap:wrap;gap:10px 22px;margin-bottom:16px}
+.access-list .check-label{font-size:11px}
+.modal label{font-size:11px}
+.modal label+label{margin-top:14px}
+.row-actions form{display:inline-flex}
+.row-actions a.icon-button{display:inline-flex;align-items:center;justify-content:center}
+.section-title{margin:30px 0 12px;font-size:calc(16px*var(--fs));font-weight:750;color:var(--text)}
+.operations-result{color:var(--green)}
+.operation-result:not(.success){border-color:#fb829736;color:var(--red)}
+
+/* ===== масштаб текста +20% ===== */
+:root{--fs:1.2}
+body{font-size:calc(13px*var(--fs))}
+h1{font-size:calc(29px*var(--fs))}
+h2{font-size:calc(15px*var(--fs))}
+.small,.muted.small,.page-heading p,.login-heading p{font-size:calc(11px*var(--fs))}
+.eyebrow{font-size:calc(10px*var(--fs))}
+.brand{font-size:calc(18px*var(--fs))}
+.brand-sub{font-size:calc(16px*var(--fs))}
+.button{font-size:calc(12px*var(--fs));min-height:calc(38px*var(--fs))}
+.tab{font-size:calc(13px*var(--fs))}
+.data-table th{font-size:calc(12px*var(--fs));height:auto;padding:10px 14px}
+.data-table td{font-size:calc(14px*var(--fs));padding:14px}
+.data-table td .mono{font-size:inherit}
+.badge{font-size:calc(11px*var(--fs));padding:4px 9px}
+.account-name{font-size:calc(13px*var(--fs))}
+.avatar{font-size:calc(11px*var(--fs))}
+.base-card-body h2{font-size:calc(15px*var(--fs))}
+.base-card-body p{font-size:calc(11px*var(--fs))}
+.base-path{font-size:calc(10px*var(--fs))}
+.base-desc{font-size:calc(9px*var(--fs))}
+.login-heading h1{font-size:calc(32px*var(--fs))}
+.login-form h2{font-size:calc(17px*var(--fs))}
+.login-form label,.modal label,.settings-section form label{font-size:calc(12px*var(--fs))}
+input,select,textarea{font-size:calc(13px*var(--fs))}
+.login-secure,.login-footer{font-size:calc(10px*var(--fs))}
+.app-footer{font-size:calc(9px*var(--fs))}
+.check-label,.access-list .check-label{font-size:calc(11px*var(--fs))}
+.access-card-head strong{font-size:calc(13px*var(--fs))}
+.empty-state strong{font-size:calc(14px*var(--fs))}
+.empty-state{font-size:calc(13px*var(--fs))}
+.operation-result,.form-error{font-size:calc(12px*var(--fs))}
+.mono{font-size:inherit}
+.icon-button svg{width:calc(16px*var(--fs));height:calc(16px*var(--fs))}
+.tab svg{width:calc(14px*var(--fs));height:calc(14px*var(--fs))}
+.button svg{width:calc(16px*var(--fs));height:calc(16px*var(--fs))}

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Управление | Портал 1С</title>
+  <link rel="icon" href="{{ url_for('static', filename='brand.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}?v=3">
+  <script src="{{ url_for('static', filename='vendor/lucide.js') }}" defer></script>
+</head>
+<body>
+  <div class="app-shell portal-shell">
+    <header class="topbar">
+      <div class="brand topbar-brand"><img src="{{ url_for('static', filename='brand.png') }}" alt=""><span>Портал<span class="brand-sub">1С</span></span></div>
+      <nav class="tabs">
+        <a class="tab {% if tab == 'users' %}active{% endif %}" href="{{ url_for('admin', tab='users') }}"><i data-lucide="users"></i>Клиенты</a>
+        <a class="tab {% if tab == 'bases' %}active{% endif %}" href="{{ url_for('admin', tab='bases') }}"><i data-lucide="database"></i>Базы</a>
+        <a class="tab {% if tab == 'access' %}active{% endif %}" href="{{ url_for('admin', tab='access') }}"><i data-lucide="key-round"></i>Доступы</a>
+      </nav>
+      <div class="topbar-right">
+        <span class="account-name">{{ session.name }}</span>
+        <span class="avatar">{{ (session.name or 'A')[0]|upper }}</span>
+        <form action="{{ url_for('logout') }}" method="post"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="icon-button" title="Выйти" aria-label="Выйти"><i data-lucide="log-out"></i></button></form>
+      </div>
+    </header>
+
+    <main class="main-content">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}{% for m in messages %}<div class="operation-result success">{{ m }}</div>{% endfor %}{% endif %}
+      {% endwith %}
+
+      {% if tab == 'users' %}
+      <div class="page-heading">
+        <div><div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Клиенты</h1><p class="muted">Учётные записи и пароли портала</p></div>
+        <div class="heading-actions"><button class="button primary" data-open="dlg-user"><i data-lucide="plus"></i>Добавить клиента</button></div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Логин</th><th>ФИО</th><th>Организация</th><th>Роль</th><th>Статус</th><th>Создан</th><th></th></tr></thead>
+          <tbody>
+          {% for u in users %}
+            <tr>
+              <td><span class="mono">{{ u.username }}</span></td>
+              <td>{{ u.full_name }}</td>
+              <td>{{ u.organization or '—' }}</td>
+              <td>{% if u.role == 'admin' %}<span class="badge warning">админ</span>{% else %}<span class="badge neutral">клиент</span>{% endif %}</td>
+              <td>{% if u.is_active %}<span class="badge success">активен</span>{% else %}<span class="badge error">заблокирован</span>{% endif %}</td>
+              <td class="muted">{{ u.created_at[:10] }}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="icon-button" title="Изменить ФИО и организацию" data-open="dlg-user-edit" data-id="{{ u.id }}" data-login="{{ u.username }}" data-name="{{ u.full_name }}" data-org="{{ u.organization or '' }}"><i data-lucide="pencil"></i></button>
+                  <button class="icon-button" title="Сменить пароль" data-open="dlg-pwd" data-user="{{ u.id }}" data-name="{{ u.username }}"><i data-lucide="key-round"></i></button>
+                  <form method="post" action="{{ url_for('user_update', uid=u.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Активность" aria-label="Активность"><i data-lucide="power"></i></button></form>
+                  <form method="post" action="{{ url_for('user_update', uid=u.id) }}" onsubmit="return confirm('Удалить пользователя?')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      {% if tab == 'bases' %}
+      <div class="page-heading">
+        <div><div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Базы</h1><p class="muted">Публикации 1С и их адреса</p></div>
+        <div class="heading-actions">
+          <button class="button primary" data-open="dlg-base"><i data-lucide="plus"></i>Добавить базу</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Код</th><th>Название</th><th>Организация</th><th>Адрес</th><th>Статус</th><th></th></tr></thead>
+          <tbody>
+          {% for b in bases %}
+            <tr>
+              <td><span class="mono">{{ b.slug }}</span></td>
+              <td>{{ b.title }}<span class="base-desc muted">{{ b.description }}</span></td>
+              <td>{{ b.organization or '—' }}</td>
+              <td class="mono">{{ b.url_path }}</td>
+              <td>{% if b.is_active %}<span class="badge success">опубликована</span>{% else %}<span class="badge neutral">скрыта</span>{% endif %}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="icon-button" title="Изменить" data-open="dlg-base-edit" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-title="{{ b.title }}" data-org="{{ b.organization or '' }}" data-description="{{ b.description }}" data-url="{{ b.url_path }}"><i data-lucide="pencil"></i></button>
+                  <form method="post" action="{{ url_for('base_update', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Показать/скрыть" aria-label="Показать или скрыть"><i data-lucide="eye"></i></button></form>
+                  <form method="post" action="{{ url_for('base_update', bid=b.id) }}" onsubmit="return confirm('Удалить базу и все доступы к ней?')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      {% if tab == 'access' %}
+      <div class="page-heading">
+        <div><div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Доступы</h1><p class="muted">Каким клиентам какие базы видны</p></div>
+      </div>
+      {% for u in users if u.role == 'client' %}
+      <form method="post" action="{{ url_for('access_save') }}" class="access-card">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <input type="hidden" name="user_id" value="{{ u.id }}">
+        <div class="access-card-head">
+          <strong>{{ u.full_name or u.username }}</strong>
+          <span class="mono muted">{{ u.username }}</span>
+          {% if not u.is_active %}<span class="badge error">заблокирован</span>{% endif %}
+        </div>
+        <div class="access-list">
+          {% for b in bases %}
+          <label class="check-label"><input type="checkbox" name="base_id" value="{{ b.id }}" {% if (u.id, b.id) in links %}checked{% endif %}> {{ b.title }} <span class="mono muted">{{ b.slug }}</span></label>
+          {% endfor %}
+        </div>
+        <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
+      </form>
+      {% endfor %}
+      {% endif %}
+
+      <footer class="app-footer"><span>Портал 1С</span><span class="muted">DGEK.RU · управление доступом</span></footer>
+    </main>
+  </div>
+
+  <dialog class="modal" id="dlg-user">
+    <form method="post" action="{{ url_for('user_create') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <div class="modal-heading"><h2>Новый клиент</h2><button type="button" class="icon-button" data-close><i data-lucide="x"></i></button></div>
+      <label>Логин<input name="username" required pattern="[a-z0-9._-]{3,32}" placeholder="ivanov" autocomplete="off"></label>
+      <label>ФИО<input name="full_name" placeholder="Иванов Иван" autocomplete="off"></label>
+      <label>Организация<input name="organization" placeholder="ООО «Ромашка»" autocomplete="off"></label>
+      <label>Пароль<input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="не короче 8 символов"></label>
+      <label>Роль<select name="role"><option value="client">клиент</option><option value="admin">администратор</option></select></label>
+      <div class="modal-footer"><button type="button" class="button" data-close>Отмена</button><button class="button primary" type="submit">Создать</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="dlg-user-edit">
+    <form method="post" id="user-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="rename">
+      <div class="modal-heading"><h2>Изменить клиента</h2><button type="button" class="icon-button" data-close><i data-lucide="x"></i></button></div>
+      <label>Логин<input name="username" disabled></label>
+      <label>ФИО<input name="full_name"></label>
+      <label>Организация<input name="organization" placeholder="ООО «Ромашка»"></label>
+      <div class="modal-footer"><button type="button" class="button" data-close>Отмена</button><button class="button primary" type="submit">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="dlg-pwd">
+    <form method="post" id="pwd-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="password">
+      <div class="modal-heading"><h2>Новый пароль</h2><button type="button" class="icon-button" data-close><i data-lucide="x"></i></button></div>
+      <p class="muted" id="pwd-user"></p>
+      <label>Пароль<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+      <div class="modal-footer"><button type="button" class="button" data-close>Отмена</button><button class="button primary" type="submit">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="dlg-base">
+    <form method="post" action="{{ url_for('base_create') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <div class="modal-heading"><h2>Новая база</h2><button type="button" class="icon-button" data-close><i data-lucide="x"></i></button></div>
+      <label>Код<input name="slug" required pattern="[a-z0-9_-]{2,32}" placeholder="buh" autocomplete="off"></label>
+      <label>Название<input name="title" placeholder="Бухгалтерия" autocomplete="off"></label>
+      <label>Организация<input name="organization" placeholder="ООО «Ромашка»" autocomplete="off"></label>
+      <label>Описание<input name="description" placeholder="Необязательно" autocomplete="off"></label>
+      <label>Адрес публикации<input name="url_path" placeholder="/WEB/buh/" autocomplete="off"></label>
+      <div class="modal-footer"><button type="button" class="button" data-close>Отмена</button><button class="button primary" type="submit">Добавить</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="dlg-base-edit">
+    <form method="post" id="base-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="edit">
+      <div class="modal-heading"><h2>Изменить базу</h2><button type="button" class="icon-button" data-close><i data-lucide="x"></i></button></div>
+      <label>Код<input name="slug" disabled></label>
+      <label>Название<input name="title" required></label>
+      <label>Организация<input name="organization"></label>
+      <label>Описание<input name="description"></label>
+      <label>Адрес публикации<input name="url_path" required></label>
+      <div class="modal-footer"><button type="button" class="button" data-close>Отмена</button><button class="button primary" type="submit">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });
+    document.addEventListener('click', function (e) {
+      const openBtn = e.target.closest('[data-open]');
+      if (openBtn) {
+        const dlg = document.getElementById(openBtn.dataset.open);
+        if (openBtn.dataset.open === 'dlg-pwd') {
+          document.getElementById('pwd-user').textContent = 'Пользователь: ' + openBtn.dataset.name;
+          document.getElementById('pwd-form').action = '/admin/users/' + openBtn.dataset.user;
+        }
+        if (openBtn.dataset.open === 'dlg-user-edit') {
+          const f = document.getElementById('user-form');
+          f.action = '/admin/users/' + openBtn.dataset.id;
+          f.querySelector('[name=username]').value = openBtn.dataset.login;
+          f.querySelector('[name=full_name]').value = openBtn.dataset.name;
+          f.querySelector('[name=organization]').value = openBtn.dataset.org;
+        }
+        if (openBtn.dataset.open === 'dlg-base-edit') {
+          const f = document.getElementById('base-form');
+          f.action = '/admin/bases/' + openBtn.dataset.id;
+          f.querySelector('[name=slug]').value = openBtn.dataset.slug;
+          f.querySelector('[name=title]').value = openBtn.dataset.title;
+          f.querySelector('[name=organization]').value = openBtn.dataset.org || '';
+          f.querySelector('[name=description]').value = openBtn.dataset.description;
+          f.querySelector('[name=url_path]').value = openBtn.dataset.url;
+        }
+        dlg.showModal();
+        if (window.lucide) lucide.createIcons();
+      }
+      const closeBtn = e.target.closest('[data-close]');
+      if (closeBtn) closeBtn.closest('dialog').close();
+    });
+  </script>
+</body>
+</html>
