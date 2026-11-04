@@ -85,6 +85,25 @@
 .operations-result{color:var(--green)}
 .operation-result:not(.success){border-color:#fb829736;color:var(--red)}
 
+/* ===== переключатель темы ===== */
+.theme-switch{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:7px;background:var(--surface)}
+.theme-switch button{width:28px;height:26px;display:grid;place-items:center;border:0;border-radius:5px;
+                     background:transparent;color:var(--muted);transition:background .15s,color .15s}
+.theme-switch button:hover{background:var(--surface-hover);color:var(--text)}
+.theme-switch button.active{background:var(--surface-hover);color:var(--cyan)}
+.theme-switch svg{width:14px;height:14px}
+
+/* ===== фильтры по столбцам ===== */
+.data-table.filterable thead th{vertical-align:top}
+.col-filter{display:block;width:100%;margin-top:7px;min-height:0;padding:4px 8px;
+            font-size:calc(9.5px*var(--fs));font-weight:500;letter-spacing:0;
+            color:var(--text);background:var(--input);border:1px solid var(--border);border-radius:4px}
+.col-filter::placeholder{color:var(--muted);opacity:.7}
+
+/* ===== статистика ===== */
+.stats-kpi .metric{height:auto;min-height:118px}
+.stats-kpi .metric-value{font-size:24px}
+
 /* ===== масштаб текста +20% ===== */
 :root{--fs:1.2}
 body{font-size:calc(13px*var(--fs))}

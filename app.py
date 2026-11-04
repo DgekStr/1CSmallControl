@@ -1,4 +1,4 @@
-﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
+"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -71,6 +71,15 @@ CREATE TABLE IF NOT EXISTS audit (
     action TEXT NOT NULL,
     details TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS visits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    started_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+    ended_at TEXT,
+    ip TEXT NOT NULL DEFAULT '',
+    ua TEXT NOT NULL DEFAULT ''
+);
 """
 
 
@@ -129,6 +138,24 @@ def audit(action, details=''):
     try:
         db().execute("INSERT INTO audit(actor, action, details) VALUES(?,?,?)",
                      (session.get('user', 'anonymous'), action, details))
+        db().commit()
+    except Exception:
+        pass
+
+
+@app.before_request
+def _touch_visit():
+    """Отмечает активность текущего визита не чаще раза в минуту."""
+    vid = session.get('visit')
+    if not vid:
+        return
+    now = int(time.time())
+    if now - int(session.get('seen') or 0) < 60:
+        return
+    session['seen'] = now
+    try:
+        db().execute("UPDATE visits SET last_seen = datetime('now') WHERE id = ? AND ended_at IS NULL",
+                     (vid,))
         db().commit()
     except Exception:
         pass
@@ -266,6 +293,13 @@ def login():
             session['name'] = row['full_name'] or row['username']
             session['role'] = row['role']
             session.permanent = True
+            cur = db().execute(
+                "INSERT INTO visits(username, ip, ua) VALUES(?,?,?)",
+                (row['username'], request.remote_addr or '',
+                 (request.headers.get('User-Agent') or '')[:200]))
+            db().commit()
+            session['visit'] = cur.lastrowid
+            session['seen'] = int(time.time())
             audit('login', row['username'])
             nxt = request.args.get('next') or '/'
             return redirect(nxt if nxt.startswith('/') else '/')
@@ -277,6 +311,10 @@ def login():
 @app.route('/logout', methods=['POST'])
 def logout():
     audit('logout', session.get('user', ''))
+    if session.get('visit'):
+        db().execute("UPDATE visits SET ended_at = datetime('now') WHERE id = ? AND ended_at IS NULL",
+                     (session['visit'],))
+        db().commit()
     session.clear()
     return redirect(url_for('login'))
 
@@ -450,6 +488,74 @@ def access_save():
     audit('access_update', str(uid))
     flash('Доступы сохранены')
     return redirect(url_for('admin', tab='access'))
+
+
+def _fmt_dur(sec):
+    sec = int(sec or 0)
+    if sec <= 0:
+        return '—'
+    h, rest = divmod(sec, 3600)
+    m = rest // 60
+    if h:
+        return '%d ч %02d мин' % (h, m)
+    return '%d мин' % m
+
+
+app.jinja_env.globals['fmt_dur'] = _fmt_dur
+
+
+@app.route('/admin/stats')
+@admin_required
+def admin_stats():
+    users = db().execute("""
+        SELECT v.username,
+               COUNT(*) AS visits,
+               SUM((julianday(COALESCE(v.ended_at, v.last_seen)) - julianday(v.started_at)) * 86400) AS seconds,
+               MAX(v.started_at) AS last_login,
+               MAX(COALESCE(v.ended_at, v.last_seen)) AS last_seen,
+               MAX(CASE WHEN v.ended_at IS NULL THEN 1 ELSE 0 END) AS online
+        FROM visits v
+        GROUP BY v.username
+        ORDER BY seconds DESC""").fetchall()
+
+    opens = {}
+    for r in db().execute("""
+            SELECT actor, COUNT(*) AS n, COUNT(DISTINCT details) AS bases
+            FROM audit WHERE action = 'open_base' GROUP BY actor"""):
+        opens[r['actor']] = {'n': r['n'], 'bases': r['bases']}
+
+    opens_by_base = db().execute("""
+        SELECT details AS slug, COUNT(*) AS n, COUNT(DISTINCT actor) AS people
+        FROM audit WHERE action = 'open_base' GROUP BY details ORDER BY n DESC""").fetchall()
+
+    events = db().execute("SELECT * FROM audit ORDER BY id DESC LIMIT 500").fetchall()
+
+    visits = db().execute("""
+        SELECT username, started_at, last_seen, ended_at, ip,
+               (julianday(COALESCE(ended_at, last_seen)) - julianday(started_at)) * 86400 AS seconds
+        FROM visits ORDER BY id DESC LIMIT 300""").fetchall()
+
+    total_seconds = db().execute("""
+        SELECT COALESCE(SUM((julianday(COALESCE(ended_at, last_seen)) - julianday(started_at)) * 86400), 0)
+        FROM visits""").fetchone()[0]
+
+    return render_template('admin.html', users=[], bases=[], links=set(), tab='stats',
+                           stats_users=users, stats_opens=opens, stats_bases=opens_by_base,
+                           stats_events=events, stats_visits=visits,
+                           stats_total=total_seconds,
+                           stats_visits_count=len(visits))
+
+
+@app.route('/admin/stats/clear', methods=['POST'])
+@admin_required
+def admin_stats_clear():
+    check_csrf()
+    db().execute("DELETE FROM audit")
+    db().execute("DELETE FROM visits")
+    db().commit()
+    audit('stats_clear', 'история очищена')
+    flash('История и статистика очищены')
+    return redirect(url_for('admin', tab='stats'))
 
 
 @app.route('/healthz')

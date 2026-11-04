@@ -7,6 +7,8 @@
   <link rel="icon" href="{{ url_for('static', filename='brand.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}?v=3">
+    <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
+  <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
   <script src="{{ url_for('static', filename='vendor/lucide.js') }}" defer></script>
 </head>
 <body>
@@ -17,8 +19,15 @@
         <a class="tab {% if tab == 'users' %}active{% endif %}" href="{{ url_for('admin', tab='users') }}"><i data-lucide="users"></i>Клиенты</a>
         <a class="tab {% if tab == 'bases' %}active{% endif %}" href="{{ url_for('admin', tab='bases') }}"><i data-lucide="database"></i>Базы</a>
         <a class="tab {% if tab == 'access' %}active{% endif %}" href="{{ url_for('admin', tab='access') }}"><i data-lucide="key-round"></i>Доступы</a>
+        <a class="tab {% if tab == 'stats' %}active{% endif %}" href="{{ url_for('admin_stats') }}"><i data-lucide="chart-column"></i>Статистика</a>
       </nav>
       <div class="topbar-right">
+        <div class="theme-switch" role="group" aria-label="Тема оформления">
+          <button type="button" data-theme-set="light" title="Светлая тема" aria-label="Светлая тема"><i data-lucide="sun"></i></button>
+          <button type="button" data-theme-set="dark" title="Тёмная тема" aria-label="Тёмная тема"><i data-lucide="moon"></i></button>
+          <button type="button" data-theme-set="auto" title="Как в системе" aria-label="Как в системе"><i data-lucide="monitor"></i></button>
+        </div>
+        
         <span class="account-name">{{ session.name }}</span>
         <span class="avatar">{{ (session.name or 'A')[0]|upper }}</span>
         <form action="{{ url_for('logout') }}" method="post"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="icon-button" title="Выйти" aria-label="Выйти"><i data-lucide="log-out"></i></button></form>
@@ -115,6 +124,123 @@
         <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
       </form>
       {% endfor %}
+      {% endif %}
+
+      {% if tab == 'stats' %}
+      <div class="page-heading">
+        <div>
+          <div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div>
+          <h1>Статистика</h1>
+          <p class="muted">Кто, когда и что открывал — и сколько времени провёл в системе</p>
+        </div>
+        <div class="heading-actions">
+          <a class="button" href="{{ url_for('admin_stats') }}"><i data-lucide="refresh-cw"></i>Обновить</a>
+          <form method="post" action="{{ url_for('admin_stats_clear') }}" onsubmit="return confirm('Очистить всю историю: журнал действий и сеансы?')">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button class="button danger" type="submit"><i data-lucide="trash-2"></i>Очистить историю</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="metrics-grid stats-kpi">
+        <div class="metric">
+          <div class="metric-label">Сеансов всего</div>
+          <div class="metric-value">{{ stats_visits_count }}</div>
+          <div class="metric-caption">входов в портал</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Время в системе</div>
+          <div class="metric-value">{{ fmt_dur(stats_total) }}</div>
+          <div class="metric-caption">суммарно по всем</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Пользователей</div>
+          <div class="metric-value">{{ stats_users|length }}</div>
+          <div class="metric-caption">заходили хотя бы раз</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Открытий баз</div>
+          <div class="metric-value">{{ stats_opens.values()|sum(attribute='n') if stats_opens else 0 }}</div>
+          <div class="metric-caption">переходов в веб-клиент</div>
+        </div>
+      </div>
+
+      <h2 class="section-title">По пользователям</h2>
+      <div class="table-scroll">
+        <table class="data-table filterable">
+          <thead><tr><th>Пользователь</th><th>Входов</th><th>Всего времени</th><th>Последний вход</th><th>Последняя активность</th><th>Открытий баз</th><th>Баз</th><th>Статус</th></tr></thead>
+          <tbody>
+          {% for u in stats_users %}
+            <tr>
+              <td class="mono">{{ u.username }}</td>
+              <td>{{ u.visits }}</td>
+              <td>{{ fmt_dur(u.seconds) }}</td>
+              <td class="muted">{{ u.last_login }}</td>
+              <td class="muted">{{ u.last_seen }}</td>
+              <td>{{ stats_opens.get(u.username, {}).get('n', 0) }}</td>
+              <td>{{ stats_opens.get(u.username, {}).get('bases', 0) }}</td>
+              <td>{% if u.online %}<span class="badge success">в системе</span>{% else %}<span class="badge neutral">нет</span>{% endif %}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="8" class="muted">Данных пока нет — статистика начнёт собираться с этого момента</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="section-title">По базам</h2>
+      <div class="table-scroll">
+        <table class="data-table filterable">
+          <thead><tr><th>База</th><th>Открытий</th><th>Пользователей</th></tr></thead>
+          <tbody>
+          {% for b in stats_bases %}
+            <tr><td class="mono">{{ b.slug }}</td><td>{{ b.n }}</td><td>{{ b.people }}</td></tr>
+          {% else %}
+            <tr><td colspan="3" class="muted">Пока никто не открывал базы</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="section-title">Сеансы</h2>
+      <div class="table-scroll">
+        <table class="data-table filterable">
+          <thead><tr><th>Пользователь</th><th>Начало</th><th>Последняя активность</th><th>Выход</th><th>Длительность</th><th>IP</th></tr></thead>
+          <tbody>
+          {% for v in stats_visits %}
+            <tr>
+              <td class="mono">{{ v.username }}</td>
+              <td class="muted">{{ v.started_at }}</td>
+              <td class="muted">{{ v.last_seen }}</td>
+              <td class="muted">{{ v.ended_at or '—' }}</td>
+              <td>{{ fmt_dur(v.seconds) }}</td>
+              <td class="mono muted">{{ v.ip }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="muted">Сеансов пока нет</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="section-title">Журнал действий</h2>
+      <div class="table-scroll">
+        <table class="data-table filterable">
+          <thead><tr><th>Время</th><th>Кто</th><th>Действие</th><th>Детали</th></tr></thead>
+          <tbody>
+          {% for e in stats_events %}
+            <tr>
+              <td class="muted">{{ e.ts }}</td>
+              <td class="mono">{{ e.actor }}</td>
+              <td><span class="badge neutral">{{ e.action }}</span></td>
+              <td class="muted">{{ e.details }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="muted">Записей нет</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
       {% endif %}
 
       <footer class="app-footer"><span>Портал 1С · v{{ app_version }}</span><span class="muted">1С.DGEK.RU · управление доступом</span></footer>
@@ -216,6 +342,30 @@
       }
       const closeBtn = e.target.closest('[data-close]');
       if (closeBtn) closeBtn.closest('dialog').close();
+    });
+
+    // Фильтры по всем столбцам таблиц с классом .filterable
+    document.querySelectorAll('table.filterable').forEach(function (table) {
+      const heads = table.querySelectorAll('thead th');
+      heads.forEach(function (th) {
+        const input = document.createElement('input');
+        input.type = 'search';
+        input.className = 'col-filter';
+        input.placeholder = 'фильтр';
+        input.addEventListener('input', applyFilters);
+        th.appendChild(input);
+      });
+      function applyFilters() {
+        const values = Array.from(table.querySelectorAll('thead .col-filter')).map(i => i.value.trim().toLowerCase());
+        table.querySelectorAll('tbody tr').forEach(function (row) {
+          const cells = row.children;
+          if (cells.length === 1 && cells[0].hasAttribute('colspan')) return;
+          const visible = values.every(function (v, i) {
+            return !v || (cells[i] ? cells[i].textContent.toLowerCase().includes(v) : false);
+          });
+          row.hidden = !visible;
+        });
+      }
     });
   </script>
 </body>

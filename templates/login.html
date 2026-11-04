@@ -7,12 +7,18 @@
   <link rel="icon" href="{{ url_for('static', filename='brand.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}?v=3">
+    <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
+  <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
   <script src="{{ url_for('static', filename='vendor/lucide.js') }}" defer></script>
 </head>
 <body class="login-page">
   <header class="login-header">
     <a class="brand" href="/"><img class="brand-mark" src="{{ url_for('static', filename='brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ url_for('static', filename='logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></a>
-    <span class="muted small">DGEK / 1C WEB</span>
+    <div class="theme-switch" role="group" aria-label="Тема оформления">
+      <button type="button" data-theme-set="light" title="Светлая тема" aria-label="Светлая тема"><i data-lucide="sun"></i></button>
+      <button type="button" data-theme-set="dark" title="Тёмная тема" aria-label="Тёмная тема"><i data-lucide="moon"></i></button>
+      <button type="button" data-theme-set="auto" title="Как в системе" aria-label="Как в системе"><i data-lucide="monitor"></i></button>
+    </div>
   </header>
   <main class="login-main">
     <div class="login-heading">
