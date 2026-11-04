@@ -172,7 +172,7 @@
       <h2 class="section-title">По пользователям</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
-          <thead><tr><th>Пользователь</th><th>Входов</th><th>Всего времени</th><th>Последний вход</th><th>Последняя активность</th><th>Открытий баз</th><th>Баз</th><th>Статус</th></tr></thead>
+          <thead><tr><th>Пользователь</th><th>Входов</th><th>Всего времени</th><th>Последний вход</th><th>Последняя активность</th><th>IP</th><th>Открытий баз</th><th>Баз</th><th>Статус</th></tr></thead>
           <tbody>
           {% for u in stats_users %}
             <tr>
@@ -181,17 +181,57 @@
               <td>{{ fmt_dur(u.seconds) }}</td>
               <td class="muted">{{ u.last_login }}</td>
               <td class="muted">{{ u.last_seen }}</td>
+              <td class="mono muted">{{ u.last_ip or '—' }}{% if u.ips > 1 %} <span class="badge neutral" title="разных адресов">{{ u.ips }}</span>{% endif %}</td>
               <td>{{ stats_opens.get(u.username, {}).get('n', 0) }}</td>
               <td>{{ stats_opens.get(u.username, {}).get('bases', 0) }}</td>
               <td>{% if u.online %}<span class="badge success">в системе</span>{% else %}<span class="badge neutral">нет</span>{% endif %}</td>
             </tr>
           {% else %}
-            <tr><td colspan="8" class="muted">Данных пока нет — статистика начнёт собираться с этого момента</td></tr>
+            <tr><td colspan="9" class="muted">Данных пока нет — статистика начнёт собираться с этого момента</td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
 
+      <h2 class="section-title">Подключения к 1С сейчас</h2>
+      <div class="table-scroll">
+        <table class="data-table filterable">
+          <thead><tr><th>Пользователь</th><th>Клиент</th><th>Компьютер</th><th>Начало</th><th>Активность</th></tr></thead>
+          <tbody>
+          {% for s in stats_live %}
+            <tr>
+              <td class="mono">{{ s.user }}</td>
+              <td><span class="badge {{ 'success' if s.app == 'WebClient' else 'warning' if s.app == 'Designer' else 'neutral' }}">{{ client_label(s.app) }}</span></td>
+              <td class="mono muted">{{ s.host }}</td>
+              <td class="muted">{{ s.started }}</td>
+              <td class="muted">{{ s.last }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="muted">Активных подключений нет</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="section-title">История подключений клиентов 1С</h2>
+      <div class="table-scroll">
+        <table class="data-table filterable">
+          <thead><tr><th>Пользователь</th><th>Клиент</th><th>Компьютер</th><th>Начало сеанса</th><th>Обновлено</th></tr></thead>
+          <tbody>
+          {% for c in stats_clients %}
+            <tr>
+              <td class="mono">{{ c.username }}</td>
+              <td><span class="badge {{ 'success' if c.app == 'WebClient' else 'warning' if c.app == 'Designer' else 'neutral' }}">{{ client_label(c.app) }}</span></td>
+              <td class="mono muted">{{ c.host }}</td>
+              <td class="muted">{{ c.started_at }}</td>
+              <td class="muted">{{ c.last_seen }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="muted">Подключений пока не зафиксировано</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
       <h2 class="section-title">По базам</h2>
       <div class="table-scroll">
         <table class="data-table filterable">

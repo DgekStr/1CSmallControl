@@ -1,4 +1,4 @@
-﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
+"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -81,6 +81,15 @@ CREATE TABLE IF NOT EXISTS visits (
     ip TEXT NOT NULL DEFAULT '',
     ua TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS client_sessions (
+    sid TEXT PRIMARY KEY,
+    username TEXT NOT NULL DEFAULT '',
+    app TEXT NOT NULL DEFAULT '',
+    host TEXT NOT NULL DEFAULT '',
+    started_at TEXT NOT NULL DEFAULT '',
+    first_seen TEXT NOT NULL DEFAULT (datetime('now')),
+    last_seen TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
@@ -142,6 +151,14 @@ def audit(action, details=''):
         db().commit()
     except Exception:
         pass
+
+
+def _client_ip():
+    """Реальный IP клиента: портал стоит за Apache, тот передаёт X-Forwarded-For."""
+    fwd = request.headers.get('X-Forwarded-For', '')
+    if fwd:
+        return fwd.split(',')[0].strip()
+    return request.remote_addr or ''
 
 
 @app.before_request
@@ -296,12 +313,12 @@ def login():
             session.permanent = True
             cur = db().execute(
                 "INSERT INTO visits(username, ip, ua) VALUES(?,?,?)",
-                (row['username'], request.remote_addr or '',
+                (row['username'], _client_ip(),
                  (request.headers.get('User-Agent') or '')[:200]))
             db().commit()
             session['visit'] = cur.lastrowid
             session['seen'] = int(time.time())
-            audit('login', row['username'])
+            audit('login', _client_ip())
             nxt = request.args.get('next') or '/'
             return redirect(nxt if nxt.startswith('/') else '/')
         error = 'Неверный логин или пароль'
@@ -541,6 +558,21 @@ def _fmt_dur(sec):
 
 
 app.jinja_env.globals['fmt_dur'] = _fmt_dur
+CLIENT_LABELS = {
+    'WebClient': 'Веб-клиент',
+    '1CV8': 'Толстый клиент',
+    '1CV8C': 'Тонкий клиент',
+    'Designer': 'Конфигуратор',
+    'COMConnection': 'COM-соединение',
+    'WSConnection': 'Веб-сервис',
+}
+
+
+def _client_label(app):
+    return CLIENT_LABELS.get(app, app or '—')
+
+
+app.jinja_env.globals['client_label'] = _client_label
 
 
 @app.route('/admin/stats')
@@ -552,10 +584,17 @@ def admin_stats():
                SUM((julianday(COALESCE(v.ended_at, v.last_seen)) - julianday(v.started_at)) * 86400) AS seconds,
                MAX(v.started_at) AS last_login,
                MAX(COALESCE(v.ended_at, v.last_seen)) AS last_seen,
-               MAX(CASE WHEN v.ended_at IS NULL THEN 1 ELSE 0 END) AS online
+               MAX(CASE WHEN v.ended_at IS NULL THEN 1 ELSE 0 END) AS online,
+               COUNT(DISTINCT CASE WHEN v.ip <> '' THEN v.ip END) AS ips,
+               (SELECT ip FROM visits v2 WHERE v2.username = v.username ORDER BY v2.id DESC LIMIT 1) AS last_ip
         FROM visits v
         GROUP BY v.username
         ORDER BY seconds DESC""").fetchall()
+
+    live_sessions = _sessions_snapshot()
+    client_history = db().execute("""
+        SELECT username, app, host, started_at, first_seen, last_seen
+        FROM client_sessions ORDER BY last_seen DESC LIMIT 200""").fetchall()
 
     opens = {}
     for r in db().execute("""
@@ -583,7 +622,37 @@ def admin_stats():
                            stats_users=users, stats_opens=opens, stats_bases=opens_by_base,
                            stats_events=events, stats_visits=visits,
                            stats_total=total_seconds,
+                           stats_live=live_sessions, stats_clients=client_history,
                            stats_visits_count=len(visits))
+
+
+def _sessions_snapshot():
+    """Текущие сеансы 1С + запись их в историю (client_sessions)."""
+    try:
+        proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-sessions-list'],
+                              capture_output=True, text=True, timeout=30)
+    except Exception:  # noqa: BLE001
+        return []
+    rows = []
+    for line in (proc.stdout or '').splitlines():
+        parts = line.split('|')
+        if len(parts) < 6:
+            continue
+        rows.append({'sid': parts[0], 'user': parts[1], 'app': parts[2],
+                     'host': parts[3], 'started': parts[4], 'last': parts[5]})
+    try:
+        for r in rows:
+            db().execute("""
+                INSERT INTO client_sessions(sid, username, app, host, started_at, last_seen)
+                VALUES(?,?,?,?,?,datetime('now'))
+                ON CONFLICT(sid) DO UPDATE SET
+                    username = excluded.username, app = excluded.app, host = excluded.host,
+                    started_at = excluded.started_at, last_seen = datetime('now')""",
+                         (r['sid'], r['user'], r['app'], r['host'], r['started']))
+        db().commit()
+    except Exception:  # noqa: BLE001
+        pass
+    return rows
 
 
 @app.route('/admin/stats/clear', methods=['POST'])
