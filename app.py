@@ -101,6 +101,10 @@ CREATE TABLE IF NOT EXISTS metrics (
     rx INTEGER NOT NULL DEFAULT 0,
     tx INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS settings (
+    name TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT ''
+);
 """
 
 
@@ -881,20 +885,40 @@ def _sessions_snapshot():
             continue
         rows.append({'sid': parts[0], 'user': parts[1], 'app': parts[2],
                      'host': parts[3], 'started': parts[4], 'last': parts[5]})
+    cleared = _setting_get('stats_cleared_at')
     try:
         for r in rows:
+            started = (r['started'] or '').replace('T', ' ')[:19]
+            # историю не восстанавливаем: сеансы, начатые до очистки, не пишем
+            if cleared and started and started < cleared:
+                continue
             db().execute("""
                 INSERT INTO client_sessions(sid, username, app, host, started_at, last_seen)
                 VALUES(?,?,?,?,?,datetime('now','localtime'))
                 ON CONFLICT(sid) DO UPDATE SET
                     username = excluded.username, app = excluded.app, host = excluded.host,
                     started_at = excluded.started_at, last_seen = datetime('now','localtime')""",
-                         (r['sid'], r['user'], r['app'], r['host'], (r['started'] or '').replace('T', ' ')[:19]))
+                         (r['sid'], r['user'], r['app'], r['host'], started))
         db().commit()
     except Exception:  # noqa: BLE001
         pass
     rows.sort(key=lambda x: (x.get('started') or ''), reverse=True)
     return rows
+
+
+def _setting_get(name):
+    try:
+        row = db().execute("SELECT value FROM settings WHERE name = ?", (name,)).fetchone()
+        return row['value'] if row else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _setting_set(name, value):
+    conn = db()
+    conn.execute("INSERT INTO settings(name, value) VALUES(?,?) "
+                 "ON CONFLICT(name) DO UPDATE SET value = excluded.value", (name, value))
+    conn.commit()
 
 
 @app.route('/admin/stats/clear', methods=['POST'])
@@ -906,9 +930,35 @@ def admin_stats_clear():
     conn.execute("DELETE FROM visits")
     conn.execute("DELETE FROM client_sessions")
     conn.commit()
+    _setting_set('stats_cleared_at', time.strftime('%Y-%m-%d %H:%M:%S'))
     audit('stats_clear', 'история очищена')
     flash('История и статистика очищены')
     _cache.clear()
+    return redirect(url_for('admin_stats'))
+
+
+@app.route('/admin/stats/kick', methods=['POST'])
+@admin_required
+def admin_stats_kick():
+    """Отключает всех пользователей 1С от всех опубликованных баз."""
+    check_csrf()
+    bases = db().execute("SELECT slug FROM bases WHERE is_active = 1").fetchall()
+    done = []
+    for row in bases:
+        try:
+            proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-kick-sessions', row['slug']],
+                                  capture_output=True, text=True, timeout=120)
+            out = (proc.stdout or proc.stderr or '').strip().splitlines()
+            if out:
+                done.append('%s: %s' % (row['slug'], out[-1]))
+        except Exception as exc:  # noqa: BLE001
+            done.append('%s: ошибка %s' % (row['slug'], exc))
+    for line in done:
+        flash(line)
+    if not done:
+        flash('Нет активных баз для отключения')
+    _cache.clear()
+    audit('stats_kick', 'отключены все пользователи')
     return redirect(url_for('admin_stats'))
 
 

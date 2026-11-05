@@ -158,7 +158,8 @@
         </div>
         <div class="heading-actions">
           <a class="button" href="{{ url_for('admin_stats', refresh=1) }}"><i data-lucide="refresh-cw"></i>Обновить</a>
-          <form method="post" action="{{ url_for('admin_stats_clear') }}" onsubmit="return confirm('Очистить всю историю: журнал действий и сеансы?')">
+          <button class="button danger" type="button" data-open="dlg-kick-all"><i data-lucide="user-x"></i>Отключить всех</button>
+          <form method="post" action="{{ url_for('admin_stats_clear') }}" onsubmit="return confirm('Очистить всю историю: журнал действий, сеансы и историю подключений?')">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
             <button class="button danger" type="submit"><i data-lucide="trash-2"></i>Очистить историю</button>
           </form>
@@ -427,6 +428,30 @@
     </form>
   </dialog>
 
+  <dialog class="modal danger-modal" id="dlg-kick-all">
+    <form method="post" action="{{ url_for('admin_stats_kick') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <div class="modal-heading"><h2>Отключить всех пользователей?</h2><button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button></div>
+
+      <p class="muted">Будут завершены сеансы <strong>во всех опубликованных базах</strong>.</p>
+
+      <div class="warn-box">
+        <i data-lucide="triangle-alert"></i>
+        <div>
+          <p><strong>Ответственность за отключение несёт администратор.</strong></p>
+          <p class="muted">Пользователи потеряют несохранённые данные и незавершённые документы. Действие фиксируется в журнале.</p>
+        </div>
+      </div>
+
+      <label class="check-label ack"><input type="checkbox" id="kick-all-ack"> Я понимаю последствия и подтверждаю отключение</label>
+
+      <div class="modal-footer">
+        <button type="button" class="button" data-close>Отмена</button>
+        <button type="submit" class="button danger" id="kick-all-submit" disabled><i data-lucide="user-x"></i>Отключить всех</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog class="modal danger-modal" id="dlg-kick">
     <form method="post" id="kick-form">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -493,6 +518,13 @@
           f.querySelector('[name=username]').value = openBtn.dataset.login;
           f.querySelector('[name=full_name]').value = openBtn.dataset.name;
           f.querySelector('[name=organization]').value = openBtn.dataset.org;
+        }
+        if (openBtn.dataset.open === 'dlg-kick-all') {
+          const ack = document.getElementById('kick-all-ack');
+          const submit = document.getElementById('kick-all-submit');
+          ack.checked = false;
+          submit.disabled = true;
+          ack.onchange = function () { submit.disabled = !ack.checked; };
         }
         if (openBtn.dataset.open === 'dlg-kick') {
           const f = document.getElementById('kick-form');
