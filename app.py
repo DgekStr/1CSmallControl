@@ -1,4 +1,4 @@
-﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
+"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -27,6 +27,7 @@ SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 APP_VERSION = os.environ.get('PORTAL_VERSION', '1.4')
 
 app = Flask(__name__)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 2592000  # 30 дней, ссылки версионируются
 _secret_file = os.path.join(BASE_DIR, '.secret_key')
 if os.path.exists(_secret_file):
     app.secret_key = open(_secret_file, 'rb').read()
@@ -778,6 +779,13 @@ def _client_label(app):
 
 app.jinja_env.globals['client_label'] = _client_label
 app.jinja_env.globals['human_bytes'] = metrics.human_bytes
+
+
+@app.template_global()
+def asset(path):
+    """Ссылка на статику с версией — можно кэшировать надолго."""
+    return url_for('static', filename=path) + '?v=' + APP_VERSION
+
 def _fmt_dt(value):
     """2026-11-04T22:49:38 -> 2026-11-04 22:49:38"""
     text = (value or '').replace('T', ' ')

@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Вход | Портал 1С</title>
-  <link rel="icon" href="{{ url_for('static', filename='brand.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}?v=3">
+  <link rel="icon" href="{{ asset('brand.png') }}">
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('portal.css') }}">
     <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
-  <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='vendor/lucide.js') }}" defer></script>
+  <script src="{{ asset('theme.js') }}" defer></script>
+  <script src="{{ asset('vendor/lucide.js') }}" defer></script>
 </head>
 <body class="login-page">
   <header class="login-header">
-    <a class="brand" href="/"><img class="brand-mark" src="{{ url_for('static', filename='brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ url_for('static', filename='logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></a>
+    <a class="brand" href="/"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></a>
     <div class="theme-switch" role="group" aria-label="Тема оформления">
       <button type="button" data-theme-set="light" title="Светлая тема" aria-label="Светлая тема"><i data-lucide="sun"></i></button>
       <button type="button" data-theme-set="dark" title="Тёмная тема" aria-label="Тёмная тема"><i data-lucide="moon"></i></button>
