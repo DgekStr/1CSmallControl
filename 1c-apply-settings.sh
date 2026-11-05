@@ -16,15 +16,15 @@ vrd_dir = "/var/www/1c"
 
 data = json.load(open(sys.argv[1], encoding="utf-8"))
 ic_host = (data.get("ic_host") or "").strip()
-db_name = (data.get("db_name") or "").strip() or "dgek"
 server_name = (data.get("portal_server_name") or "").strip()
+base_map = data.get("bases") or {}
 
 # 1) публикация 1С: адрес кластера
 import glob
 for vrd in glob.glob(vrd_dir + "/*/default.vrd"):
     text = open(vrd, encoding="utf-8").read()
     slug = vrd.split("/")[-2]
-    ref = db_name if slug == db_name else slug
+    ref = base_map.get(slug) or slug
     new_ib = 'ib="Srvr=%s;Ref=%s;"' % (ic_host or "localhost", ref)
     updated, n = re.subn(r'ib="[^"]*"', new_ib, text, count=1)
     if n:

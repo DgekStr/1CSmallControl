@@ -133,6 +133,9 @@ def init_db():
     base_cols = [r[1] for r in conn.execute("PRAGMA table_info(bases)")]
     if 'update_mode' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN update_mode TEXT")
+    if 'db_name' not in base_cols:
+        conn.execute("ALTER TABLE bases ADD COLUMN db_name TEXT")
+    conn.execute("UPDATE bases SET db_name = slug WHERE db_name IS NULL OR db_name = ''")
     conn.commit()
     for idx in (
         "CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit(ts)",
@@ -601,8 +604,9 @@ def base_create():
     if not url_path.startswith('/'):
         url_path = '/WEB/%s/' % slug
     try:
-        db().execute("INSERT INTO bases(slug,title,organization,description,url_path) VALUES(?,?,?,?,?)",
-                     (slug, title or slug, org, descr, url_path))
+        db_name = (request.form.get('db_name') or '').strip() or slug
+        db().execute("INSERT INTO bases(slug,title,organization,description,url_path,db_name) VALUES(?,?,?,?,?,?)",
+                     (slug, title or slug, org, descr, url_path, db_name))
         db().commit()
     except sqlite3.IntegrityError:
         flash('База с таким кодом уже есть')
@@ -635,8 +639,9 @@ def base_update(bid):
         org = (request.form.get('organization') or '').strip()
         descr = (request.form.get('description') or '').strip()
         url_path = (request.form.get('url_path') or row['url_path']).strip()
-        db().execute("UPDATE bases SET title=?, organization=?, description=?, url_path=? WHERE id=?",
-                     (title, org, descr, url_path, bid))
+        db_name = (request.form.get('db_name') or row['db_name'] or row['slug']).strip()
+        db().execute("UPDATE bases SET title=?, organization=?, description=?, url_path=?, db_name=? WHERE id=?",
+                     (title, org, descr, url_path, db_name, bid))
         db().commit()
         audit('base_edit', row['slug'])
         flash(f'База «{row["slug"]}» обновлена')
@@ -968,7 +973,6 @@ DEFAULT_SETTINGS = {
     'portal_server_name': os.environ.get('PORTAL_SERVER_NAME', '1c.dgek.ru'),
     'db_host': '127.0.0.1',
     'db_port': '5432',
-    'db_name': 'dgek',
     'db_user': 'postgres',
 }
 
@@ -995,15 +999,26 @@ def _run_root(args, timeout=300):
 
 
 def _write_settings_json():
+    """Сохраняет параметры для скрипта применения настроек. Возвращает True при успехе."""
     import json
     data = _settings_all()
     try:
+        bases = {}
+        for row in db().execute("SELECT slug, db_name FROM bases").fetchall():
+            bases[row['slug']] = row['db_name'] or row['slug']
+        data['bases'] = bases
         os.makedirs('/etc/1c-portal', exist_ok=True)
-        with open('/etc/1c-portal/settings.json', 'w', encoding='utf-8') as fh:
+        path = '/etc/1c-portal/settings.json'
+        with open(path, 'w', encoding='utf-8') as fh:
             json.dump(data, fh, ensure_ascii=False, indent=1)
-        os.chmod('/etc/1c-portal/settings.json', 0o640)
-    except Exception:  # noqa: BLE001
-        pass
+        try:
+            os.chmod(path, 0o640)
+        except OSError:
+            pass
+        return True
+    except Exception as exc:  # noqa: BLE001
+        flash('Не удалось сохранить файл настроек: %s' % exc)
+        return False
 
 
 def _schedule_state():
@@ -1018,11 +1033,12 @@ def _schedule_state():
 def admin_settings():
     if request.method == 'POST':
         check_csrf()
-        for name in ('ic_host', 'portal_server_name', 'db_host', 'db_port', 'db_name', 'db_user'):
+        for name in ('ic_host', 'portal_server_name', 'db_host', 'db_port', 'db_user'):
             value = (request.form.get(name) or '').strip()
             if value:
                 _setting_set(name, value)
-        _write_settings_json()
+        if not _write_settings_json():
+            return redirect(url_for('admin_settings'))
         code, out = _run_root(['/usr/local/bin/1c-apply-settings'], timeout=120)
         for line in out[-3:]:
             flash(line)
