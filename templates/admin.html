@@ -114,6 +114,12 @@
               <td>
                 <div class="row-actions">
                   <a class="icon-button" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener" title="Открыть базу в новом окне" aria-label="Открыть базу"><i data-lucide="external-link"></i></a>
+                  <form method="post" action="{{ url_for('base_republish', bid=b.id) }}"
+                        data-confirm="Будут пересозданы файл публикации default.vrd и конфигурация Apache для базы «{{ b.slug }}» (Srvr={{ settings.ic_host if settings else '1c.dgek.ru' }};Ref={{ b.db_name or b.slug }}). Остальные базы не затрагиваются."
+                        data-confirm-title="Опубликовать базу заново?" data-confirm-ok="Опубликовать" data-confirm-style="primary">
+                    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                    <button class="icon-button" title="Опубликовать заново" aria-label="Опубликовать заново"><i data-lucide="refresh-cw"></i></button>
+                  </form>
                   <button class="icon-button" title="Отключить всех пользователей от базы" aria-label="Отключить пользователей" data-open="dlg-kick" data-id="{{ b.id }}" data-slug="{{ b.slug }}"><i data-lucide="user-x"></i></button>
                   <button class="icon-button" title="Изменить" data-open="dlg-base-edit" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-title="{{ b.title }}" data-org="{{ b.organization or '' }}" data-description="{{ b.description }}" data-url="{{ b.url_path }}" data-db="{{ b.db_name or b.slug }}"><i data-lucide="pencil"></i></button>
                   <form method="post" action="{{ url_for('base_update', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Показать/скрыть" aria-label="Показать или скрыть"><i data-lucide="eye"></i></button></form>

@@ -679,6 +679,25 @@ def _toggle_jobs(slug):
     audit('base_jobs', slug)
 
 
+
+@app.route('/admin/bases/<int:bid>/republish', methods=['POST'])
+@admin_required
+def base_republish(bid):
+    """Пересоздаёт публикацию одной базы (default.vrd и конфиг Apache)."""
+    check_csrf()
+    row = db().execute("SELECT * FROM bases WHERE id = ?", (bid,)).fetchone()
+    if not row:
+        abort(404)
+    code, out = _run_root(['/usr/local/bin/1c-republish-base', row['slug'],
+                           row['db_name'] or row['slug']], timeout=120)
+    for line in out[-2:]:
+        flash(line)
+    if code != 0:
+        flash('Публикация не применена — проверьте конфигурацию Apache')
+    audit('base_republish', row['slug'])
+    return redirect(url_for('admin', tab='bases'))
+
+
 @app.route('/admin/bases/<int:bid>/jobs', methods=['POST'])
 @admin_required
 def base_jobs(bid):
