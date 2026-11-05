@@ -1,4 +1,4 @@
-"""Портал доступа к базам 1С: клиентский вход + админка."""
+﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -24,7 +24,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '1.3')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '1.4')
 
 app = Flask(__name__)
 _secret_file = os.path.join(BASE_DIR, '.secret_key')
@@ -125,6 +125,9 @@ def init_db():
         cols = [r[1] for r in conn.execute("PRAGMA table_info(%s)" % table)]
         if 'organization' not in cols:
             conn.execute("ALTER TABLE %s ADD COLUMN organization TEXT NOT NULL DEFAULT ''" % table)
+    base_cols = [r[1] for r in conn.execute("PRAGMA table_info(bases)")]
+    if 'update_mode' not in base_cols:
+        conn.execute("ALTER TABLE bases ADD COLUMN update_mode TEXT")
     conn.commit()
     for idx in (
         "CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit(ts)",
@@ -497,8 +500,10 @@ def admin():
         slugs = tuple(b['slug'] for b in bases)
         counts = _cached('counts:' + ','.join(slugs), 60,
                          lambda: _session_counts(list(slugs)))
+    pg_mode = _cached('pgmode', 20, _pg_mode_state) if tab == 'bases' else 'off'
     return render_template('admin.html', users=users, bases=bases, links=links, tab=tab,
-                           sessions=counts, refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
+                           sessions=counts, pg_mode=pg_mode,
+                           refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
 
 
 def _pwd_ok(pwd):
@@ -670,6 +675,48 @@ def base_jobs(bid):
         abort(404)
     _toggle_jobs(row['slug'])
     return redirect(url_for('admin', tab='bases'))
+
+
+def _pg_update_mode(state, slug):
+    """Включает или выключает быстрый режим PostgreSQL для обновления базы."""
+    try:
+        proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-pg-update-mode', state, slug],
+                              capture_output=True, text=True, timeout=600)
+        out = (proc.stdout or proc.stderr or '').strip().splitlines()
+        for line in out[:3]:
+            flash(line.strip())
+        if proc.returncode != 0 and not out:
+            flash('Код возврата: %s' % proc.returncode)
+    except Exception as exc:  # noqa: BLE001
+        flash('Не удалось изменить режим обновления: %s' % exc)
+    _cache.clear()
+
+
+def _pg_mode_state():
+    try:
+        proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-pg-update-mode', 'status'],
+                              capture_output=True, text=True, timeout=30)
+        return 'on' if (proc.stdout or '').strip().startswith('on') else 'off'
+    except Exception:  # noqa: BLE001
+        return 'off'
+
+
+@app.route('/admin/bases/<int:bid>/update-mode', methods=['POST'])
+@admin_required
+def base_update_mode(bid):
+    check_csrf()
+    row = db().execute("SELECT * FROM bases WHERE id = ?", (bid,)).fetchone()
+    if not row:
+        abort(404)
+    state = 'off' if request.form.get('mode') == 'off' else 'on'
+    _pg_update_mode(state, row['slug'])
+    conn = db()
+    conn.execute("UPDATE bases SET update_mode = ? WHERE id = ?",
+                 (time.strftime('%Y-%m-%d %H:%M:%S') if state == 'on' else None, bid))
+    conn.commit()
+    audit('base_update_mode', row['slug'] + (' on' if state == 'on' else ' off'))
+    return redirect(url_for('admin', tab='bases'))
+
 
 
 @app.route('/portal/bases/<int:bid>/jobs', methods=['POST'])
