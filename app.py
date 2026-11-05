@@ -1,4 +1,4 @@
-"""Портал доступа к базам 1С: клиентский вход + админка."""
+﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -24,7 +24,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '1.4')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '1.5')
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 2592000  # 30 дней, ссылки версионируются
@@ -960,6 +960,121 @@ def admin_stats_kick():
     _cache.clear()
     audit('stats_kick', 'отключены все пользователи')
     return redirect(url_for('admin_stats'))
+
+
+
+DEFAULT_SETTINGS = {
+    'ic_host': os.environ.get('PORTAL_IC_HOST', '1c.dgek.ru'),
+    'portal_server_name': os.environ.get('PORTAL_SERVER_NAME', '1c.dgek.ru'),
+    'db_host': '127.0.0.1',
+    'db_port': '5432',
+    'db_name': 'dgek',
+    'db_user': 'postgres',
+}
+
+
+def _settings_all():
+    values = dict(DEFAULT_SETTINGS)
+    try:
+        for row in db().execute("SELECT name, value FROM settings").fetchall():
+            if row['name'] in values and row['value']:
+                values[row['name']] = row['value']
+    except Exception:  # noqa: BLE001
+        pass
+    return values
+
+
+def _run_root(args, timeout=300):
+    """Выполняет служебный скрипт через sudo, возвращает код и строки вывода."""
+    try:
+        proc = subprocess.run(['sudo', '-n'] + args, capture_output=True, text=True, timeout=timeout)
+        out = (proc.stdout or proc.stderr or '').strip().splitlines()
+        return proc.returncode, out
+    except Exception as exc:  # noqa: BLE001
+        return 1, [str(exc)]
+
+
+def _write_settings_json():
+    import json
+    data = _settings_all()
+    try:
+        os.makedirs('/etc/1c-portal', exist_ok=True)
+        with open('/etc/1c-portal/settings.json', 'w', encoding='utf-8') as fh:
+            json.dump(data, fh, ensure_ascii=False, indent=1)
+        os.chmod('/etc/1c-portal/settings.json', 0o640)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _schedule_state():
+    code, out = _run_root(['/usr/local/bin/1c-restart-schedule', 'status'], timeout=30)
+    if out and out[0] and out[0] != 'off':
+        return ' '.join(out[0].split()[:5])
+    return ''
+
+
+@app.route('/admin/settings', methods=['GET', 'POST'])
+@admin_required
+def admin_settings():
+    if request.method == 'POST':
+        check_csrf()
+        for name in ('ic_host', 'portal_server_name', 'db_host', 'db_port', 'db_name', 'db_user'):
+            value = (request.form.get(name) or '').strip()
+            if value:
+                _setting_set(name, value)
+        _write_settings_json()
+        code, out = _run_root(['/usr/local/bin/1c-apply-settings'], timeout=120)
+        for line in out[-3:]:
+            flash(line)
+        if code != 0:
+            flash('Настройки сохранены, но применить к публикации не удалось')
+        audit('settings_save', 'параметры подключения')
+        _cache.clear()
+        return redirect(url_for('admin_settings'))
+
+    return render_template('admin.html', users=[], bases=[], links=set(), tab='settings',
+                           settings=_settings_all(), schedule=_schedule_state(),
+                           refreshed=time.strftime('%H:%M:%S'))
+
+
+@app.route('/admin/settings/schedule', methods=['POST'])
+@admin_required
+def admin_settings_schedule():
+    check_csrf()
+    mode = (request.form.get('cron') or '').strip() or 'off'
+    if mode != 'off' and len(mode.split()) != 5:
+        flash('Расписание должно состоять из пяти полей cron, например: 0 3 * * *')
+        return redirect(url_for('admin_settings'))
+    code, out = _run_root(['/usr/local/bin/1c-restart-schedule', mode], timeout=60)
+    flash(out[-1] if out else 'готово')
+    audit('settings_schedule', mode)
+    return redirect(url_for('admin_settings'))
+
+
+@app.route('/admin/settings/restart-1c', methods=['POST'])
+@admin_required
+def admin_settings_restart():
+    check_csrf()
+    code, out = _run_root(['/usr/local/bin/1c-safe-restart', 'apply'], timeout=600)
+    for line in out[-4:]:
+        flash(line)
+    audit('settings_restart_1c', 'перезапуск сервера 1С')
+    _cache.clear()
+    return redirect(url_for('admin_settings'))
+
+
+@app.route('/admin/settings/reboot', methods=['POST'])
+@admin_required
+def admin_settings_reboot():
+    check_csrf()
+    audit('settings_reboot', 'перезагрузка сервера')
+    db().commit()
+    subprocess.Popen(['sudo', '-n', '/usr/bin/systemctl', 'reboot'])
+    return Response(
+        '<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Перезагрузка</title></head>'
+        '<body style="font:16px Arial;padding:40px"><h1>Сервер перезагружается</h1>'
+        '<p>Портал вернётся через 1-3 минуты. Обновите страницу позже.</p></body></html>',
+        status=202, mimetype='text/html')
 
 
 @app.route('/healthz')

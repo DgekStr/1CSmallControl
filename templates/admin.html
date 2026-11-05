@@ -20,6 +20,7 @@
         <a class="tab {% if tab == 'bases' %}active{% endif %}" href="{{ url_for('admin', tab='bases') }}"><i data-lucide="database"></i>Базы</a>
         <a class="tab {% if tab == 'access' %}active{% endif %}" href="{{ url_for('admin', tab='access') }}"><i data-lucide="key-round"></i>Доступы</a>
         <a class="tab {% if tab == 'stats' %}active{% endif %}" href="{{ url_for('admin_stats') }}"><i data-lucide="chart-column"></i>Статистика</a>
+        <a class="tab {% if tab == 'settings' %}active{% endif %}" href="{{ url_for('admin_settings') }}"><i data-lucide="settings"></i>Настройка</a>
       </nav>
       <div class="topbar-right">
         <div class="theme-switch" role="group" aria-label="Тема оформления">
@@ -147,6 +148,86 @@
         <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
       </form>
       {% endfor %}
+      {% endif %}
+
+
+      {% if tab == 'settings' %}
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">Администрирование</p>
+          <h1>Настройка</h1>
+          <p class="muted">Подключение к 1С, имя портала и обслуживание сервера</p>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+        <form class="card settings-card" method="post" action="{{ url_for('admin_settings') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <h2>Подключение к 1С</h2>
+          <p class="muted">Хост сервера 1С записывается в публикацию и используется клиентами при подключении.</p>
+
+          <label class="field">Хост сервера 1С
+            <input name="ic_host" value="{{ settings.ic_host }}" required>
+          </label>
+
+          <div class="field-row">
+            <label class="field">Хост БД
+              <input name="db_host" value="{{ settings.db_host }}">
+            </label>
+            <label class="field">Порт БД
+              <input name="db_port" value="{{ settings.db_port }}">
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">Имя базы
+              <input name="db_name" value="{{ settings.db_name }}">
+            </label>
+            <label class="field">Пользователь БД
+              <input name="db_user" value="{{ settings.db_user }}">
+            </label>
+          </div>
+
+          <label class="field">Имя портала (Apache ServerName)
+            <input name="portal_server_name" value="{{ settings.portal_server_name }}">
+          </label>
+
+          <p class="muted small">Портал принимает запросы на любые хосты и IP: в Apache устанавливается <span class="mono">ServerAlias *</span>.</p>
+
+          <button class="button primary" type="submit"><i data-lucide="check"></i>Сохранить и применить</button>
+        </form>
+
+        <div class="card settings-card">
+          <h2>Обслуживание</h2>
+
+          <form method="post" action="{{ url_for('admin_settings_schedule') }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <label class="field">Автоматический перезапуск 1С (cron)
+              <input name="cron" value="{{ schedule }}" placeholder="0 3 * * *">
+            </label>
+            <p class="muted small">Пять полей cron: минуты, часы, день, месяц, день недели. Пустое значение отключает расписание.</p>
+            <button class="button" type="submit"><i data-lucide="calendar-clock"></i>Сохранить расписание</button>
+          </form>
+
+          <form method="post" action="{{ url_for('admin_settings_schedule') }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="cron" value="off">
+            <button class="button" type="submit">Отключить расписание</button>
+          </form>
+
+          <hr class="sep">
+
+          <form method="post" action="{{ url_for('admin_settings_restart') }}" onsubmit="return confirm('Перезапустить сервер 1С? Все пользователи будут отключены.')">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button class="button" type="submit"><i data-lucide="rotate-cw"></i>Перезапустить 1С сейчас</button>
+          </form>
+
+          <form method="post" action="{{ url_for('admin_settings_reboot') }}" onsubmit="return confirm('Перезагрузить ВЕСЬ сервер? Службы и сеансы будут прерваны на 2-3 минуты.')">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button class="button danger" type="submit"><i data-lucide="power"></i>Перезагрузить сервер</button>
+          </form>
+        </div>
+      </div>
       {% endif %}
 
       {% if tab == 'stats' and stats_users is defined %}
