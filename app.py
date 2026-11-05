@@ -496,6 +496,9 @@ def admin():
     bases = db().execute("SELECT * FROM bases ORDER BY sort_order, title").fetchall()
     links = {(r['user_id'], r['base_id']) for r in db().execute("SELECT * FROM access")}
     tab = request.args.get('tab', 'users')
+    if tab == 'stats':
+        # статистика живёт на отдельном маршруте — иначе не хватает её данных
+        return redirect(url_for('admin_stats'))
     counts = {}
     if tab == 'bases' and bases:
         slugs = tuple(b['slug'] for b in bases)
@@ -898,12 +901,15 @@ def _sessions_snapshot():
 @admin_required
 def admin_stats_clear():
     check_csrf()
-    db().execute("DELETE FROM audit")
-    db().execute("DELETE FROM visits")
-    db().commit()
+    conn = db()
+    conn.execute("DELETE FROM audit")
+    conn.execute("DELETE FROM visits")
+    conn.execute("DELETE FROM client_sessions")
+    conn.commit()
     audit('stats_clear', 'история очищена')
     flash('История и статистика очищены')
-    return redirect(url_for('admin', tab='stats'))
+    _cache.clear()
+    return redirect(url_for('admin_stats'))
 
 
 @app.route('/healthz')
