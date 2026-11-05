@@ -974,6 +974,7 @@ DEFAULT_SETTINGS = {
     'db_host': '127.0.0.1',
     'db_port': '5432',
     'db_user': 'postgres',
+    'pg_admin_user': 'postgres',
 }
 
 
@@ -998,7 +999,17 @@ def _run_root(args, timeout=300):
         return 1, [str(exc)]
 
 
-def _write_settings_json():
+PG_PASS_TMP = '/etc/1c-portal/.pg-pass'
+
+
+def _pg_password_set():
+    try:
+        return os.path.exists('/etc/1c-portal/pg-admin.conf')
+    except OSError:
+        return False
+
+
+def _write_settings_json(password=None):
     """Сохраняет параметры для скрипта применения настроек. Возвращает True при успехе."""
     import json
     data = _settings_all()
@@ -1015,6 +1026,14 @@ def _write_settings_json():
             os.chmod(path, 0o640)
         except OSError:
             pass
+        if password:
+            # пароль передаётся скрипту отдельным файлом и сразу удаляется им
+            with open(PG_PASS_TMP, 'w', encoding='utf-8') as fh:
+                fh.write(password)
+            try:
+                os.chmod(PG_PASS_TMP, 0o600)
+            except OSError:
+                pass
         return True
     except Exception as exc:  # noqa: BLE001
         flash('Не удалось сохранить файл настроек: %s' % exc)
@@ -1033,11 +1052,12 @@ def _schedule_state():
 def admin_settings():
     if request.method == 'POST':
         check_csrf()
-        for name in ('ic_host', 'portal_server_name', 'db_host', 'db_port', 'db_user'):
+        for name in ('ic_host', 'portal_server_name', 'db_host', 'db_port', 'db_user', 'pg_admin_user'):
             value = (request.form.get(name) or '').strip()
             if value:
                 _setting_set(name, value)
-        if not _write_settings_json():
+        password = (request.form.get('pg_admin_password') or '').strip()
+        if not _write_settings_json(password or None):
             return redirect(url_for('admin_settings'))
         code, out = _run_root(['/usr/local/bin/1c-apply-settings'], timeout=120)
         for line in out[-3:]:
@@ -1050,6 +1070,7 @@ def admin_settings():
 
     return render_template('admin.html', users=[], bases=[], links=set(), tab='settings',
                            settings=_settings_all(), schedule=_schedule_state(),
+                           pg_password_set=_pg_password_set(),
                            refreshed=time.strftime('%H:%M:%S'))
 
 

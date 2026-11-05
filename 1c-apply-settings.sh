@@ -43,6 +43,24 @@ if server_name:
     print("  Apache: ServerName %s, ServerAlias *" % server_name)
 PY
 
+# 3) учётные данные администратора PostgreSQL — в файл, доступный только root
+mkdir -p /etc/1c-portal
+PASS_TMP=/etc/1c-portal/.pg-pass
+PG_CONF=/etc/1c-portal/pg-admin.conf
+PG_USER=$(python3 -c "import json,sys; print(json.load(open('$JSON', encoding='utf-8')).get('pg_admin_user') or 'postgres')" 2>/dev/null)
+if [ -f "$PASS_TMP" ]; then
+  PG_PASS=$(cat "$PASS_TMP")
+  umask 077
+  {
+    echo "# учётные данные администратора PostgreSQL (создано порталом)"
+    echo "PG_ADMIN_USER=$PG_USER"
+    echo "PG_ADMIN_PASSWORD=$PG_PASS"
+  } > "$PG_CONF"
+  chmod 600 "$PG_CONF"
+  shred -u "$PASS_TMP" 2>/dev/null || rm -f "$PASS_TMP"
+  echo "  учётные данные PostgreSQL сохранены"
+fi
+
 if apache2ctl configtest >/dev/null 2>&1; then
   systemctl reload apache2
   echo "настройки применены, Apache перезагружен"

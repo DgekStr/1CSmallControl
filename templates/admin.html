@@ -179,9 +179,19 @@
           </label>
 
           <p class="muted small">Имя базы в PostgreSQL задаётся отдельно для каждой базы — в разделе <a href="{{ url_for('admin', tab='bases') }}">«Базы»</a>.</p>
-          <label class="field">Пользователь БД
+          <label class="field">Пользователь БД (для подключения 1С)
             <input name="db_user" value="{{ settings.db_user }}">
           </label>
+
+          <label class="field">Администратор PostgreSQL
+            <input name="pg_admin_user" value="{{ settings.pg_admin_user }}" placeholder="postgres">
+          </label>
+
+          <label class="field">Пароль администратора PostgreSQL
+            <input name="pg_admin_password" type="password" autocomplete="new-password"
+                   placeholder="{{ 'сохранён — оставьте пустым, чтобы не менять' if pg_password_set else 'не задан' }}">
+          </label>
+          <p class="muted small">Пароль хранится в файле, доступном только root (<span class="mono">/etc/1c-portal/pg-admin.conf</span>), и не показывается в интерфейсе.</p>
 
           <label class="field">Имя портала (Apache ServerName)
             <input name="portal_server_name" value="{{ settings.portal_server_name }}">
