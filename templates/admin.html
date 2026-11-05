@@ -62,7 +62,7 @@
                   <button class="icon-button" title="Изменить ФИО и организацию" data-open="dlg-user-edit" data-id="{{ u.id }}" data-login="{{ u.username }}" data-name="{{ u.full_name }}" data-org="{{ u.organization or '' }}"><i data-lucide="pencil"></i></button>
                   <button class="icon-button" title="Сменить пароль" data-open="dlg-pwd" data-user="{{ u.id }}" data-name="{{ u.username }}"><i data-lucide="key-round"></i></button>
                   <form method="post" action="{{ url_for('user_update', uid=u.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Активность" aria-label="Активность"><i data-lucide="power"></i></button></form>
-                  <form method="post" action="{{ url_for('user_update', uid=u.id) }}" onsubmit="return confirm('Удалить пользователя?')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
+                  <form method="post" action="{{ url_for('user_update', uid=u.id) }}" data-confirm="Пользователь и все его доступы к базам будут удалены." data-confirm-title="Удалить пользователя?" data-confirm-ok="Удалить" data-confirm-ack="1"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
                 </div>
               </td>
             </tr>
@@ -94,7 +94,7 @@
               <td>{% if b.is_active %}<span class="badge success">опубликована</span>{% else %}<span class="badge neutral">скрыта</span>{% endif %}</td>
               <td>{% set st = sessions.get(b.slug) %}{% if not st %}<span class="badge neutral" title="нет данных">—</span>{% elif st.n %}<span class="badge success" title="активных сеансов">{{ st.n }}</span>{% else %}<span class="badge neutral" title="нет активных сеансов">0</span>{% endif %}</td>
               <td>
-                <form method="post" action="{{ url_for('base_jobs', bid=b.id) }}" onsubmit="return confirm('{{ 'Разблокировать' if st and st.jobs == 'on' else 'Заблокировать' }} регламентные задания базы «{{ b.slug }}»?')">
+                <form method="post" action="{{ url_for('base_jobs', bid=b.id) }}" data-confirm="{{ 'Разблокировать' if st and st.jobs == 'on' else 'Заблокировать' }} регламентные задания базы «{{ b.slug }}»?" data-confirm-title="Регламентные задания" data-confirm-ok="Продолжить" data-confirm-style="primary">
                   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
                   {% if st and st.jobs == 'on' %}
                   <button class="badge warning jobs-toggle" type="submit" title="Нажмите, чтобы разблокировать"><i data-lucide="lock"></i>заблокированы</button>
@@ -117,7 +117,7 @@
                   <button class="icon-button" title="Отключить всех пользователей от базы" aria-label="Отключить пользователей" data-open="dlg-kick" data-id="{{ b.id }}" data-slug="{{ b.slug }}"><i data-lucide="user-x"></i></button>
                   <button class="icon-button" title="Изменить" data-open="dlg-base-edit" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-title="{{ b.title }}" data-org="{{ b.organization or '' }}" data-description="{{ b.description }}" data-url="{{ b.url_path }}"><i data-lucide="pencil"></i></button>
                   <form method="post" action="{{ url_for('base_update', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Показать/скрыть" aria-label="Показать или скрыть"><i data-lucide="eye"></i></button></form>
-                  <form method="post" action="{{ url_for('base_update', bid=b.id) }}" onsubmit="return confirm('Удалить базу и все доступы к ней?')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
+                  <form method="post" action="{{ url_for('base_update', bid=b.id) }}" data-confirm="База «{{ b.slug }}» и все доступы к ней будут удалены без возможности отмены." data-confirm-title="Удалить базу?" data-confirm-ok="Удалить" data-confirm-ack="1"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
                 </div>
               </td>
             </tr>
@@ -170,23 +170,21 @@
             <input name="ic_host" value="{{ settings.ic_host }}" required>
           </label>
 
-          <div class="field-row">
-            <label class="field">Хост БД
-              <input name="db_host" value="{{ settings.db_host }}">
-            </label>
-            <label class="field">Порт БД
-              <input name="db_port" value="{{ settings.db_port }}">
-            </label>
-          </div>
+          <label class="field">Хост БД
+            <input name="db_host" value="{{ settings.db_host }}">
+          </label>
 
-          <div class="field-row">
-            <label class="field">Имя базы
-              <input name="db_name" value="{{ settings.db_name }}">
-            </label>
-            <label class="field">Пользователь БД
-              <input name="db_user" value="{{ settings.db_user }}">
-            </label>
-          </div>
+          <label class="field">Порт БД
+            <input name="db_port" value="{{ settings.db_port }}">
+          </label>
+
+          <label class="field">Имя базы
+            <input name="db_name" value="{{ settings.db_name }}">
+          </label>
+
+          <label class="field">Пользователь БД
+            <input name="db_user" value="{{ settings.db_user }}">
+          </label>
 
           <label class="field">Имя портала (Apache ServerName)
             <input name="portal_server_name" value="{{ settings.portal_server_name }}">
@@ -217,12 +215,12 @@
 
           <hr class="sep">
 
-          <form method="post" action="{{ url_for('admin_settings_restart') }}" onsubmit="return confirm('Перезапустить сервер 1С? Все пользователи будут отключены.')">
+          <form method="post" action="{{ url_for('admin_settings_restart') }}" data-confirm="Сервер 1С будет перезапущен, все пользователи отключатся. Простой 1-3 минуты." data-confirm-title="Перезапустить сервер 1С?" data-confirm-ok="Перезапустить" data-confirm-ack="1">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
             <button class="button" type="submit"><i data-lucide="rotate-cw"></i>Перезапустить 1С сейчас</button>
           </form>
 
-          <form method="post" action="{{ url_for('admin_settings_reboot') }}" onsubmit="return confirm('Перезагрузить ВЕСЬ сервер? Службы и сеансы будут прерваны на 2-3 минуты.')">
+          <form method="post" action="{{ url_for('admin_settings_reboot') }}" data-confirm="Будет перезагружен весь сервер: остановятся 1С, PostgreSQL, Apache и портал. Простой 2-3 минуты." data-confirm-title="Перезагрузить сервер?" data-confirm-ok="Перезагрузить сервер" data-confirm-ack="1">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
             <button class="button danger" type="submit"><i data-lucide="power"></i>Перезагрузить сервер</button>
           </form>
@@ -240,7 +238,7 @@
         <div class="heading-actions">
           <a class="button" href="{{ url_for('admin_stats', refresh=1) }}"><i data-lucide="refresh-cw"></i>Обновить</a>
           <button class="button danger" type="button" data-open="dlg-kick-all"><i data-lucide="user-x"></i>Отключить всех</button>
-          <form method="post" action="{{ url_for('admin_stats_clear') }}" onsubmit="return confirm('Очистить всю историю: журнал действий, сеансы и историю подключений?')">
+          <form method="post" action="{{ url_for('admin_stats_clear') }}" data-confirm="Будут удалены журнал действий, сеансы портала и история подключений 1С. Отменить это действие нельзя." data-confirm-title="Очистить историю?" data-confirm-ok="Очистить" data-confirm-ack="1">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
             <button class="button danger" type="submit"><i data-lucide="trash-2"></i>Очистить историю</button>
           </form>
@@ -582,6 +580,51 @@
       </div>
     </form>
   </dialog>
+
+
+  <dialog class="modal danger-modal" id="dlg-confirm">
+    <form method="dialog">
+      <div class="modal-heading"><h2 id="cf-title">Подтвердите действие</h2><button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button></div>
+      <p class="muted" id="cf-text"></p>
+      <label class="check-label ack" id="cf-ack-wrap"><input type="checkbox" id="cf-ack"> Я понимаю последствия и подтверждаю действие</label>
+      <div class="modal-footer">
+        <button type="button" class="button" data-close>Отмена</button>
+        <button type="button" class="button danger" id="cf-ok">Подтвердить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    (function () {
+      var pending = null;
+      var okBtn = document.getElementById('cf-ok');
+      var ack = document.getElementById('cf-ack');
+      document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form.dataset || !form.dataset.confirm || form.dataset.confirmed === '1') return;
+        e.preventDefault();
+        pending = form;
+        document.getElementById('cf-title').textContent = form.dataset.confirmTitle || 'Подтвердите действие';
+        document.getElementById('cf-text').textContent = form.dataset.confirm;
+        okBtn.textContent = form.dataset.confirmOk || 'Подтвердить';
+        okBtn.className = 'button ' + (form.dataset.confirmStyle === 'primary' ? 'primary' : 'danger');
+        var needAck = form.dataset.confirmAck === '1';
+        document.getElementById('cf-ack-wrap').style.display = needAck ? '' : 'none';
+        ack.checked = false;
+        okBtn.disabled = needAck;
+        ack.onchange = function () { okBtn.disabled = !ack.checked; };
+        var dlg = document.getElementById('dlg-confirm');
+        if (dlg.showModal) dlg.showModal();
+        if (window.lucide) lucide.createIcons();
+      });
+      okBtn.addEventListener('click', function () {
+        if (!pending) return;
+        pending.dataset.confirmed = '1';
+        document.getElementById('dlg-confirm').close();
+        pending.submit();
+      });
+    })();
+  </script>
 
   <script>
     document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });

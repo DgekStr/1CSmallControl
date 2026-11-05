@@ -1077,6 +1077,16 @@ def admin_settings_reboot():
         status=202, mimetype='text/html')
 
 
+
+@app.after_request
+def _no_store(response):
+    """Страницы портала не кэшируются браузером — иначе видно устаревшее состояние."""
+    if not request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+    return response
+
+
 @app.route('/healthz')
 def healthz():
     return 'ok', 200
