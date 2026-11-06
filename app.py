@@ -298,8 +298,9 @@ def index():
                        lambda: _session_counts(list(slugs)))
         jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
     pg_mode = _pg_mode_state()
+    sizes = _base_sizes(rows) if rows else {}
     return render_template('portal.html', bases=rows, jobs=jobs, pg_mode=pg_mode,
-                           maint=maintenance.state())
+                           sizes=sizes, maint=maintenance.state())
 
 
 # ---------------- шлюз к публикациям 1С ----------------
@@ -717,6 +718,49 @@ def _toggle_jobs(slug):
     _cache.clear()
     audit('base_jobs', slug)
 
+
+
+
+def _size_human(value):
+    """«2356 MB» -> «2.3 ГБ» для карточек базы."""
+    units = {'kB': 1024, 'MB': 1024 ** 2, 'GB': 1024 ** 3, 'TB': 1024 ** 4}
+    try:
+        number, unit = value.split()
+        return metrics.human_bytes(float(number) * units[unit])
+    except (ValueError, KeyError):
+        return value
+
+
+def _base_sizes(bases):
+    """Размеры баз в PostgreSQL для карточек клиента."""
+    names = sorted({(b['db_name'] or b['slug']) for b in bases})
+    if not names:
+        return {}
+
+    key = 'basesize:' + ','.join(names)
+    now = time.time()
+    hit = _cache.get(key)
+    if hit and now - hit[0] < 60:
+        return hit[1]
+
+    sizes = {}
+    try:
+        placeholders = ','.join("'%s'" % n.replace("'", "''") for n in names)
+        sql = ("select datname || '|' || pg_size_pretty(pg_database_size(datname)) "
+               "from pg_database where datname in (%s)" % placeholders)
+        proc = subprocess.run(
+            ['sudo', '-n', '-u', 'postgres', '/opt/pgpro/1c-16/bin/psql', '-Atc', sql],
+            capture_output=True, text=True, timeout=30)
+        for line in (proc.stdout or '').splitlines():
+            if '|' in line:
+                name, size = line.split('|', 1)
+                sizes[name.strip()] = _size_human(size.strip())
+    except Exception:  # noqa: BLE001
+        sizes = {}
+
+    if sizes:
+        _cache[key] = (now, sizes)
+    return sizes
 
 
 def _sync_cluster_state(bases):

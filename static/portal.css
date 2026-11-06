@@ -220,3 +220,15 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .base-open{background:#f5c518 !important;border-color:#e0b400 !important;color:#111111 !important;font-weight:700}
 .base-open:hover{background:#ffd633 !important;border-color:#e0b400 !important;color:#111111 !important}
 .base-open svg{color:#111111}
+
+/* ===== карточка базы: организация и размер ===== */
+.base-org{display:inline-block;font-size:calc(13px*var(--fs));font-weight:700;letter-spacing:.01em;
+          padding:5px 12px;margin-bottom:10px;border-radius:9px;
+          background:color-mix(in srgb, var(--violet) 16%, transparent);
+          border:1px solid color-mix(in srgb, var(--violet) 34%, transparent);
+          color:var(--text)}
+.base-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.base-size{display:inline-flex;align-items:center;gap:5px;font-size:calc(10.5px*var(--fs));
+           color:var(--muted);padding:3px 9px;border-radius:7px;border:1px solid var(--border);
+           background:#ffffff08}
+.base-size svg{width:12px;height:12px}
