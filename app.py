@@ -136,6 +136,8 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN update_mode TEXT")
     if 'db_name' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN db_name TEXT")
+    if 'cluster_state' not in base_cols:
+        conn.execute("ALTER TABLE bases ADD COLUMN cluster_state TEXT")
     conn.execute("UPDATE bases SET db_name = slug WHERE db_name IS NULL OR db_name = ''")
     conn.commit()
     maintenance.init()
@@ -633,8 +635,16 @@ def base_create():
         url_path = '/WEB/%s/' % slug
     try:
         db_name = (request.form.get('db_name') or '').strip() or slug
-        db().execute("INSERT INTO bases(slug,title,organization,description,url_path,db_name) VALUES(?,?,?,?,?,?)",
-                     (slug, title or slug, org, descr, url_path, db_name))
+        make_db = request.form.get('make_db') == '1'
+        state = None
+        if make_db:
+            code, out = _run_root(['/usr/local/bin/1c-create-base', slug, db_name], timeout=300)
+            for line in (out or [])[-3:]:
+                flash(line)
+            state = 'created' if code == 0 else 'failed'
+        db().execute("INSERT INTO bases(slug,title,organization,description,url_path,db_name,cluster_state) "
+                     "VALUES(?,?,?,?,?,?,?)",
+                     (slug, title or slug, org, descr, url_path, db_name, state))
         db().commit()
     except sqlite3.IntegrityError:
         flash('База с таким кодом уже есть')
@@ -1290,7 +1300,32 @@ def portal_base_update_mode(bid):
     return redirect(url_for('index'))
 
 
+
+@app.route('/bases/<int:bid>/v8i')
+@login_required
+def base_v8i(bid):
+    row = db().execute("SELECT * FROM bases WHERE id = ? AND is_active = 1", (bid,)).fetchone()
+    if not row:
+        abort(404)
+    if session.get('role') != 'admin':
+        allowed = db().execute("SELECT 1 FROM access WHERE user_id = ? AND base_id = ?",
+                               (session['uid'], bid)).fetchone()
+        if not allowed:
+            abort(403)
+    settings = _settings_all()
+    host = settings.get('ic_host') or 'localhost'
+    ref = row['db_name'] or row['slug']
+    text = ('[Соединение с сервером 1С:Предприятие]\r\n'
+            'Connect=Srvr="%s";Ref="%s";\r\n' % (host, ref))
+    data = text.encode('cp1251', 'replace')
+    audit('base_v8i', row['slug'])
+    return Response(data, mimetype='application/octet-stream', headers={
+        'Content-Disposition': 'attachment; filename="%s.v8i"' % row['slug'],
+    })
+
+
 @app.route('/healthz')
+
 
 def healthz():
     return 'ok', 200

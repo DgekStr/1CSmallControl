@@ -105,7 +105,7 @@
       </div>
       <div class="table-scroll">
         <table class="data-table">
-          <thead><tr><th>Код</th><th>Название</th><th>Организация</th><th>Адрес</th><th>Статус</th><th>Сейчас</th><th>Задания</th><th>Обновление</th><th></th></tr></thead>
+          <thead><tr><th>Код</th><th>Название</th><th>Организация</th><th>Адрес</th><th>Статус</th><th>БД в кластере</th><th>Сейчас</th><th>Задания</th><th>Обновление</th><th></th></tr></thead>
           <tbody>
           {% for b in bases %}
             <tr>
@@ -114,6 +114,11 @@
               <td>{{ b.organization or '—' }}</td>
               <td class="mono">{{ b.url_path }}</td>
               <td>{% if b.is_active %}<span class="badge success">опубликована</span>{% else %}<span class="badge neutral">скрыта</span>{% endif %}</td>
+              <td>
+                {% if b.cluster_state == 'created' %}<span class="badge success" title="информационная база создана">создана</span>
+                {% elif b.cluster_state == 'failed' %}<span class="badge warning" title="создание не удалось">ошибка</span>
+                {% else %}<span class="badge neutral" title="только запись портала">нет</span>{% endif %}
+              </td>
               <td>{% set st = sessions.get(b.slug) %}{% if not st %}<span class="badge neutral" title="нет данных">—</span>{% elif st.n %}<span class="badge success" title="активных сеансов">{{ st.n }}</span>{% else %}<span class="badge neutral" title="нет активных сеансов">0</span>{% endif %}</td>
               <td>
                 <form method="post" action="{{ url_for('base_jobs', bid=b.id) }}" data-confirm="{{ 'Разблокировать' if st and st.jobs == 'on' else 'Заблокировать' }} регламентные задания базы «{{ b.slug }}»?" data-confirm-title="Регламентные задания" data-confirm-ok="Продолжить" data-confirm-style="primary">
@@ -136,6 +141,7 @@
               <td>
                 <div class="row-actions">
                   <a class="icon-button" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener" title="Открыть базу в новом окне" aria-label="Открыть базу"><i data-lucide="external-link"></i></a>
+                  <a class="icon-button" href="{{ url_for('base_v8i', bid=b.id) }}" title="Скачать подключение (.v8i)" aria-label="Подключение"><i data-lucide="download"></i></a>
                   <form method="post" action="{{ url_for('base_republish', bid=b.id) }}"
                         data-confirm="Будут пересозданы файл публикации default.vrd и конфигурация Apache для базы «{{ b.slug }}» (Srvr={{ settings.ic_host if settings else '1c.dgek.ru' }};Ref={{ b.db_name or b.slug }}). Остальные базы не затрагиваются."
                         data-confirm-title="Опубликовать базу заново?" data-confirm-ok="Опубликовать" data-confirm-style="primary">
@@ -554,6 +560,8 @@
       <label>Описание<input name="description" placeholder="Необязательно" autocomplete="off"></label>
       <label>Адрес публикации<input name="url_path" placeholder="/WEB/buh/" autocomplete="off"></label>
       <label>Имя базы в PostgreSQL<input name="db_name" placeholder="совпадает с кодом, если не указать" autocomplete="off"></label>
+      <label class="check-label ack" style="margin:10px 0"><input type="checkbox" name="make_db" value="1" checked> Создать пустую базу на сервере (PostgreSQL + кластер 1С)</label>
+      <p class="muted small" style="margin-bottom:8px">Если галочка снята — создаётся только запись портала и публикация. Данные в пустую базу загружаются позже через Конфигуратор.</p>
       <div class="modal-footer"><button type="button" class="button" data-close>Отмена</button><button class="button primary" type="submit">Добавить</button></div>
     </form>
   </dialog>
