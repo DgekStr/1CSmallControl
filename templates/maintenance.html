@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Регламентные работы — Портал 1С</title>
+<link rel="icon" href="{{ asset('brand.png') }}">
+<link rel="stylesheet" href="{{ asset('app.css') }}">
+<link rel="stylesheet" href="{{ asset('portal.css') }}">
+<script src="{{ asset('theme.js') }}" defer></script>
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <div class="brand">
+      <img class="brand-mark" src="{{ asset('brand.png') }}" alt="">
+      <span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С">
+        <span class="brand-version">v{{ app_version }}</span></span>
+    </div>
+
+    <h1>Регламентные работы</h1>
+    <p class="muted">
+      {% if st.phase == 'active' %}
+        Работы идут до <strong>{{ st.ends_at }}</strong>. Вход в базы временно закрыт.
+      {% else %}
+        Запланированы работы с <strong>{{ st.starts_at }}</strong> по <strong>{{ st.ends_at }}</strong>.
+      {% endif %}
+    </p>
+
+    <div class="warn-box">
+      <i data-lucide="triangle-alert"></i>
+      <div>
+        <p>{{ st.message }}</p>
+        {% if st.comment %}<p class="muted">Причина: {{ st.comment }}</p>{% endif %}
+      </div>
+    </div>
+
+    <p class="muted small">Портал вернётся в работу автоматически после {{ st.ends_at }}.
+      Администратор может войти: <a href="/login?admin=1">вход для администратора</a>.</p>
+  </main>
+</body>
+</html>

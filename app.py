@@ -8,6 +8,7 @@ import subprocess
 import threading
 import time
 
+import maintenance
 import metrics
 from functools import wraps
 
@@ -24,7 +25,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '1.5')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '1.6')
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 2592000  # 30 дней, ссылки версионируются
@@ -137,6 +138,7 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN db_name TEXT")
     conn.execute("UPDATE bases SET db_name = slug WHERE db_name IS NULL OR db_name = ''")
     conn.commit()
+    maintenance.init()
     for idx in (
         "CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit(ts)",
         "CREATE INDEX IF NOT EXISTS idx_audit_action ON audit(action)",
@@ -293,7 +295,8 @@ def index():
         info = _cached('counts:' + ','.join(slugs), 60,
                        lambda: _session_counts(list(slugs)))
         jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
-    return render_template('portal.html', bases=rows, jobs=jobs)
+    return render_template('portal.html', bases=rows, jobs=jobs,
+                           maint=maintenance.state())
 
 
 # ---------------- шлюз к публикациям 1С ----------------
@@ -329,6 +332,8 @@ def web_gate(slug, rest=''):
             audit('web_denied', slug)
             abort(403)
 
+    if session.get('role') != 'admin' and maintenance.blocking():
+        return redirect(url_for('maintenance_page'))
     path = '/WEB/%s/%s' % (slug, rest)
     if request.query_string:
         path += '?' + request.query_string.decode('latin-1')
@@ -337,8 +342,13 @@ def web_gate(slug, rest=''):
     if request.method not in ('GET', 'HEAD'):
         body = request.get_data()
 
+    # на стартовую страницу веб-клиента добавляем плашку регламентных работ,
+    # поэтому запрашиваем её без сжатия (остальные ресурсы идут как есть)
+    inject_banner = request.method == 'GET' and rest == ''
     headers = {k: v for k, v in request.headers.items()
                if k.lower() not in HOP_BY_HOP and k.lower() != 'content-length'}
+    if inject_banner:
+        headers = {k: v for k, v in headers.items() if k.lower() != 'accept-encoding'}
 
     try:
         conn = http.client.HTTPConnection(BACKEND_HOST, BACKEND_PORT, timeout=300)
@@ -346,6 +356,17 @@ def web_gate(slug, rest=''):
         resp = conn.getresponse()
         data = resp.read()
         # content_type=None — чтобы не подмешивать Content-Type Flask'а к ответу 1С
+        if inject_banner and b'<html' in data[:2048].lower():
+            try:
+                text = data.decode('utf-8', 'ignore')
+                snippet = '<script src="/static/maint.js" defer></script>'
+                if '</body>' in text:
+                    text = text.replace('</body>', snippet + '</body>', 1)
+                else:
+                    text = text + snippet
+                data = text.encode('utf-8')
+            except Exception:  # noqa: BLE001
+                pass
         out = Response(data, status=resp.status, content_type=None)
         out.headers.pop('Content-Type', None)
         for key, value in resp.getheaders():
@@ -360,6 +381,8 @@ def web_gate(slug, rest=''):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'GET' and maintenance.blocking() and request.args.get('admin') != '1':
+        return render_template('maintenance.html', st=maintenance.state())
     error = None
     if request.method == 'POST':
         check_csrf()
@@ -491,6 +514,10 @@ def _start_warmer():
                 _warm_once()
             except Exception:  # noqa: BLE001
                 pass
+            try:
+                maintenance.tick()
+            except Exception:  # noqa: BLE001
+                pass
             time.sleep(45)
 
     threading.Thread(target=loop, daemon=True).start()
@@ -513,7 +540,7 @@ def admin():
                          lambda: _session_counts(list(slugs)))
     pg_mode = _cached('pgmode', 20, _pg_mode_state) if tab == 'bases' else 'off'
     return render_template('admin.html', users=users, bases=bases, links=links, tab=tab,
-                           sessions=counts, pg_mode=pg_mode,
+                           sessions=counts, pg_mode=pg_mode, maint=maintenance.state(),
                            refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
 
 
@@ -1089,6 +1116,7 @@ def admin_settings():
 
     return render_template('admin.html', users=[], bases=[], links=set(), tab='settings',
                            settings=_settings_all(), schedule=_schedule_state(),
+                           maint=maintenance.state(), auto_maint=maintenance.auto_settings(),
                            pg_password_set=_pg_password_set(),
                            refreshed=time.strftime('%H:%M:%S'))
 
@@ -1141,6 +1169,70 @@ def _no_store(response):
         response.headers['Cache-Control'] = 'no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
     return response
+
+
+
+@app.route('/maintenance')
+def maintenance_page():
+    st = maintenance.state()
+    if st.get('phase') != 'active':
+        return redirect(url_for('login'))
+    return render_template('maintenance.html', st=st)
+
+
+@app.route('/api/maint')
+def api_maint():
+    if not session.get('uid'):
+        return {'phase': 'none'}
+    return maintenance.state()
+
+
+@app.route('/admin/maintenance', methods=['POST'])
+@admin_required
+def admin_maintenance_start():
+    check_csrf()
+    ok, message = maintenance.create(
+        request.form.get('starts_at'), request.form.get('ends_at'),
+        (request.form.get('message') or '').strip(),
+        (request.form.get('comment') or '').strip(),
+        session.get('user', ''))
+    flash(message)
+    audit('maintenance_start', '%s..%s' % (request.form.get('starts_at'), request.form.get('ends_at')))
+    return redirect(request.form.get('next') or url_for('admin', tab='bases'))
+
+
+@app.route('/admin/maintenance/cancel', methods=['POST'])
+@admin_required
+def admin_maintenance_cancel():
+    check_csrf()
+    maintenance.cancel()
+    flash('Регламентные работы отменены')
+    audit('maintenance_cancel', '')
+    return redirect(request.form.get('next') or url_for('admin', tab='bases'))
+
+
+@app.route('/admin/maintenance/schedule', methods=['POST'])
+@admin_required
+def admin_maintenance_schedule():
+    check_csrf()
+    enabled = '1' if request.form.get('enabled') == '1' else '0'
+    _setting_set('maint_auto', enabled)
+    _setting_set('maint_auto_weekday', (request.form.get('weekday') or '5').strip())
+    _setting_set('maint_auto_time', (request.form.get('time') or '03:00').strip())
+    _setting_set('maint_auto_minutes', (request.form.get('minutes') or '60').strip())
+    flash('Расписание регламентных работ сохранено' if enabled == '1' else 'Автоматические работы отключены')
+    audit('maintenance_schedule', enabled)
+    return redirect(url_for('admin', tab='bases'))
+
+
+@app.route('/admin/maintenance/kick', methods=['POST'])
+@admin_required
+def admin_maintenance_kick():
+    check_csrf()
+    for line in maintenance.kick_all():
+        flash(line)
+    audit('maintenance_kick', 'отключение всех сеансов')
+    return redirect(request.form.get('next') or url_for('admin', tab='bases'))
 
 
 @app.route('/healthz')

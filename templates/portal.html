@@ -32,6 +32,22 @@
         <div>
           <div class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</div>
           <h1>Мои базы</h1>
+  {% if maint and maint.phase != 'none' %}
+  <div class="maint-strip {{ 'danger' if maint.phase == 'active' else 'warning' }}">
+    <i data-lucide="triangle-alert"></i>
+    <span>
+      {% if maint.phase == 'active' %}
+        Идут регламентные работы до <strong>{{ maint.ends_at }}</strong> — вход в базы временно закрыт
+      {% elif maint.phase == 'soon' %}
+        Регламентные работы через {{ maint.minutes_left }} мин ({{ maint.starts_at }} — {{ maint.ends_at }}). Сохраните данные и выйдите из 1С
+      {% else %}
+        Запланированы регламентные работы: {{ maint.starts_at }} — {{ maint.ends_at }}
+      {% endif %}
+      {% if maint.comment %}· {{ maint.comment }}{% endif %}
+    </span>
+  </div>
+  {% endif %}
+
           <p class="muted">Выберите базу, чтобы открыть её в браузере</p>
         </div>
       </div>
@@ -46,7 +62,11 @@
             <span class="base-path mono">{{ b.url_path }}</span>
           </div>
           <div class="base-actions">
+            {% if maint and maint.phase == 'active' %}
+            <button class="button primary" type="button" disabled title="Идут регламентные работы">Открыть</button>
+            {% else %}
             <a class="button primary base-open" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener">Открыть <i data-lucide="arrow-up-right"></i></a>
+            {% endif %}
             <button type="button" class="button base-config" data-open="dlg-config"><i data-lucide="terminal"></i>Конфигуратор</button>
           </div>
           {% set jobs_on = (jobs.get(b.slug) if jobs else 'off') == 'on' %}

@@ -197,3 +197,15 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .settings-card .button{width:100%;justify-content:center;margin-bottom:8px}
 .settings-card .sep{border:none;border-top:1px solid var(--border);margin:14px 0}
 .small{font-size:calc(10px*var(--fs))}
+
+/* ===== регламентные работы ===== */
+.maint-strip{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;
+             border:1px solid var(--border);margin:0 0 16px;font-size:calc(11px*var(--fs))}
+.maint-strip.warning{background:#f59e0b1f;border-color:#f59e0b66}
+.maint-strip.danger{background:#ef44441f;border-color:#ef444466}
+.maint-strip svg{width:16px;height:16px;flex:0 0 auto}
+.maint-strip span{flex:1}
+.small-btn{padding:5px 10px;font-size:calc(10px*var(--fs));height:auto;width:auto}
+.field select{width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;
+              border:1px solid var(--border);background:var(--bg);color:var(--text);
+              font-size:calc(12px*var(--fs))}
