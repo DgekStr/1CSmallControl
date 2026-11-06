@@ -538,6 +538,7 @@ def admin():
         return redirect(url_for('admin_stats'))
     counts = {}
     if tab == 'bases' and bases:
+        _sync_cluster_state(bases)
         slugs = tuple(b['slug'] for b in bases)
         counts = _cached('counts:' + ','.join(slugs), 60,
                          lambda: _session_counts(list(slugs)))
@@ -716,6 +717,42 @@ def _toggle_jobs(slug):
     _cache.clear()
     audit('base_jobs', slug)
 
+
+
+def _sync_cluster_state(bases):
+    """Сверяет записи портала с кластером 1С и обновляет колонку «БД в кластере»."""
+    names = [b['slug'] for b in bases]
+    if not names:
+        return
+
+    def fetch():
+        try:
+            proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-base-state'] + names,
+                                  capture_output=True, text=True, timeout=60)
+            result = {}
+            for line in (proc.stdout or '').splitlines():
+                parts = line.split()
+                if len(parts) == 2:
+                    result[parts[0]] = parts[1] == 'yes'
+            return result
+        except Exception:  # noqa: BLE001
+            return {}
+
+    actual = _cached('basestate:' + ','.join(names), 60, fetch)
+    if not actual:
+        return
+    conn = db()
+    changed = False
+    for base in bases:
+        exists = actual.get(base['slug'])
+        if exists is None:
+            continue
+        new_state = 'created' if exists else None
+        if (base['cluster_state'] or None) != new_state:
+            conn.execute("UPDATE bases SET cluster_state = ? WHERE id = ?", (new_state, base['id']))
+            changed = True
+    if changed:
+        conn.commit()
 
 
 @app.route('/admin/bases/<int:bid>/republish', methods=['POST'])
