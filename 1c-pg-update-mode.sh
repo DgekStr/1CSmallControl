@@ -34,10 +34,6 @@ PY
 }
 
 apply_on() {
-  mkdir -p /etc/1c-portal
-  current_json > "$STATE"
-  chmod 600 "$STATE"
-
   PG "ALTER SYSTEM SET synchronous_commit TO 'off'" >/dev/null
   PG "ALTER SYSTEM SET fsync TO 'off'" >/dev/null
   PG "ALTER SYSTEM SET full_page_writes TO 'off'" >/dev/null
@@ -48,7 +44,17 @@ apply_on() {
   PG "SELECT pg_reload_conf()" >/dev/null
 
   sleep 2
-  echo "режим обновления включён: synchronous_commit=$(PG 'show synchronous_commit'), fsync=$(PG 'show fsync'), autovacuum=$(PG 'show autovacuum')"
+  SSC=$(PG 'show synchronous_commit')
+  FS=$(PG 'show fsync')
+  if [ "$SSC" = "off" ] && [ "$FS" = "off" ]; then
+    echo "режим обновления включён: synchronous_commit=$SSC, fsync=$FS, autovacuum=$(PG 'show autovacuum')"
+  else
+    echo "ОШИБКА: настройки не применились (synchronous_commit=$SSC, fsync=$FS)"
+    exit 3
+  fi
+  mkdir -p /etc/1c-portal
+  current_json > "$STATE"
+  chmod 600 "$STATE"
 }
 
 apply_off() {
