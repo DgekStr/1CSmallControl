@@ -68,6 +68,7 @@
             <a class="button primary base-open" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener">Открыть <i data-lucide="arrow-up-right"></i></a>
             {% endif %}
             <button type="button" class="button base-config" data-open="dlg-config"><i data-lucide="terminal"></i>Конфигуратор</button>
+            <a class="button" href="{{ url_for('base_v8i', bid=b.id) }}" title="Файл подключения для Конфигуратора"><i data-lucide="download"></i>Подключение</a>
           </div>
           {% set jobs_on = (jobs.get(b.slug) if jobs else 'off') == 'on' %}
 
