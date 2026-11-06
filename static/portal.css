@@ -234,3 +234,11 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
            font-size:calc(10.5px*var(--fs));color:var(--muted);padding:0 9px;line-height:1;
            border-radius:7px;border:1px solid var(--border);background:#ffffff08}
 .base-size svg{width:12px;height:12px;flex:none}
+
+/* ===== доступы: колонки баз с организацией ===== */
+.access-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px 26px;align-items:start}
+.access-list .access-item,.access-list .check-label{margin-top:0} /* сетка ровная: без отступа у второй базы */
+.access-item{align-items:flex-start;gap:8px}
+.access-item-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.access-item-title{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;line-height:1.3}
+.access-item-org{font-size:calc(9.5px*var(--fs));color:var(--muted);line-height:1.25}

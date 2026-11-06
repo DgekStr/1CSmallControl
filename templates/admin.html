@@ -176,7 +176,12 @@
         </div>
         <div class="access-list">
           {% for b in bases %}
-          <label class="check-label"><input type="checkbox" name="base_id" value="{{ b.id }}" {% if (u.id, b.id) in links %}checked{% endif %}> {{ b.title }} <span class="mono muted">{{ b.slug }}</span></label>
+          <label class="check-label access-item"><input type="checkbox" name="base_id" value="{{ b.id }}" {% if (u.id, b.id) in links %}checked{% endif %}>
+            <span class="access-item-body">
+              <span class="access-item-title">{{ b.title }} <span class="mono muted">{{ b.slug }}</span></span>
+              {% if b.organization %}<span class="access-item-org">{{ b.organization }}</span>{% endif %}
+            </span>
+          </label>
           {% endfor %}
         </div>
         <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
