@@ -48,19 +48,15 @@ ac), чтобы освободить базу для обновления или
 
 ## Скриншоты
 
-| Вход | 
-|---|
-| ![Вход](docs/screenshots/01-login.png) |
+Светлая тема, демонстрационные данные.
 
-| Кабинет | 
-|---|
-![Кабинет](docs/screenshots/02-client-portal.png) |
+![Вход в портал](docs/screenshots/01-login-light.png)
 
-| Базы Админка|
-|---|
-| ![Базы](docs/screenshots/05-admin-bases.png) |
+![Кабинет клиента: свои базы](docs/screenshots/02-client-light.png)
 
-Мобильная версия: [03-client-mobile.png](docs/screenshots/03-client-mobile.png)
+![Админка: базы и публикации](docs/screenshots/03-admin-light.png)
+
+Тёмная тема и мобильный вид: [docs/screenshots](docs/screenshots).
 
 ---
 
