@@ -104,7 +104,7 @@
                 </form>
               </td>
               <td>
-                {% set mode_on = (b.update_mode is not none) and pg_mode == 'on' %}
+                {% set mode_on = pg_mode == 'on' %}
                 <button class="badge {{ 'warning' if mode_on else 'neutral' }} jobs-toggle" type="button"
                         data-open="dlg-pg" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-state="{{ 'on' if mode_on else 'off' }}"
                         title="{{ 'Режим обновления включён: нажмите, чтобы выключить' if mode_on else 'Ускорить обновление базы' }}">
