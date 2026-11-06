@@ -1295,9 +1295,16 @@ def _no_store(response):
     # иначе браузер подставляет устаревшие данные и печатная форма остаётся пустой
     if request.path.startswith('/WEB/'):
         low = request.path.lower()
+        query = request.query_string.decode('latin-1').lower()
         static_ext = ('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg',
                       '.woff', '.woff2', '.ico', '.map')
-        if low.endswith(static_ext) or '/scripts/' in low or 'resourcestrings' in low:
+        # неизменяемое: файлы клиента и всё, что версионировано параметром
+        immutable = (low.endswith(static_ext) or '/scripts/' in low or 'resourcestrings' in low
+                     or 'confver=' in query or 'sysver=' in query or 'version=' in query)
+        # состояние сеанса и печати кэшировать нельзя никогда
+        volatile = ('/e1cib/tempstorage', '/e1cib/ping', '/e1cib/logform',
+                    '/e1cib/moxel', '/e1csys/cn', '/e1cib/command', '/e1cib/modules/call')
+        if immutable and not any(mark in low for mark in volatile):
             return response
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
         response.headers['Pragma'] = 'no-cache'

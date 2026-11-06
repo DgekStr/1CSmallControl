@@ -50,7 +50,7 @@ Environment=PORTAL_IC_HOST=${PORTAL_IC_HOST:-1c.example.ru}
 Environment=PORTAL_SUPPORT_NAME=${PORTAL_SUPPORT_NAME:-example.ru}
 Environment=PORTAL_SUPPORT_URL=${PORTAL_SUPPORT_URL:-https://example.ru/contacts.html}
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/gunicorn --worker-class gthread --workers 2 --threads 8 --bind $BIND --timeout 900 app:app
+ExecStart=/usr/bin/gunicorn --worker-class gthread --workers 2 --threads 32 --bind $BIND --timeout 9000 app:app
 Restart=always
 RestartSec=3
 PrivateTmp=true
