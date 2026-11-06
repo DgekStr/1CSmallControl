@@ -12,7 +12,7 @@ import maintenance
 import metrics
 from functools import wraps
 
-from flask import (Flask, g, redirect, render_template, request, session,
+from flask import (Flask, g, redirect, render_template, request, session, stream_with_context,
                    url_for, abort, flash, Response)
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -358,6 +358,31 @@ def web_gate(slug, rest=''):
         conn = http.client.HTTPConnection(BACKEND_HOST, BACKEND_PORT, timeout=300)
         conn.request(request.method, path, body=body, headers=headers)
         resp = conn.getresponse()
+
+        # печатные формы 1С отдаёт постепенно — передаём потоком, иначе браузер
+        # видит пустое окно, пока не придёт весь документ
+        if not inject_banner and request.method != 'HEAD':
+            def stream(conn=conn, resp=resp):
+                try:
+                    while True:
+                        chunk = resp.read(65536)
+                        if not chunk:
+                            break
+                        yield chunk
+                finally:
+                    try:
+                        conn.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+
+            out = Response(stream_with_context(stream()), status=resp.status, content_type=None)
+            out.headers.pop('Content-Type', None)
+            for key, value in resp.getheaders():
+                if key.lower() not in HOP_BY_HOP and key.lower() != 'content-length':
+                    out.headers.add(key, value)
+            out.headers['X-Accel-Buffering'] = 'no'
+            return out
+
         data = resp.read()
         # content_type=None — чтобы не подмешивать Content-Type Flask'а к ответу 1С
         if inject_banner and b'<html' in data[:2048].lower():
