@@ -209,3 +209,14 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .field select{width:100%;box-sizing:border-box;padding:9px 11px;border-radius:8px;
               border:1px solid var(--border);background:var(--bg);color:var(--text);
               font-size:calc(12px*var(--fs))}
+
+/* ===== карточка базы: кнопки ===== */
+.base-actions-row{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.base-actions-row .button{flex:1 1 140px;justify-content:center;min-height:42px}
+.base-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-top:4px}
+.base-tools{display:flex;flex-direction:column;gap:8px;align-items:stretch;margin-top:4px}
+.base-tools form{display:flex;width:100%}
+.base-tools .jobs-toggle{width:100%;justify-content:center;min-height:38px}
+.base-open{background:#f5c518 !important;border-color:#e0b400 !important;color:#111111 !important;font-weight:700}
+.base-open:hover{background:#ffd633 !important;border-color:#e0b400 !important;color:#111111 !important}
+.base-open svg{color:#111111}

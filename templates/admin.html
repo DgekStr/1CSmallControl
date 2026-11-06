@@ -99,6 +99,7 @@
           <span class="muted small refresh-note">обновлено в {{ refreshed }}</span>
           <a class="button" href="{{ url_for('admin', tab='bases', refresh=1) }}"><i data-lucide="refresh-cw"></i>Обновить</a>
           <button class="button primary" data-open="dlg-base"><i data-lucide="plus"></i>Добавить базу</button>
+        <button class="button danger" type="button" data-open="dlg-maint-now"><i data-lucide="zap"></i>Запустить работы сейчас</button>
         <button class="button" type="button" data-open="dlg-maint"><i data-lucide="wrench"></i>Регламентные работы</button>
         </div>
       </div>
@@ -647,6 +648,38 @@
   </dialog>
 
 
+
+
+  <dialog class="modal danger-modal" id="dlg-maint-now">
+    <form method="post" action="{{ url_for('admin_maintenance_now') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ request.path }}{% if request.query_string %}?{{ request.query_string.decode() }}{% endif %}">
+      <div class="modal-heading"><h2>Запустить работы сейчас</h2><button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button></div>
+
+      <p class="muted" style="margin-bottom:14px">Всем, кто работает в веб-клиенте, сразу показывается окно «Срочные регламентные работы, закройте 1С» с обратным отсчётом 5 минут. По истечении отсчёта сеансы отключаются, вход закрывается.</p>
+
+      <label class="field">Длительность работ, минут
+        <input name="minutes" type="number" min="10" max="600" value="30" required>
+      </label>
+      <label class="field">Причина (необязательно)
+        <input name="comment" placeholder="Обновление платформы" autocomplete="off">
+      </label>
+      <label class="check-label ack" style="margin-bottom:10px"><input type="checkbox" name="tune" value="1"> Включить ускорение PostgreSQL</label>
+
+      <div class="warn-box">
+        <i data-lucide="triangle-alert"></i>
+        <div>
+          <p><strong>Сеансы будут отключены через 5 минут.</strong></p>
+          <p class="muted">Пользователи увидят обратный отсчёт и несохранённые данные будут потеряны.</p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="button" data-close>Отмена</button>
+        <button type="submit" class="button danger" data-confirm="Через 5 минут все сеансы 1С будут отключены." data-confirm-title="Запустить работы сейчас?" data-confirm-ok="Запустить" data-confirm-ack="1"><i data-lucide="zap"></i>Запустить</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog class="modal danger-modal" id="dlg-maint">
     <form method="post" action="{{ url_for('admin_maintenance_start') }}">

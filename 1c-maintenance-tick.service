@@ -1,0 +1,12 @@
+[Unit]
+Description=1C Small Control — тик регламентных работ
+After=network.target postgrespro-1c-16.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/1c-maintenance tick
+User=root
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

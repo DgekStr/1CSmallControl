@@ -1,0 +1,11 @@
+[Unit]
+Description=1C Small Control — проверка регламентных работ каждую минуту
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=60
+AccuracySec=10
+Unit=1c-maintenance-tick.service
+
+[Install]
+WantedBy=timers.target

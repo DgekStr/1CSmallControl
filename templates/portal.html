@@ -61,7 +61,7 @@
             <p class="muted">{{ b.organization or b.description or 'Информационная база 1С' }}</p>
             <span class="base-path mono">{{ b.url_path }}</span>
           </div>
-          <div class="base-actions">
+          <div class="base-actions base-actions-row">
             {% if maint and maint.phase == 'active' %}
             <button class="button primary" type="button" disabled title="Идут регламентные работы">Открыть</button>
             {% else %}
@@ -70,6 +70,22 @@
             <button type="button" class="button base-config" data-open="dlg-config"><i data-lucide="terminal"></i>Конфигуратор</button>
           </div>
           {% set jobs_on = (jobs.get(b.slug) if jobs else 'off') == 'on' %}
+
+          <div class="base-tools">
+          {% set mode_on = pg_mode == 'on' %}
+          <form method="post" action="{{ url_for('portal_base_update_mode', bid=b.id) }}"
+                data-confirm-title="{{ 'Выключить режим обновления?' if mode_on else 'Включить режим обновления?' }}"
+                data-confirm="{{ 'Настройки PostgreSQL вернутся к обычным, затем выполнится проверка целостности базы.' if mode_on else 'PostgreSQL переключится на asynchronous_commit: fsync и autovacuum будут отключены, WAL и память увеличены. При аварии возможна потеря последних изменений — страхует снимок сервера.' }}"
+                data-confirm-ok="{{ 'Выключить' if mode_on else 'Включить' }}"
+                data-confirm-style="primary" {% if not mode_on %}data-confirm-ack="1"{% endif %}>
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="mode" value="{{ 'off' if mode_on else 'on' }}">
+            <button class="badge {{ 'warning' if mode_on else 'neutral' }} jobs-toggle" type="submit"
+                    title="{{ 'Режим обновления включён: нажмите, чтобы выключить' if mode_on else 'Ускорить обновление базы' }}">
+              <i data-lucide="{{ 'zap' if mode_on else 'gauge' }}"></i>{{ 'ускорение включено' if mode_on else 'ускорить' }}
+            </button>
+          </form>
+
           <form method="post" action="{{ url_for('portal_base_jobs', bid=b.id) }}" class="jobs-form"
                 data-confirm="{{ 'После разблокировки задания начнут выполняться по расписанию.' if jobs_on else 'На время блокировки регламентные и фоновые задания выполняться не будут.' }}" data-confirm-title="{{ 'Разблокировать задания?' if jobs_on else 'Заблокировать задания?' }}" data-confirm-ok="Продолжить" data-confirm-style="primary">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -78,6 +94,7 @@
               {{ 'Регламентные задания заблокированы' if jobs_on else 'Регламентные задания включены' }}
             </button>
           </form>
+          </div>
         </article>
         {% endfor %}
       </div>

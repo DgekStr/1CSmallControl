@@ -25,7 +25,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '1.6')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '1.7')
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 2592000  # 30 дней, ссылки версионируются
@@ -295,7 +295,8 @@ def index():
         info = _cached('counts:' + ','.join(slugs), 60,
                        lambda: _session_counts(list(slugs)))
         jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
-    return render_template('portal.html', bases=rows, jobs=jobs,
+    pg_mode = _cached('pgmode', 20, _pg_mode_state)
+    return render_template('portal.html', bases=rows, jobs=jobs, pg_mode=pg_mode,
                            maint=maintenance.state())
 
 
@@ -1205,7 +1206,10 @@ def admin_maintenance_start():
 @admin_required
 def admin_maintenance_cancel():
     check_csrf()
-    maintenance.cancel()
+    if maintenance.state().get('phase') in ('active', 'grace'):
+        maintenance.stop_now('отменено администратором')
+    else:
+        maintenance.cancel()
     flash('Регламентные работы отменены')
     audit('maintenance_cancel', '')
     return redirect(request.form.get('next') or url_for('admin', tab='bases'))
@@ -1235,7 +1239,59 @@ def admin_maintenance_kick():
     return redirect(request.form.get('next') or url_for('admin', tab='bases'))
 
 
+
+@app.route('/admin/maintenance/now', methods=['POST'])
+@admin_required
+def admin_maintenance_now():
+    check_csrf()
+    tune = request.form.get('tune') == '1'
+    ok, message = maintenance.start_now(
+        request.form.get('minutes') or 30,
+        (request.form.get('comment') or '').strip(),
+        session.get('user', ''), tune=tune)
+    flash(message)
+    audit('maintenance_now', 'минут: %s, tune=%s' % (request.form.get('minutes'), tune))
+    return redirect(request.form.get('next') or url_for('admin', tab='bases'))
+
+
+@app.route('/admin/maintenance/stop', methods=['POST'])
+@admin_required
+def admin_maintenance_stop():
+    check_csrf()
+    ok, message = maintenance.stop_now('остановлено администратором')
+    flash(message)
+    audit('maintenance_stop', '')
+    return redirect(request.form.get('next') or url_for('admin', tab='bases'))
+
+
+@app.route('/portal/bases/<int:bid>/update-mode', methods=['POST'])
+@login_required
+def portal_base_update_mode(bid):
+    check_csrf()
+    row = db().execute("SELECT * FROM bases WHERE id = ? AND is_active = 1", (bid,)).fetchone()
+    if not row:
+        abort(404)
+    if session.get('role') != 'admin':
+        allowed = db().execute("SELECT 1 FROM access WHERE user_id = ? AND base_id = ?",
+                               (session['uid'], bid)).fetchone()
+        if not allowed:
+            abort(403)
+    state = 'off' if request.form.get('mode') == 'off' else 'on'
+    try:
+        proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-pg-update-mode', state, row['slug']],
+                              capture_output=True, text=True, timeout=600)
+        out = (proc.stdout or proc.stderr or '').strip().splitlines()
+        for line in out[:2]:
+            flash(line.strip())
+    except Exception as exc:  # noqa: BLE001
+        flash('Не удалось изменить режим: %s' % exc)
+    _cache.clear()
+    audit('base_update_mode', '%s %s' % (row['slug'], state))
+    return redirect(url_for('index'))
+
+
 @app.route('/healthz')
+
 def healthz():
     return 'ok', 200
 
