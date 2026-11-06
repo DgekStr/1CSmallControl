@@ -1,4 +1,4 @@
-﻿"""Портал доступа к базам 1С: клиентский вход + админка."""
+"""Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
 import os
 import re
@@ -297,7 +297,7 @@ def index():
         info = _cached('counts:' + ','.join(slugs), 60,
                        lambda: _session_counts(list(slugs)))
         jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
-    pg_mode = _cached('pgmode', 20, _pg_mode_state)
+    pg_mode = _pg_mode_state()
     return render_template('portal.html', bases=rows, jobs=jobs, pg_mode=pg_mode,
                            maint=maintenance.state())
 
@@ -542,7 +542,7 @@ def admin():
         slugs = tuple(b['slug'] for b in bases)
         counts = _cached('counts:' + ','.join(slugs), 60,
                          lambda: _session_counts(list(slugs)))
-    pg_mode = _cached('pgmode', 20, _pg_mode_state) if tab == 'bases' else 'off'
+    pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
     return render_template('admin.html', users=users, bases=bases, links=links, tab=tab,
                            sessions=counts, pg_mode=pg_mode, maint=maintenance.state(),
                            refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
@@ -800,6 +800,14 @@ def _pg_update_mode(state, slug):
 
 
 def _pg_mode_state():
+    """Состояние ускорения PostgreSQL: быстрый путь — файл-маркер, иначе скрипт."""
+    try:
+        with open('/etc/1c-portal/pg-mode.state', encoding='utf-8') as fh:
+            value = fh.read().strip()
+        if value in ('on', 'off'):
+            return value
+    except OSError:
+        pass
     try:
         proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-pg-update-mode', 'status'],
                               capture_output=True, text=True, timeout=30)
