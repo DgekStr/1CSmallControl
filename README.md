@@ -52,7 +52,7 @@ ac), чтобы освободить базу для обновления или
 |---|---|
 | ![Вход](docs/screenshots/01-login.png) | ![Кабинет](docs/screenshots/02-client-portal.png) |
 
-| Базы |
+| Базы Админка|
 |---|
 | ![Базы](docs/screenshots/05-admin-bases.png) |
 
