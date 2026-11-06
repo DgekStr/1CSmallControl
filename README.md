@@ -49,8 +49,12 @@ ac), чтобы освободить базу для обновления или
 ## Скриншоты
 
 | Вход | 
-|---|---|
-| ![Вход](docs/screenshots/01-login.png) | ![Кабинет](docs/screenshots/02-client-portal.png) |
+|---|
+| ![Вход](docs/screenshots/01-login.png) |
+
+| Кабинет | 
+|---|
+![Кабинет](docs/screenshots/02-client-portal.png) |
 
 | Базы Админка|
 |---|
