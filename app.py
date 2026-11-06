@@ -916,7 +916,7 @@ def portal_base_jobs(bid):
         if not allowed:
             abort(403)
     _toggle_jobs(row['slug'])
-    return redirect(url_for('index'))
+    return redirect(url_for('index', sync=1))
 
 
 @app.route('/admin/access', methods=['POST'])
