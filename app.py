@@ -1290,8 +1290,19 @@ def admin_settings_reboot():
 @app.after_request
 def _no_store(response):
     """Страницы портала не кэшируются браузером — иначе видно устаревшее состояние."""
-    # веб-клиенту 1С нужен кэш: иначе браузер заново качает все его файлы при каждом запуске
-    if request.path.startswith('/static/') or request.path.startswith('/WEB/'):
+    # кэшируем только статику веб-клиента (скрипты, стили, картинки, строки ресурсов),
+    # а динамические ответы 1С (logForm, moxel, tempstorage, ping) — никогда:
+    # иначе браузер подставляет устаревшие данные и печатная форма остаётся пустой
+    if request.path.startswith('/WEB/'):
+        low = request.path.lower()
+        static_ext = ('.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg',
+                      '.woff', '.woff2', '.ico', '.map')
+        if low.endswith(static_ext) or '/scripts/' in low or 'resourcestrings' in low:
+            return response
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        return response
+    if request.path.startswith('/static/'):
         return response
     if not request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'no-store, must-revalidate'
