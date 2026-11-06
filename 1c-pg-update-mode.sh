@@ -6,6 +6,7 @@
 set -uo pipefail
 
 STATE=/etc/1c-portal/pg-update-mode.json
+MARK=/etc/1c-portal/pg-mode.state
 KEYS="synchronous_commit fsync full_page_writes autovacuum maintenance_work_mem max_wal_size checkpoint_timeout"
 DB="${2:-dgek}"
 
@@ -47,7 +48,8 @@ apply_on() {
   SSC=$(PG 'show synchronous_commit')
   FS=$(PG 'show fsync')
   if [ "$SSC" = "off" ] && [ "$FS" = "off" ]; then
-    echo "режим обновления включён: synchronous_commit=$SSC, fsync=$FS, autovacuum=$(PG 'show autovacuum')"
+    echo "on" > "$MARK"; chmod 644 "$MARK"
+  echo "режим обновления включён: synchronous_commit=$SSC, fsync=$FS, autovacuum=$(PG 'show autovacuum')"
   else
     echo "ОШИБКА: настройки не применились (synchronous_commit=$SSC, fsync=$FS)"
     exit 3
@@ -64,6 +66,7 @@ apply_off() {
   PG "SELECT pg_reload_conf()" >/dev/null
   sleep 2
   rm -f "$STATE"
+  echo "off" > "$MARK"; chmod 644 "$MARK"
   echo "настройки возвращены: synchronous_commit=$(PG 'show synchronous_commit'), fsync=$(PG 'show fsync'), autovacuum=$(PG 'show autovacuum')"
 
   echo "проверка базы $DB:"

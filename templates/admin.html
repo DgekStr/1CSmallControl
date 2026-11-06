@@ -105,7 +105,7 @@
       </div>
       <div class="table-scroll">
         <table class="data-table">
-          <thead><tr><th>Код</th><th>Название</th><th>Организация</th><th>Адрес</th><th>Статус</th><th>БД в кластере</th><th>Сейчас</th><th>Задания</th><th>Обновление</th><th></th></tr></thead>
+          <thead><tr><th>Код</th><th>Название</th><th>Организация</th><th>Адрес</th><th>Статус</th><th>БД в кластере</th><th>Сейчас</th><th>Задания</th><th>Ускорение (все БД)</th><th></th></tr></thead>
           <tbody>
           {% for b in bases %}
             <tr>
@@ -134,7 +134,7 @@
                 {% set mode_on = pg_mode == 'on' %}
                 <button class="badge {{ 'warning' if mode_on else 'neutral' }} jobs-toggle" type="button"
                         data-open="dlg-pg" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-state="{{ 'on' if mode_on else 'off' }}"
-                        title="{{ 'Режим обновления включён: нажмите, чтобы выключить' if mode_on else 'Ускорить обновление базы' }}">
+                        title="{{ 'Ускорение включено для всего сервера: нажмите, чтобы выключить' if mode_on else 'Ускорить PostgreSQL (действует на все базы)' }}">
                   <i data-lucide="{{ 'zap' if mode_on else 'gauge' }}"></i>{{ 'включён' if mode_on else 'ускорить' }}
                 </button>
               </td>
@@ -812,7 +812,7 @@
           document.getElementById('pg-title').textContent = isOn ? 'Выключить режим обновления?' : 'Включить режим обновления?';
           document.getElementById('pg-text').innerHTML = isOn
             ? 'Настройки PostgreSQL вернутся к обычным, затем выполнится проверка целостности базы.'
-            : 'PostgreSQL переключится на asynchronous_commit, fsync и autovacuum будут отключены, WAL и память под обслуживание увеличены. При аварии во время обновления возможна потеря последних изменений — страхует снимок виртуальной машины.';
+            : 'PostgreSQL переключится на asynchronous_commit, fsync и autovacuum будут отключены, WAL и память под обслуживание увеличены. Режим действует на весь сервер — на все базы сразу. При аварии во время обновления возможна потеря последних изменений — страхует снимок виртуальной машины.';
           const ackWrap = document.getElementById('pg-ack-wrap');
           const ack = document.getElementById('pg-ack');
           const submit = document.getElementById('pg-submit');
