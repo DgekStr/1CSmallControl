@@ -57,9 +57,14 @@
         <article class="base-card">
           <div class="base-card-icon"><i data-lucide="database"></i></div>
           <div class="base-card-body">
+            {% set org = b.organization or b.description or '' %}
+            {% if org %}<div class="base-org">{{ org }}</div>{% endif %}
             <h2>{{ b.title }}</h2>
-            <p class="muted">{{ b.organization or b.description or 'Информационная база 1С' }}</p>
-            <span class="base-path mono">{{ b.url_path }}</span>
+            <div class="base-meta">
+              <span class="base-path mono">{{ b.url_path }}</span>
+              {% set size = sizes.get(b.db_name or b.slug) if sizes else none %}
+              {% if size %}<span class="base-size" title="Размер базы в PostgreSQL"><i data-lucide="hard-drive"></i>{{ size }}</span>{% endif %}
+            </div>
           </div>
           <div class="base-actions base-actions-row">
             {% if maint and maint.phase == 'active' %}
@@ -68,7 +73,7 @@
             <a class="button primary base-open" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener">Открыть <i data-lucide="arrow-up-right"></i></a>
             {% endif %}
             <button type="button" class="button base-config" data-open="dlg-config"><i data-lucide="terminal"></i>Конфигуратор</button>
-            <a class="button" href="{{ url_for('base_v8i', bid=b.id) }}" title="Файл подключения для Конфигуратора"><i data-lucide="download"></i>Подключение</a>
+            <a class="button" href="{{ url_for('base_v8i', bid=b.id) }}" title="Файл подключения для Конфигуратора"><i data-lucide="download"></i>Подключение *.v8i</a>
           </div>
           {% set jobs_on = (jobs.get(b.slug) if jobs else 'off') == 'on' %}
 
