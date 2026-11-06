@@ -52,9 +52,9 @@ ac), чтобы освободить базу для обновления или
 |---|---|
 | ![Вход](docs/screenshots/01-login.png) | ![Кабинет](docs/screenshots/02-client-portal.png) |
 
-| Клиенты | Базы |
-|---|---|
-| ![Клиенты](docs/screenshots/04-admin-clients.png) | ![Базы](docs/screenshots/05-admin-bases.png) |
+| Базы |
+|---|
+| ![Базы](docs/screenshots/05-admin-bases.png) |
 
 Мобильная версия: [03-client-mobile.png](docs/screenshots/03-client-mobile.png)
 
