@@ -1265,6 +1265,9 @@ def admin_settings_reboot():
 @app.after_request
 def _no_store(response):
     """Страницы портала не кэшируются браузером — иначе видно устаревшее состояние."""
+    # веб-клиенту 1С нужен кэш: иначе браузер заново качает все его файлы при каждом запуске
+    if request.path.startswith('/static/') or request.path.startswith('/WEB/'):
+        return response
     if not request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
