@@ -41,9 +41,28 @@ if server_name:
         text = re.sub(r"^\s*ServerAlias\s+.*$", "    ServerAlias *", text, count=1, flags=re.M)
     open(conf_path, "w", encoding="utf-8").write(text)
     print("  Apache: ServerName %s, ServerAlias *" % server_name)
+
+# адрес для bash-части (ragent -host)
+try:
+    open("/etc/1c-portal/.ic-host", "w", encoding="utf-8").write(ic_host or "")
+except OSError:
+    pass
 PY
 
-# 3) учётные данные администратора PostgreSQL — в файл, доступный только root
+# 3) адрес, который кластер 1С объявляет клиентам (реестр кластера + ragent)
+UNIT=/etc/systemd/system/srv1cv8.service
+IC_HOST=$(cat /etc/1c-portal/.ic-host 2>/dev/null)
+if [ -n "$IC_HOST" ]; then
+  CUR_HOST=$(grep -oP '(?<=-host )\S+' "$UNIT" 2>/dev/null | head -1)
+  if [ "$CUR_HOST" != "$IC_HOST" ]; then
+    cp "$UNIT" "$UNIT.bak.$(date +%Y%m%d%H%M%S)"
+    sed -i "s/-host $CUR_HOST/-host $IC_HOST/" "$UNIT"
+    systemctl daemon-reload
+  fi
+  /usr/local/bin/1c-set-cluster-host "$IC_HOST"
+fi
+
+# 4) учётные данные администратора PostgreSQL — в файл, доступный только root
 mkdir -p /etc/1c-portal
 PASS_TMP=/etc/1c-portal/.pg-pass
 PG_CONF=/etc/1c-portal/pg-admin.conf
