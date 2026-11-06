@@ -32,6 +32,10 @@
         <div>
           <div class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</div>
           <h1>Мои базы</h1>
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}<div class="flash-wrap">{% for m in messages %}<div class="operation-result success">{{ m }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+
   {% if maint and maint.phase != 'none' %}
   <div class="maint-strip {{ 'danger' if maint.phase == 'active' else 'warning' }}">
     <i data-lucide="triangle-alert"></i>
@@ -78,21 +82,7 @@
           {% set jobs_on = (jobs.get(b.slug) if jobs else 'off') == 'on' %}
 
           <div class="base-tools">
-          {% set mode_on = pg_mode == 'on' %}
-          <form method="post" action="{{ url_for('portal_base_update_mode', bid=b.id) }}"
-                data-confirm-title="{{ 'Выключить режим обновления?' if mode_on else 'Включить режим обновления?' }}"
-                data-confirm="{{ 'Настройки PostgreSQL вернутся к обычным для всего сервера, затем выполнится проверка целостности базы.' if mode_on else 'PostgreSQL переключится на asynchronous_commit: fsync и autovacuum будут отключены, WAL и память увеличены. Режим действует на все базы сразу. При аварии возможна потеря последних изменений — страхует снимок сервера.' }}"
-                data-confirm-ok="{{ 'Выключить' if mode_on else 'Включить' }}"
-                data-confirm-style="primary" {% if not mode_on %}data-confirm-ack="1"{% endif %}>
-            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-            <input type="hidden" name="mode" value="{{ 'off' if mode_on else 'on' }}">
-            <button class="badge {{ 'warning' if mode_on else 'neutral' }} jobs-toggle" type="submit"
-                    title="{{ 'Режим обновления включён: нажмите, чтобы выключить' if mode_on else 'Ускорить обновление базы' }}">
-              <i data-lucide="{{ 'zap' if mode_on else 'gauge' }}"></i>{{ 'ускорение включено' if mode_on else 'ускорить' }}
-            </button>
-          </form>
-
-          <form method="post" action="{{ url_for('portal_base_jobs', bid=b.id) }}" class="jobs-form"
+          <form method="post" action="{{ url_for('portal_base_jobs', bid=b.id) }}"
                 data-confirm="{{ 'После разблокировки задания начнут выполняться по расписанию.' if jobs_on else 'На время блокировки регламентные и фоновые задания выполняться не будут.' }}" data-confirm-title="{{ 'Разблокировать задания?' if jobs_on else 'Заблокировать задания?' }}" data-confirm-ok="Продолжить" data-confirm-style="primary">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
             <button class="badge {{ 'warning' if jobs_on else 'neutral' }} jobs-toggle" type="submit">
@@ -101,7 +91,6 @@
             </button>
           </form>
           </div>
-          <p class="muted small" style="margin:6px 0 0">Ускорение PostgreSQL — общий режим для всех баз.</p>
         </article>
         {% endfor %}
       </div>
