@@ -23,9 +23,9 @@
 
   <main class="login-main">
     <div class="login-heading">
-      <span class="eyebrow">ВХОД АДМИНИСТРАТОРА</span>
+      <span class="eyebrow">ВХОД ПО QR-КОДУ</span>
       <h1>Вход по QR-коду.</h1>
-      <p class="muted">Отсканируйте код телефоном — там, где вы уже вошли в портал как администратор.</p>
+      <p class="muted">Отсканируйте код телефоном, где вы уже вошли в портал под своей учётной записью.</p>
     </div>
 
     <div class="qr-panel">
@@ -40,7 +40,7 @@
         <span>Ожидаем подтверждение на телефоне…</span>
       </div>
 
-      <p class="muted small qr-hint" id="qr-hint">Код действует {{ ttl }} секунд. После подтверждения вход произойдёт здесь автоматически.</p>
+      <p class="muted small qr-hint" id="qr-hint">Код действует {{ ttl }} секунд. После подтверждения на телефоне вход произойдёт здесь автоматически.</p>
 
       <div class="qr-actions">
         <a class="button" href="{{ url_for('qr_login_page') }}"><i data-lucide="refresh-cw"></i>Новый код</a>

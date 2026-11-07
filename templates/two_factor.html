@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Подтверждение входа | Портал 1С</title>
+  <link rel="icon" href="{{ asset('brand.png') }}">
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('portal.css') }}">
+  <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
+  <script src="{{ asset('theme.js') }}" defer></script>
+  <script src="{{ asset('vendor/lucide.js') }}" defer></script>
+</head>
+<body class="login-page">
+  <header class="login-header">
+    <a class="brand" href="/"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></a>
+  </header>
+
+  <main class="login-main">
+    <div class="login-heading">
+      <span class="eyebrow">ДВУХФАКТОРНЫЙ ВХОД</span>
+      <h1>Введите код из приложения.</h1>
+      <p class="muted">Откройте Google Authenticator, Microsoft Authenticator или Яндекс Ключ и введите
+        шестизначный код для портала.</p>
+    </div>
+
+    <form method="post" action="{{ url_for('login_2fa') }}" class="login-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+      <label>Код подтверждения
+        <input name="code" inputmode="numeric" autocomplete="one-time-code" required autofocus
+               placeholder="000000" maxlength="9">
+      </label>
+      <button type="submit" class="button primary login-submit">Подтвердить <i data-lucide="arrow-right"></i></button>
+      <p class="muted small" style="margin-top:12px">
+        Нет доступа к приложению? Введите один из кодов восстановления — он действует один раз.
+      </p>
+      <p class="muted small">
+        <a class="link" href="{{ url_for('login') }}">Вернуться к вводу пароля</a>
+      </p>
+    </form>
+  </main>
+
+  <footer class="login-footer"><span>Портал 1С <span class="muted">/ v{{ app_version }}</span></span><span class="muted">1C.DGEK.RU</span></footer>
+  <script>document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });</script>
+</body>
+</html>

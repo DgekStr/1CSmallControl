@@ -21,7 +21,7 @@
     <div class="login-heading">
       <span class="eyebrow">ГОТОВО</span>
       <h1>Вход подтверждён.</h1>
-      <p class="muted">Компьютер, на котором открыт QR-код, войдёт в админку автоматически. Эту страницу можно закрыть.</p>
+      <p class="muted">Компьютер, на котором открыт QR-код, войдёт в портал автоматически. Эту страницу можно закрыть.</p>
     </div>
     <div class="qr-panel">
       <div class="qr-status ok"><i data-lucide="check-circle-2"></i><span>Подтверждение отправлено</span></div>
@@ -29,8 +29,8 @@
     {% else %}
     <div class="login-heading">
       <span class="eyebrow">ПОДТВЕРЖДЕНИЕ ВХОДА</span>
-      <h1>Разрешить вход в админку?</h1>
-      <p class="muted">Кто-то открыл страницу входа по QR-коду. Если это вы — подтвердите.</p>
+      <h1>Разрешить вход?</h1>
+      <p class="muted">Кто-то открыл страницу входа по QR-коду на другом устройстве. Если это вы — подтвердите.</p>
     </div>
 
     <div class="qr-panel">
@@ -48,7 +48,7 @@
       </form>
       <p class="muted small qr-hint">Не вы открывали вход? Просто закройте страницу — без подтверждения войти нельзя.</p>
       {% else %}
-      <div class="form-error">Чтобы подтвердить вход, войдите в портал как администратор на этом устройстве.</div>
+      <div class="form-error">Чтобы подтвердить вход, войдите в портал на этом устройстве — под своей учётной записью.</div>
       <a class="button primary login-submit" href="{{ url_for('login', next=request.path) }}">
         <i data-lucide="log-in"></i>Войти и вернуться
       </a>

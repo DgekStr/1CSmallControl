@@ -344,6 +344,26 @@
           </div>
         </form>
 
+        <div class="card settings-card">
+          <h2>Двухфакторный вход</h2>
+          <p class="muted">Дополнительный код из приложения-аутентификатора при входе в админку.</p>
+
+          {% if twofa_enabled %}
+          <p><span class="badge success"><i data-lucide="shield-check"></i>2FA включён</span></p>
+          <p class="muted small">При входе портал спросит шестизначный код из приложения.</p>
+          {% else %}
+          <p><span class="badge neutral">2FA выключен</span></p>
+          <p class="muted small">Вход только по паролю. Включите — и портал будет спрашивать код из
+            Google Authenticator, Microsoft Authenticator или Яндекс Ключа.</p>
+          {% endif %}
+
+          <div class="field-row">
+            <a class="button {{ 'primary' if not twofa_enabled else '' }}" href="{{ url_for('admin_2fa_page') }}">
+              <i data-lucide="shield-check"></i>{{ 'Настроить 2FA' if twofa_enabled else 'Включить 2FA' }}
+            </a>
+          </div>
+        </div>
+
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings_vpn') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
           <h2>VPN и адреса</h2>

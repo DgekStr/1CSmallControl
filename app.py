@@ -1,6 +1,8 @@
 """Портал доступа к базам 1С: клиентский вход + админка."""
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import hashlib
+import hmac
 import http.client
 import base64
 import json
@@ -9,6 +11,7 @@ from urllib.parse import quote
 import os
 import re
 import sqlite3
+import struct
 import secrets
 import subprocess
 import threading
@@ -161,6 +164,12 @@ def init_db():
         conn.execute("ALTER TABLE users ADD COLUMN vpn_enabled INTEGER DEFAULT 0")
     if 'vpn_config' not in user_cols:
         conn.execute("ALTER TABLE users ADD COLUMN vpn_config TEXT")
+    if 'totp_secret' not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN totp_secret TEXT")
+    if 'totp_enabled' not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0")
+    if 'totp_backup' not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN totp_backup TEXT")
     conn.execute("""CREATE TABLE IF NOT EXISTS login_fails (
         username TEXT NOT NULL,
         ip TEXT NOT NULL,
@@ -579,8 +588,8 @@ def _qr_purge(conn):
 @app.route('/login/qr')
 def qr_login_page():
     """Экран ожидания: показывает QR, который подтверждают с телефона."""
-    if session.get('role') == 'admin':
-        return redirect(url_for('admin'))
+    if session.get('uid'):
+        return redirect('/')
 
     conn = db()
     _qr_purge(conn)
@@ -613,7 +622,7 @@ def qr_status():
         user = conn.execute("SELECT * FROM users WHERE id = ?", (row['uid'],)).fetchone()
         conn.execute("UPDATE qr_logins SET used = 1 WHERE token = ?", (token,))
         conn.commit()
-        if user and user['is_active'] and user['role'] == 'admin':
+        if user and user['is_active']:
             session.clear()
             session['uid'] = user['id']
             session['user'] = user['username']
@@ -622,7 +631,7 @@ def qr_status():
             session.permanent = True
             _login_ok(user['username'], _client_ip())
             audit('qr_login', user['username'])
-            return {'status': 'ok', 'next': '/admin'}
+            return {'status': 'ok', 'next': '/admin' if user['role'] == 'admin' else '/'}
         return {'status': 'error'}
     return {'status': row['status']}
 
@@ -639,8 +648,8 @@ def qr_confirm(token):
 
     if request.method == 'POST':
         check_csrf()
-        if session.get('role') != 'admin':
-            flash('Подтвердить вход может только администратор портала')
+        if not session.get('uid'):
+            flash('Чтобы подтвердить вход, сначала войдите в портал на этом устройстве')
             return redirect(url_for('login', next=request.path))
         conn.execute("UPDATE qr_logins SET status = 'approved', uid = ? WHERE token = ?",
                      (session['uid'], token))
@@ -649,7 +658,8 @@ def qr_confirm(token):
         return render_template('qr_confirm.html', done=True, ip=row['ip'], ua=row['ua'])
 
     return render_template('qr_confirm.html', done=False, token=token, ip=row['ip'],
-                           ua=row['ua'], logged=session.get('role') == 'admin')
+                           ua=row['ua'], logged=bool(session.get('uid')),
+                           who=session.get('name') or session.get('user') or '')
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -669,6 +679,13 @@ def login():
             return render_template('login.html', error=error)
         row = db().execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
         if row and row['is_active'] and check_password_hash(row['pass_hash'], password):
+            if row['totp_enabled'] and row['totp_secret']:
+                session.clear()
+                session['pending_uid'] = row['id']
+                session['pending_at'] = int(time.time())
+                session['pending_next'] = request.args.get('next') or '/'
+                audit('login_2fa_required', row['username'])
+                return render_template('two_factor.html', error=None)
             session.clear()
             session['uid'] = row['id']
             session['user'] = row['username']
@@ -1998,6 +2015,9 @@ def admin_settings():
                            maint=maintenance.state(), auto_maint=maintenance.auto_settings(),
                            pg_password_set=_pg_password_set(),
                            monitor=_monitor_status(),
+                           twofa_enabled=bool((db().execute(
+                               "SELECT totp_enabled FROM users WHERE id = ?",
+                               (session['uid'],)).fetchone() or {'totp_enabled': 0})['totp_enabled']),
                            backup=_backup_info(),
                            backup_pass_set=_setting_get('backup_pass') != '',
                            refreshed=time.strftime('%H:%M:%S'))
@@ -2243,6 +2263,168 @@ def _e500(exc):
 
 def healthz():
     return 'ok', 200
+
+
+
+# ===== двухфакторный вход (TOTP) =====
+
+TOTP_STEP = 30
+TOTP_DIGITS = 6
+
+
+def _totp_at(secret, counter, digits=TOTP_DIGITS):
+    key = base64.b32decode(secret.upper() + '=' * ((8 - len(secret) % 8) % 8))
+    digest = hmac.new(key, struct.pack('>Q', counter), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0f
+    value = struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7fffffff
+    return str(value % (10 ** digits)).zfill(digits)
+
+
+def _totp_verify(secret, code, window=1):
+    code = (code or '').strip().replace(' ', '')
+    if not code.isdigit() or len(code) != TOTP_DIGITS:
+        return False
+    counter = int(time.time()) // TOTP_STEP
+    return any(_totp_at(secret, counter + shift) == code for shift in range(-window, window + 1))
+
+
+def _totp_new_secret():
+    return base64.b32encode(secrets.token_bytes(20)).decode('ascii').rstrip('=')
+
+
+def _totp_uri(secret, username, host):
+    label = '%s@%s' % (username, host)
+    return 'otpauth://totp/%s?secret=%s&issuer=%s&digits=%d&period=%d' % (
+        quote(label, safe=''), secret, quote('Портал 1С ' + host, safe=''), TOTP_DIGITS, TOTP_STEP)
+
+
+def _backup_codes_new(count=10):
+    codes = [secrets.token_hex(4) for _ in range(count)]
+    return codes, json.dumps([hashlib.sha256(c.encode()).hexdigest() for c in codes])
+
+
+def _backup_code_check(stored, code):
+    if not stored:
+        return False, stored
+    try:
+        hashes = json.loads(stored)
+    except Exception:  # noqa: BLE001
+        return False, stored
+    digest = hashlib.sha256((code or '').strip().lower().encode()).hexdigest()
+    if digest in hashes:
+        hashes.remove(digest)
+        return True, json.dumps(hashes)
+    return False, stored
+
+
+def _finish_login(user):
+    session.clear()
+    session['uid'] = user['id']
+    session['user'] = user['username']
+    session['name'] = user['full_name'] or user['username']
+    session['role'] = user['role']
+    session.permanent = True
+    cur = db().execute("INSERT INTO visits(username, ip, ua) VALUES(?,?,?)",
+                       (user['username'], _client_ip(),
+                        (request.headers.get('User-Agent') or '')[:200]))
+    db().commit()
+    session['visit'] = cur.lastrowid
+    session['seen'] = int(time.time())
+    _login_ok(user['username'], _client_ip())
+    audit('login', _client_ip())
+
+
+@app.route('/login/2fa', methods=['POST'])
+def login_2fa():
+    check_csrf()
+    uid = session.get('pending_uid')
+    started = int(session.get('pending_at') or 0)
+    if not uid or time.time() - started > 300:
+        session.clear()
+        flash('Время подтверждения истекло, войдите заново')
+        return redirect(url_for('login'))
+    row = db().execute("SELECT * FROM users WHERE id = ? AND is_active = 1", (uid,)).fetchone()
+    if not row:
+        session.clear()
+        return redirect(url_for('login'))
+    code = request.form.get('code') or ''
+    ok = _totp_verify(row['totp_secret'], code)
+    if not ok and row['totp_backup']:
+        ok, left = _backup_code_check(row['totp_backup'], code)
+        if ok:
+            db().execute("UPDATE users SET totp_backup = ? WHERE id = ?", (left, uid))
+            db().commit()
+            audit('login_2fa_backup', row['username'])
+    if not ok:
+        _login_fail(row['username'], _client_ip())
+        audit('login_2fa_failed', row['username'])
+        return render_template('two_factor.html', error='Неверный код. Проверьте время на телефоне.')
+    nxt = session.get('pending_next') or '/'
+    _finish_login(row)
+    audit('login_2fa', row['username'])
+    return redirect(nxt if nxt.startswith('/') else '/')
+
+
+@app.route('/admin/settings/2fa')
+@admin_required
+def admin_2fa_page():
+    row = db().execute("SELECT * FROM users WHERE id = ?", (session['uid'],)).fetchone()
+    if not row:
+        abort(404)
+    secret = row['totp_secret'] or _totp_new_secret()
+    if not row['totp_secret']:
+        db().execute("UPDATE users SET totp_secret = ? WHERE id = ?", (secret, row['id']))
+        db().commit()
+    uri = _totp_uri(secret, row['username'], request.host.split(':')[0])
+    qr = ''
+    try:
+        proc = subprocess.run(['qrencode', '-t', 'PNG', '-s', '7', '-m', '2', '-o', '-', uri],
+                              capture_output=True, timeout=10)
+        if proc.returncode == 0 and proc.stdout:
+            qr = 'data:image/png;base64,' + base64.b64encode(proc.stdout).decode('ascii')
+    except Exception:  # noqa: BLE001
+        qr = ''
+    return render_template('twofa_setup.html', qr=qr, secret=secret,
+                           enabled=bool(row['totp_enabled']),
+                           backup_left=len(json.loads(row['totp_backup'] or '[]')),
+                           username=row['username'])
+
+
+@app.route('/admin/settings/2fa/enable', methods=['POST'])
+@admin_required
+def admin_2fa_enable():
+    check_csrf()
+    row = db().execute("SELECT * FROM users WHERE id = ?", (session['uid'],)).fetchone()
+    code = request.form.get('code') or ''
+    if not row or not row['totp_secret'] or not _totp_verify(row['totp_secret'], code):
+        flash('Код не подошёл. Проверьте время на телефоне и попробуйте снова.')
+        return redirect(url_for('admin_2fa_page'))
+    codes, hashed = _backup_codes_new()
+    db().execute("UPDATE users SET totp_enabled = 1, totp_backup = ? WHERE id = ?", (hashed, row['id']))
+    db().commit()
+    audit('2fa_enabled', row['username'])
+    return render_template('twofa_setup.html', enabled=True, codes=codes, backup_left=len(codes),
+                           secret=row['totp_secret'], qr='', username=row['username'])
+
+
+@app.route('/admin/settings/2fa/disable', methods=['POST'])
+@admin_required
+def admin_2fa_disable():
+    check_csrf()
+    row = db().execute("SELECT * FROM users WHERE id = ?", (session['uid'],)).fetchone()
+    code = request.form.get('code') or ''
+    password = request.form.get('password') or ''
+    by_code = bool(row and row['totp_secret'] and _totp_verify(row['totp_secret'], code))
+    by_pwd = bool(row and password and check_password_hash(row['pass_hash'], password))
+    if not (by_code or by_pwd):
+        flash('Чтобы отключить 2FA, введите код из приложения или свой пароль портала')
+        return redirect(url_for('admin_2fa_page'))
+    db().execute("UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_backup = NULL WHERE id = ?",
+                 (row['id'],))
+    db().commit()
+    audit('2fa_disabled', row['username'])
+    flash('Двухфакторный вход отключён')
+    return redirect(url_for('admin_settings'))
 
 
 if __name__ == '__main__':

@@ -374,3 +374,8 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .monitor-dot{flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-top:5px}
 .monitor-dot.ok{background:var(--green)}
 .monitor-dot.fail{background:var(--red)}
+
+/* ===== коды восстановления 2FA ===== */
+.codes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:10px 0}
+.code-chip{display:inline-flex;justify-content:center;padding:8px 10px;border:1px dashed var(--border);
+           border-radius:8px;background:#ffffff06;font-size:calc(12px*var(--fs));letter-spacing:.05em}
