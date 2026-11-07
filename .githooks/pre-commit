@@ -1,0 +1,21 @@
+#!/bin/sh
+# Блокирует коммит, если в изменениях есть пароль, токен вебхука или ключ.
+# Подключение: git config core.hooksPath .githooks
+
+diff=$(git diff --cached -U0 -- . ':(exclude).githooks/pre-commit')
+
+bad=$(printf '%s\n' "$diff" \
+  | grep -E '^\+' \
+  | grep -Ei 'arshin@|greed@[0-9]|hooks/[a-z0-9]{20,}|IC_CLUSTER_PWD=.{6,}|--cluster-pwd=.{6,}|SMB_PASS=.{4,}|BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' \
+  || true)
+
+if [ -n "$bad" ]; then
+  echo "КОММИТ ОТКЛОНЁН: в изменениях похоже на секрет"
+  echo
+  printf '%s\n' "$bad" | head -5 | cut -c1-120
+  echo
+  echo "Пароли и токены храните на сервере (/etc/1c-portal, /etc/1c-backup), не в git."
+  exit 1
+fi
+
+exit 0
