@@ -1,0 +1,7 @@
+﻿[Unit]
+Description=1C backup trigger (checks schedule every minute)
+After=network-online.target postgrespro-1c-16.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/1c-backup.sh auto
