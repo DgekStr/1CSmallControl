@@ -173,6 +173,13 @@ status = {
 save(state_file, state)
 save(status_file, status)
 
+if mode == 'notify-test':
+    text = ('### 🔔 Проверка связи\n\nМониторинг портала 1С: тестовое сообщение. '
+            'Если вы его видите — хук настроен верно.')
+    ok = mm_send(text)
+    print('ok' if ok else 'fail')
+    raise SystemExit(0)
+
 if problems:
     text = '### ⚠️ Мониторинг портала 1С\n\n' + '\n'.join('- ' + p for p in problems)
     if mode != 'test':

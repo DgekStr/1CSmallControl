@@ -329,10 +329,18 @@
           <p class="muted small">Проверка ещё не запускалась.</p>
           {% endif %}
 
+          {% if settings.monitor_hook %}
+          <p class="muted small">Хук для тревог: <span class="mono">…{{ settings.monitor_hook[-8:] }}</span></p>
+          {% else %}
+          <p class="muted small" style="color:var(--amber)">Хук не задан — тревоги никуда не уйдут.</p>
+          {% endif %}
+
           <div class="field-row">
             <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
             <button class="button" type="submit" formaction="{{ url_for('admin_settings_monitor_run') }}"
                     formnovalidate><i data-lucide="activity"></i>Проверить сейчас</button>
+            <button class="button" type="submit" formaction="{{ url_for('admin_settings_monitor_test') }}"
+                    formnovalidate><i data-lucide="send"></i>Тест хука</button>
           </div>
         </form>
 

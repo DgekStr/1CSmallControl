@@ -1830,6 +1830,23 @@ def admin_settings_monitor():
     return redirect(url_for('admin_settings'))
 
 
+
+@app.route('/admin/settings/monitor-test', methods=['POST'])
+@admin_required
+def admin_settings_monitor_test():
+    """Тестовое сообщение в хук мониторинга — проверка, что уведомления доходят."""
+    check_csrf()
+    code, out = _run_root(['/usr/local/bin/1c-monitor', 'notify-test'], timeout=60)
+    ok = (out or [''])[-1].strip() == 'ok' if out else code == 0
+    audit('monitor_test', 'ok' if ok else 'fail')
+    if ok:
+        flash('Тестовое сообщение отправлено в хук мониторинга')
+    else:
+        flash('Не удалось отправить: проверьте хук в настройках и журнал /var/log/1c-monitor.log')
+    return redirect(url_for('admin_settings'))
+
+
+
 @app.route('/admin/settings/monitor-run', methods=['POST'])
 @admin_required
 def admin_settings_monitor_run():
