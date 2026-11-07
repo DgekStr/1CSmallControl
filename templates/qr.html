@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Вход по QR | Портал 1С</title>
+  <link rel="icon" href="{{ asset('brand.png') }}">
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('portal.css') }}">
+  <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
+  <script src="{{ asset('theme.js') }}" defer></script>
+  <script src="{{ asset('vendor/lucide.js') }}" defer></script>
+</head>
+<body class="login-page">
+  <header class="login-header">
+    <a class="brand" href="/"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></a>
+    <div class="theme-switch" role="group" aria-label="Тема оформления">
+      <button type="button" data-theme-set="light" title="Светлая тема" aria-label="Светлая тема"><i data-lucide="sun"></i></button>
+      <button type="button" data-theme-set="dark" title="Тёмная тема" aria-label="Тёмная тема"><i data-lucide="moon"></i></button>
+      <button type="button" data-theme-set="auto" title="Как в системе" aria-label="Как в системе"><i data-lucide="monitor"></i></button>
+    </div>
+  </header>
+
+  <main class="login-main">
+    <div class="login-heading">
+      <span class="eyebrow">ВХОД АДМИНИСТРАТОРА</span>
+      <h1>Вход по QR-коду.</h1>
+      <p class="muted">Отсканируйте код телефоном — там, где вы уже вошли в портал как администратор.</p>
+    </div>
+
+    <div class="qr-panel">
+      {% if qr %}
+      <img class="qr-image" src="{{ qr }}" alt="QR-код для входа" width="240" height="240" id="qr-image">
+      {% else %}
+      <div class="form-error">Не удалось построить QR-код. Проверьте, что на сервере установлен qrencode.</div>
+      {% endif %}
+
+      <div class="qr-status" id="qr-status" data-token="{{ token }}">
+        <i data-lucide="loader-circle" class="qr-spin"></i>
+        <span>Ожидаем подтверждение на телефоне…</span>
+      </div>
+
+      <p class="muted small qr-hint" id="qr-hint">Код действует {{ ttl }} секунд. После подтверждения вход произойдёт здесь автоматически.</p>
+
+      <div class="qr-actions">
+        <a class="button" href="{{ url_for('qr_login_page') }}"><i data-lucide="refresh-cw"></i>Новый код</a>
+        <a class="button" href="{{ url_for('login') }}">Вход по паролю</a>
+      </div>
+
+      <details class="qr-manual">
+        <summary>Ссылка для телефона</summary>
+        <p class="mono small">{{ link }}</p>
+      </details>
+    </div>
+  </main>
+
+  <footer class="login-footer"><span>Портал 1С <span class="muted">/ v{{ app_version }}</span></span><span class="muted">1С.DGEK.RU</span></footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });
+    (function () {
+      var box = document.getElementById('qr-status');
+      if (!box) return;
+      var token = box.dataset.token;
+      var started = Date.now();
+      var ttl = {{ ttl }} * 1000;
+
+      function setState(icon, text, cls) {
+        box.className = 'qr-status' + (cls ? ' ' + cls : '');
+        box.innerHTML = '<i data-lucide="' + icon + '" class="' + (icon === 'loader-circle' ? 'qr-spin' : '') + '"></i><span>' + text + '</span>';
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function poll() {
+        fetch('/qr/status?token=' + encodeURIComponent(token), { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (j.status === 'ok') {
+              setState('check-circle-2', 'Готово, открываем админку…', 'ok');
+              setTimeout(function () { window.location.href = j.next || '/admin'; }, 600);
+              return;
+            }
+            if (j.status === 'expired') {
+              setState('timer-off', 'Код истёк. Нажмите «Новый код».', 'error');
+              return;
+            }
+            if (j.status === 'error') {
+              setState('x-circle', 'Не удалось войти: нет прав администратора.', 'error');
+              return;
+            }
+            if (Date.now() - started > ttl + 5000) {
+              setState('timer-off', 'Код истёк. Нажмите «Новый код».', 'error');
+              return;
+            }
+            setTimeout(poll, 2000);
+          })
+          .catch(function () { setTimeout(poll, 3000); });
+      }
+
+      setTimeout(poll, 1200);
+    })();
+  </script>
+</body>
+</html>

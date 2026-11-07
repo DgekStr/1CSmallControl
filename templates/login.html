@@ -33,6 +33,9 @@
       <label>Пароль<span class="password-input"><input name="password" type="password" autocomplete="current-password" required placeholder="Введите пароль"><button class="icon-button" type="button" id="reveal-password" title="Показать пароль" aria-label="Показать пароль"><i data-lucide="eye"></i></button></span></label>
       <button type="submit" class="button primary login-submit">Войти <i data-lucide="arrow-right"></i></button>
       <div class="login-secure"><i data-lucide="shield-check"></i>Защищённая сессия портала</div>
+      <a class="login-qr-link" href="{{ url_for('qr_login_page') }}">
+        <i data-lucide="qr-code"></i>Вход администратора по QR-коду
+      </a>
     </form>
   </main>
   <footer class="login-footer"><span>Портал 1С <span class="muted">/ v{{ app_version }}</span></span><span class="muted">1С.DGEK.RU</span></footer>

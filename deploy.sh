@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 ﻿#!/bin/bash
 # Установка портала 1С на Ubuntu 22.04 / 24.04.
 # Flask + SQLite, отдаётся gunicorn'ом за Apache (mod_proxy).
@@ -45,7 +46,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=$APP_DIR
 Environment=PORTAL_DB=$APP_DIR/portal.db
-Environment=PORTAL_VERSION=${PORTAL_VERSION:-1.7}
+Environment=PORTAL_VERSION=${PORTAL_VERSION:-2.0.0}
 Environment=PORTAL_IC_HOST=${PORTAL_IC_HOST:-1c.example.ru}
 Environment=PORTAL_SUPPORT_NAME=${PORTAL_SUPPORT_NAME:-example.ru}
 Environment=PORTAL_SUPPORT_URL=${PORTAL_SUPPORT_URL:-https://example.ru/contacts.html}

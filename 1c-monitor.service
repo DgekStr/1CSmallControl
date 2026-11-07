@@ -1,0 +1,8 @@
+[Unit]
+Description=Мониторинг портала 1С (доступность, место, бэкапы)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/1c-monitor check
+Nice=10

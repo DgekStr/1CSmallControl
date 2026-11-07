@@ -33,7 +33,7 @@ const DEFAULT_MASK = [
   'karpuhina=client3',
   'karpuhin=client2',
   'stepkina=client4',
-  'dgek=demo',
+  'base1=demo',
 ];
 
 const MASK = (process.env.MASK || DEFAULT_MASK.join(';'))

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title }} | Портал 1С</title>
+  <link rel="icon" href="{{ asset('brand.png') }}">
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('portal.css') }}">
+  <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
+  <script src="{{ asset('theme.js') }}" defer></script>
+  <script src="{{ asset('vendor/lucide.js') }}" defer></script>
+</head>
+<body class="login-page">
+  <header class="login-header">
+    <a class="brand" href="/"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></a>
+  </header>
+
+  <main class="login-main">
+    <div class="login-heading">
+      <span class="eyebrow">{{ kind_label }}</span>
+      <h1>{{ title }}</h1>
+    </div>
+
+    <div class="denied-card">
+      <div class="denied-icon"><i data-lucide="{{ icon }}"></i></div>
+      <p class="denied-text">{{ message }}</p>
+      {% if slug %}<p class="denied-base">База: <code class="mono">{{ slug }}</code></p>{% endif %}
+      <p class="muted small">{{ hint }}</p>
+
+      <div class="denied-actions">
+        <a class="button primary" href="/"><i data-lucide="layout-dashboard"></i>Перейти в кабинет</a>
+        <button class="button" type="button" id="close-window"><i data-lucide="x"></i>Закрыть окно</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.lucide) lucide.createIcons();
+      var btn = document.getElementById('close-window');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          window.close();
+          /* если вкладку открыли вручную, window.close() не сработает — уводим в кабинет */
+          setTimeout(function () { window.location.href = '/'; }, 250);
+        });
+      }
+      /* окно открывали из кабинета — закрываем без лишних кликов */
+      if (window.opener && !window.opener.closed) {
+        setTimeout(function () { window.close(); }, 1200);
+      }
+    });
+  </script>
+</body>
+</html>

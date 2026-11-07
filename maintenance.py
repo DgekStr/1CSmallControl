@@ -1,4 +1,6 @@
 """Регламентные работы: окно работ, уведомления в веб-сессиях, отключение пользователей."""
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import json
 import os
 import sqlite3
@@ -28,6 +30,8 @@ DEFAULT_MESSAGE = ('Срочные регламентные работы, зак
                    'После отключения несохранённые изменения будут потеряны.')
 GRACE_MINUTES = 5
 
+# хук Mattermost берётся из настроек портала (settings.json) или из окружения,
+# в коде не хранится: репозиторий публичный
 DEFAULT_HOOK = ''
 
 
@@ -191,7 +195,7 @@ def kick_all():
     finally:
         conn.close()
     if not bases:
-        bases = ['dgek']
+        bases = []
     results = []
     for slug in bases:
         try:
@@ -204,7 +208,7 @@ def kick_all():
     return results
 
 
-def pg_mode(action, base='dgek'):
+def pg_mode(action, base=''):
     try:
         proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-pg-update-mode', action, base],
                               capture_output=True, text=True, timeout=600)

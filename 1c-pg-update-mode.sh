@@ -8,7 +8,7 @@ set -uo pipefail
 STATE=/etc/1c-portal/pg-update-mode.json
 MARK=/etc/1c-portal/pg-mode.state
 KEYS="synchronous_commit fsync full_page_writes autovacuum maintenance_work_mem max_wal_size checkpoint_timeout"
-DB="${2:-dgek}"
+DB="${2:-}"
 
 PG() { su -s /bin/bash postgres -c "psql -d postgres -Atc \"$1\"" 2>/dev/null; }
 PGD() { su -s /bin/bash postgres -c "psql -d $DB -Atc \"$1\"" 2>/dev/null; }
