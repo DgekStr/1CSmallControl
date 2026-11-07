@@ -672,6 +672,8 @@ def base_create():
         db().execute("INSERT INTO bases(slug,title,organization,description,url_path,db_name,cluster_state) "
                      "VALUES(?,?,?,?,?,?,?)",
                      (slug, title or slug, org, descr, url_path, db_name, state))
+        if make_db:
+            flash('Не забудьте выдать доступ к базе в разделе «Доступы» — иначе клиент увидит отказ.')
         db().commit()
     except sqlite3.IntegrityError:
         flash('База с таким кодом уже есть')
@@ -1457,6 +1459,28 @@ def base_v8i(bid):
     return Response(data, mimetype='application/octet-stream', headers={
         'Content-Disposition': 'attachment; filename="%s.v8i"' % row['slug'],
     })
+
+
+@app.errorhandler(403)
+def _e403(exc):
+    return render_template('error.html', code=403, title='Нет доступа к этой базе',
+                           message='У вашей учётной записи портала нет прав на эту базу 1С.',
+                           hint='Попросите администратора портала добавить доступ в разделе '
+                                '«Доступы» — после этого база появится в личном кабинете.'), 403
+
+
+@app.errorhandler(404)
+def _e404(exc):
+    return render_template('error.html', code=404, title='Страница не найдена',
+                           message='Такого адреса на портале нет или база была удалена.',
+                           hint='Проверьте адрес или вернитесь в личный кабинет.'), 404
+
+
+@app.errorhandler(500)
+def _e500(exc):
+    return render_template('error.html', code=500, title='Ошибка портала',
+                           message='Внутренняя ошибка. Администратор уже видит её в журнале.',
+                           hint='Попробуйте обновить страницу через минуту.'), 500
 
 
 @app.route('/healthz')
