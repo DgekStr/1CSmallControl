@@ -77,7 +77,9 @@
             <a class="button primary base-open" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener">Открыть <i data-lucide="arrow-up-right"></i></a>
             {% endif %}
             <button type="button" class="button base-config" data-open="dlg-config"><i data-lucide="terminal"></i>Конфигуратор</button>
-            <a class="button" href="{{ url_for('base_v8i', bid=b.id) }}" title="Файл подключения для Конфигуратора"><i data-lucide="download"></i>Подключение *.v8i</a>
+            <button type="button" class="button" title="Файл подключения для тонкого клиента и Конфигуратора"
+                  data-open="dlg-v8i" data-v8i="{{ url_for('base_v8i', bid=b.id) }}"
+                  data-base="{{ b.slug }}"><i data-lucide="download"></i>Подключение *.v8i</button>
           </div>
           {% set jobs_on = (jobs.get(b.slug) if jobs else 'off') == 'on' %}
 
@@ -97,12 +99,189 @@
       {% else %}
       <div class="empty-state"><i data-lucide="database-zap"></i><strong>Нет доступных баз</strong>Обратитесь к администратору портала.</div>
       {% endif %}
+
+      <section class="conn-card" id="connect">
+        <div class="conn-card-main">
+          <h2><i data-lucide="life-buoy"></i>Как подключиться к 1С</h2>
+          <p class="muted">Тонкий клиент, толстый клиент, где взять дистрибутив и почему без WireGuard
+            база не откроется — короткая инструкция с шагами.</p>
+        </div>
+        <button class="button primary" type="button" data-open="dlg-connect">
+          <i data-lucide="book-open"></i>Открыть инструкцию
+        </button>
+      </section>
+
+      <dialog class="modal conn-modal" id="dlg-v8i">
+        <div class="modal-heading">
+          <h2>Файл подключения .v8i</h2>
+          <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+        </div>
+
+        <p class="conn-lead">Это маленький файл-ярлык: внутри записаны адрес сервера 1С и код базы
+          <code class="mono" id="v8i-base">{{ bases[0].slug if bases else '' }}</code>. Двойной щелчок —
+          и 1С сразу предлагает войти: вводить адрес сервера руками не нужно.</p>
+
+        <div class="conn-steps-list">
+          <p class="conn-step-line"><span class="conn-num">1</span>
+            <span>Скачайте файл кнопкой ниже — он сохранится с расширением <code class="mono">.v8i</code>.</span></p>
+          <p class="conn-step-line"><span class="conn-num">2</span>
+            <span>Включите <b>VPN</b> (WireGuard): без туннеля сервер 1С недоступен — это политика безопасности.</span></p>
+          <p class="conn-step-line"><span class="conn-num">3</span>
+            <span>Откройте файл двойным щелчком. Запустится 1С:Предприятие с уже заполненным подключением.</span></p>
+          <p class="conn-step-line"><span class="conn-num">4</span>
+            <span>Войдите под своей учётной записью 1С — её выдаёт администратор.</span></p>
+        </div>
+
+        <div class="conn-note"><i data-lucide="info"></i>
+          <span>Пароля внутри нет — только адрес сервера и имя базы. Если 1С на компьютере не установлена,
+            файл откроется ошибкой: сначала поставьте платформу — инструкция в блоке «Как подключиться к 1С».</span></div>
+
+        <div class="conn-note warn"><i data-lucide="triangle-alert"></i>
+          <span>Файл привязан к одной базе. Для другой базы скачайте свой файл — не правьте адрес вручную,
+            иначе попадёте в чужую базу.</span></div>
+
+        <div class="modal-footer">
+          <button type="button" class="button" data-close>Отмена</button>
+          <a class="button primary" id="v8i-download" href="#"><i data-lucide="download"></i>Скачать</a>
+        </div>
+      </dialog>
+
+      <dialog class="modal conn-modal" id="dlg-connect">
+        <div class="modal-heading">
+          <h2>Подключение к 1С</h2>
+          <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+        </div>
+
+        <nav class="conn-tabs" aria-label="Разделы инструкции">
+          <button class="chip active" type="button" data-tab="thin">Тонкий клиент</button>
+          <button class="chip" type="button" data-tab="thick">Толстый клиент</button>
+          <button class="chip" type="button" data-tab="dist">Дистрибутив 1С</button>
+          <button class="chip" type="button" data-tab="vpn">Через VPN</button>
+        </nav>
+
+        <div class="conn-panel active" data-panel="thin">
+          <p class="conn-lead">Тонкий клиент — лёгкий вариант 1С: быстрый запуск, меньше требований к компьютеру.
+            Подходит для ежедневной работы: документы, отчёты, печатные формы.</p>
+          <ol class="conn-steps">
+            <li><span class="conn-num">1</span><div>Установите платформу 1С (см. вкладку «Дистрибутив 1С»).</div></li>
+            <li><span class="conn-num">2</span><div>Запустите <strong>1С:Предприятие</strong> и нажмите «Добавить» в списке баз.</div></li>
+            <li><span class="conn-num">3</span><div>Укажите:
+              <span class="conn-line"><b>Платформа:</b> 1С:Предприятие</span>
+              <span class="conn-line"><b>Сервер:</b> <code class="mono">{{ ic_server }}</code>,
+                база — <code class="mono">BASA</code> (код своей базы смотрите на карточке выше)</span>
+              <span class="conn-line"><b>Строка подключения:</b>
+                <code class="mono">Srvr={{ ic_server }};Ref=BASA</code></span>
+              <span class="conn-line">Имя сервера работает только при включённом VPN — это внутренний адрес,
+                не сайт. Портал <code class="mono">{{ ic_host }}</code> открывается обычным браузером.</span>
+            </div></li>
+            <li><span class="conn-num">4</span><div>Войдите под своей учётной записью 1С — её выдаёт администратор.</div></li>
+          </ol>
+          <p class="conn-note"><i data-lucide="info"></i>
+            <span><b>Порядок: сначала VPN, потом 1С.</b> Сервер 1С ({{ ic_server }}) не опубликован в интернет:
+              порт <b>1541</b>, через который клиент 1С подключается к серверу, снаружи закрыт — это политика
+              безопасности компании. Доступ только через VPN-туннель. Включили WireGuard — 1С подключается;
+              без туннеля будет «сервер не найден».</span></p>
+        </div>
+
+        <div class="conn-panel" data-panel="thick">
+          <p class="conn-lead">Толстый клиент — то же приложение 1С, но с полной локальной обработкой:
+            нужен для тяжёлых отчётов, обработок и обновления конфигурации.</p>
+          <ol class="conn-steps">
+            <li><span class="conn-num">1</span><div>Запустите <strong>1С:Предприятие</strong> → при добавлении базы
+              выберите тип <strong>«1С:Предприятие»</strong> (не «Веб-клиент»).</div></li>
+            <li><span class="conn-num">2</span><div>Сервер и база — те же, что для тонкого клиента.</div></li>
+            <li><span class="conn-num">3</span><div>Для обновления конфигурации используется
+              <strong>Конфигуратор</strong> — он входит в ту же установку. Доступ к Конфигуратору
+              есть только у администратора и подрядчика.</div></li>
+          </ol>
+          <p class="conn-note warn"><i data-lucide="triangle-alert"></i>
+            <span>Конфигуратор во время обновления базы блокирует работу пользователей — согласуйте время с администратором.</span></p>
+        </div>
+
+        <div class="conn-panel" data-panel="dist">
+          <p class="conn-lead">Чтобы работать через клиент, нужен дистрибутив платформы
+            <strong>1С:Предприятие 8.3</strong>. Он ставится один раз и обновляется по мере выхода релизов.</p>
+          <ul class="conn-list">
+            <li><b>У администратора портала</b> — самый простой путь: напишите нам, дадим установщик нужной версии
+              (<code class="mono">8.3.27</code>) и поможем с установкой.</li>
+            <li><b>Личный кабинет 1С</b> — <span class="mono">releases.1c.ru</span>: официальные дистрибутивы,
+              но нужна действующая подписка <b>ИТС</b> и регистрация организации.</li>
+            <li><b>Официальный сайт</b> — <span class="mono">1c.ru</span>: описания продуктов и версии для обучения.</li>
+            <li><b>Своими силами не хочется</b> — пригласите специалиста: установка занимает 15–20 минут
+              и не требует настройки сервера.</li>
+          </ul>
+          <p class="conn-note"><i data-lucide="shield-check"></i>
+            <span>Мы не выкладываем дистрибутив 1С на портале: распространение платформы ограничено лицензией.
+              Установщики WireGuard — пожалуйста, они свободные.</span></p>
+        </div>
+
+        <div class="conn-panel" data-panel="vpn">
+          <p class="conn-lead">WireGuard — современный протокол VPN: самый быстрый из распространённых,
+            с минимальной задержкой и мгновенным переподключением. Для работы с 1С это единственный
+            способ добраться до сервера — и самый удобный.</p>
+          <ol class="conn-steps">
+            <li><span class="conn-num">1</span><div>Скачайте установщик WireGuard (кнопка в блоке «VPN для 1С») и установите.</div></li>
+            <li><span class="conn-num">2</span><div>Импортируйте свой файл конфигурации: меню WireGuard →
+              «Импорт туннеля из файла».</div></li>
+            <li><span class="conn-num">3</span><div>Включите туннель. Проверка: в 1С открывается база,
+              сайт портала отвечает.</div></li>
+          </ol>
+          <p class="conn-note warn"><i data-lucide="triangle-alert"></i>
+            <span><b>Честно про «неблокируемость»:</b> WireGuard — не невидимка. DPI-системы распознают его
+              по характерным признакам трафика, и в России фиксировались блокировки. Для обхода блокировок
+              применяют обфусцированные варианты — AmneziaWG, wg-obfuscator — или другие протоколы.
+              Наш туннель нужен только для доступа к серверу 1С, а не для обхода блокировок.</span></p>
+          <p class="conn-note"><i data-lucide="info"></i>
+            <span>Туннель нужен для тонкого и толстого клиента. <b>Веб-клиент</b> (кнопка «Открыть» на этой
+              странице) работает без VPN: портал сам передаёт запросы в 1С по защищённому каналу.
+              Интернет при включённом туннеле идёт напрямую — скорость обычных сайтов не меняется.</span></p>
+        </div>
+      </dialog>
+
+  {% if vpn_ready %}
+  <section class="vpn-card" style="margin-top:22px">
+    <div class="vpn-card-main">
+      <h2><i data-lucide="shield-check"></i> VPN для 1С</h2>
+      <p class="muted">Файл конфигурации WireGuard: через него вы попадаете в защищённую сеть с сервером 1С.
+        Остальной интернет идёт напрямую, как обычно.</p>
+
+      <div class="vpn-steps">
+        <p class="vpn-step"><span class="vpn-num">1</span>
+          <span>Установите WireGuard на компьютер. Сайт производителя в России заблокирован,
+            файлы лежат у нас:
+            <a class="link" href="{{ url_for('download_wireguard', name='wireguard-amd64-1.1.1.msi') }}">Windows 64-бит</a>
+            <span class="muted">(3,1 МБ)</span> ·
+            <a class="link" href="{{ url_for('download_wireguard', name='wireguard-x86-1.1.1.msi') }}">Windows 32-бит</a>
+            <span class="muted">(3,1 МБ)</span>
+          </span>
+        </p>
+        <p class="vpn-step"><span class="vpn-num">2</span>
+          <span>Скачайте свой файл конфигурации ниже и откройте его в WireGuard
+            («Импорт туннеля из файла»).</span>
+        </p>
+        <p class="vpn-step"><span class="vpn-num">3</span>
+          <span>Включите туннель — и запускайте 1С. Туннель нужен при каждом подключении к базе:
+            он и есть ваш «вход» в серверную сеть.</span>
+        </p>
+      </div>
+
+      <p class="muted small">Телефон: приложение WireGuard из App Store / Google Play, конфигурация импортируется
+        сканированием QR-кода — запросите QR у администратора.</p>
+    </div>
+
+    <a class="button primary" href="{{ url_for('vpn_config_download') }}">
+      <i data-lucide="download"></i>Скачать конфигурацию
+    </a>
+  </section>
+  {% endif %}
+
       <footer class="app-footer">
         <span>Портал 1С · v{{ app_version }}</span>
         <span class="muted">1С.DGEK.RU · сессия до 8 часов</span>
       </footer>
       <div class="credits">проект подготовлен при участии <a href="https://focuslens.dev" target="_blank" rel="noopener">focuslens.dev</a></div>
-    </main>
+    
+</main>
   </div>
 
   <dialog class="modal modal-help" id="dlg-config">
@@ -197,5 +376,61 @@
       });
     })();
   </script>
+
+<script>
+/* модальное окно «Как подключиться» и вкладки */
+(function () {
+  var dlg = document.getElementById('dlg-connect');
+  if (!dlg) return;
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-open="dlg-connect"]');
+    if (opener) { dlg.showModal(); return; }
+    if (e.target.closest('#dlg-connect [data-close]')) { dlg.close(); return; }
+  });
+
+  dlg.addEventListener('click', function (e) {
+    if (e.target === dlg) dlg.close();
+  });
+
+  dlg.querySelectorAll('.conn-tabs .chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      dlg.querySelectorAll('.conn-tabs .chip').forEach(function (c) { c.classList.remove('active'); });
+      dlg.querySelectorAll('.conn-panel').forEach(function (p) { p.classList.remove('active'); });
+      chip.classList.add('active');
+      var panel = dlg.querySelector('.conn-panel[data-panel="' + chip.dataset.tab + '"]');
+      if (panel) panel.classList.add('active');
+    });
+  });
+})();
+</script>
+
+
+<script>
+/* окно «Файл подключения .v8i» */
+(function () {
+  var dlg = document.getElementById('dlg-v8i');
+  if (!dlg) return;
+  var link = document.getElementById('v8i-download');
+  var baseLabel = document.getElementById('v8i-base');
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-open="dlg-v8i"]');
+    if (opener) {
+      var v8iDownload = opener.dataset.v8i || '/bases/0/v8i';
+      link.href = v8iDownload;
+      var name = opener.dataset.base || '';
+      if (baseLabel) baseLabel.textContent = name;
+      link.setAttribute('download', (name || 'base') + '.v8i');
+      dlg.showModal();
+      return;
+    }
+    if (e.target.closest('#dlg-v8i [data-close]')) { dlg.close(); }
+  });
+
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+})();
+</script>
+
 </body>
 </html>

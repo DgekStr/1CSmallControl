@@ -98,7 +98,7 @@ pvesr create-local-job 213-0 pve4 --schedule '*/15'
 ```bash
 qm status 213
 systemctl is-active srv1cv8 postgrespro-1c-16 apache2 1c-portal   # внутри ВМ
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8081/WEB/dgek/
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8081/WEB/base1/
 ```
 
 ## 6. Настройки ZFS

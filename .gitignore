@@ -47,3 +47,7 @@ patch_*.py
 smb.cred
 .new-cluster-pwd
 *.pwd
+# установщики WireGuard (лежат на сервере, не в git)
+soft/*.msi
+soft/*.exe
+soft/*.dmg

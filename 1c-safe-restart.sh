@@ -60,7 +60,7 @@ case "$MODE" in
     echo
     echo "== завершаю сеансы =="
     if [ -x /usr/local/bin/1c-kick-sessions ]; then
-      for base in dgek mybase; do
+      for base in base1 base2; do
         /usr/local/bin/1c-kick-sessions "$base" 2>/dev/null | tail -1 | sed "s/^/  $base: /"
       done
     else
@@ -84,7 +84,7 @@ case "$MODE" in
     check_state
     echo
     echo "проверка публикации:"
-    curl -s -o /dev/null -w '  /WEB/dgek/ = %{http_code}\n' --resolve 1c.dgek.ru:8081:127.0.0.1 http://127.0.0.1:8081/WEB/dgek/
+    curl -s -o /dev/null -w '  /WEB/base1/ = %{http_code}\n' --resolve 1c.dgek.ru:8081:127.0.0.1 http://127.0.0.1:8081/WEB/base1/
     ;;
   *)
     echo "usage: $0 check|apply"

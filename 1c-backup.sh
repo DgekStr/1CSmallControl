@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 # 1C (PostgreSQL) backup according to portal settings.
 # Usage: 1c-backup [run|auto]
 set -uo pipefail
@@ -75,7 +76,7 @@ mkdir -p "$TARGET" 2>/dev/null
 LIST=$($RAC "$RAS" infobase summary list --cluster="$CLUSTER" \
         --cluster-user="${IC_CLUSTER_USER:-}" --cluster-pwd="${IC_CLUSTER_PWD:-}" 2>/dev/null \
        | awk -F' *: *' '/^name/{print $2}')
-[ -n "$LIST" ] || LIST="dgek dgek2"
+[ -n "$LIST" ] || LIST=""
 
 STAMP=$(date +%Y%m%d-%H%M)
 OK=0

@@ -1,5 +1,8 @@
 """Портал доступа к базам 1С: клиентский вход + админка."""
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import http.client
+import base64
 import json
 import urllib.request
 from urllib.parse import quote
@@ -16,8 +19,8 @@ import metrics
 from functools import wraps
 
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask import (Flask, g, redirect, render_template, request, session, stream_with_context,
-                   url_for, abort, flash, Response)
+from flask import (has_request_context, Flask, g, redirect, render_template, request, session, stream_with_context,
+                   url_for, abort, flash, Response, make_response, send_from_directory)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +32,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '1.7')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.0')
 
 app = Flask(__name__)
 # за nginx: реальный IP клиента и схема https
@@ -131,6 +134,9 @@ def close_db(exc):
         conn.close()
 
 
+QR_TTL = 120  # секунды жизни QR-кода
+
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(SCHEMA)
@@ -149,6 +155,12 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN auto_user TEXT")
     if 'auto_pwd' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN auto_pwd TEXT")
+
+    user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+    if 'vpn_enabled' not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN vpn_enabled INTEGER DEFAULT 0")
+    if 'vpn_config' not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN vpn_config TEXT")
     conn.execute("""CREATE TABLE IF NOT EXISTS login_fails (
         username TEXT NOT NULL,
         ip TEXT NOT NULL,
@@ -156,6 +168,14 @@ def init_db():
         blocked_until REAL,
         notified INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (username, ip))""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS qr_logins (
+        token TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        ip TEXT,
+        ua TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        uid INTEGER,
+        used INTEGER NOT NULL DEFAULT 0)""")
     conn.execute("UPDATE bases SET db_name = slug WHERE db_name IS NULL OR db_name = ''")
     conn.commit()
     maintenance.init()
@@ -317,8 +337,12 @@ def index():
         jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
     pg_mode = _pg_mode_state()
     sizes = _base_sizes(rows) if rows else {}
-    return render_template('portal.html', bases=rows, jobs=jobs, pg_mode=pg_mode,
-                           sizes=sizes, maint=maintenance.state())
+    urow = db().execute("SELECT vpn_enabled, vpn_config FROM users WHERE id = ?",
+                        (session['uid'],)).fetchone()
+    vpn_ready = bool(urow and urow['vpn_enabled'] and urow['vpn_config'])
+    return render_template('portal.html', vpn_ready=vpn_ready, bases=rows, jobs=jobs, pg_mode=pg_mode,
+                           sizes=sizes, maint=maintenance.state(),
+                           ic_server=_setting_get('ic_server_name') or 'srv.1c.dgek.ru')
 
 
 # ---------------- шлюз к публикациям 1С ----------------
@@ -341,19 +365,55 @@ def web_gate_redirect(slug):
     return redirect('/WEB/%s/%s' % (slug, ('?' + qs) if qs else ''))
 
 
+
+WEB_DENIED = {
+    'no-access': dict(
+        kind_label='ДОСТУП ЗАКРЫТ',
+        title='Доступ к базе закрыт',
+        icon='lock',
+        message='Эта база больше не доступна вашей учётной записи.',
+        hint='Администратор портала мог отключить доступ. Попросите его выдать доступ заново '
+             'в разделе «Доступы» — после этого база снова появится в кабинете.',
+    ),
+    'not-found': dict(
+        kind_label='БАЗА НЕ НАЙДЕНА',
+        title='Такой базы нет',
+        icon='database-zap',
+        message='База не найдена или скрыта администратором.',
+        hint='Проверьте адрес: возможно, базу переименовали или удалили. '
+             'Актуальный список — в кабинете портала.',
+    ),
+    'upstream': dict(
+        kind_label='СЕРВЕР 1С НЕ ОТВЕЧАЕТ',
+        title='База временно недоступна',
+        icon='plug-zap',
+        message='Сервер 1С не отвечает или выполняется обслуживание базы.',
+        hint='Подождите минуту и обновите страницу. Если не помогает — сообщите администратору.',
+    ),
+}
+
+
+def _web_denied(slug, kind='no-access', status=403):
+    info = dict(WEB_DENIED.get(kind) or WEB_DENIED['no-access'])
+    html = render_template('web_denied.html', slug=slug, **info)
+    resp = make_response(html, status)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
 @app.route('/WEB/<slug>/', defaults={'rest': ''}, methods=WEB_METHODS)
 @app.route('/WEB/<slug>/<path:rest>', methods=WEB_METHODS)
 @login_required
 def web_gate(slug, rest=''):
     base = db().execute("SELECT * FROM bases WHERE slug = ? AND is_active = 1", (slug,)).fetchone()
     if not base:
-        abort(404)
+        return _web_denied(slug, 'not-found', 404)
     if session.get('role') != 'admin':
         allowed = db().execute("SELECT 1 FROM access WHERE user_id = ? AND base_id = ?",
                                (session['uid'], base['id'])).fetchone()
         if not allowed:
             audit('web_denied', slug)
-            abort(403)
+            return _web_denied(slug, 'no-access', 403)
 
     if session.get('role') != 'admin' and maintenance.blocking():
         return redirect(url_for('maintenance_page'))
@@ -423,7 +483,7 @@ def web_gate(slug, rest=''):
         conn.close()
     except Exception as exc:  # noqa: BLE001
         audit('web_error', '%s: %s' % (slug, exc))
-        return Response('1С недоступна: %s' % exc, status=502, mimetype='text/plain; charset=utf-8')
+        return _web_denied(slug, 'upstream', 502)
     return out
 
 
@@ -493,6 +553,103 @@ def _login_fail(username, ip):
 def _login_ok(username, ip):
     db().execute("DELETE FROM login_fails WHERE username = ? AND ip = ?", (username, ip))
     db().commit()
+
+
+
+# ===== вход администратора по QR-коду =====
+
+def _qr_png_data_uri(text):
+    """PNG с QR-кодом в виде data:URI (генерируется локально, без внешних сервисов)."""
+    try:
+        proc = subprocess.run(['qrencode', '-t', 'PNG', '-s', '7', '-m', '2', '-o', '-', text],
+                              capture_output=True, timeout=10)
+        if proc.returncode == 0 and proc.stdout:
+            return 'data:image/png;base64,' + base64.b64encode(proc.stdout).decode('ascii')
+    except Exception:  # noqa: BLE001
+        pass
+    return ''
+
+
+def _qr_purge(conn):
+    """Удаляет просроченные и использованные одноразовые ссылки."""
+    cutoff = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(time.time() - 3600))
+    conn.execute("DELETE FROM qr_logins WHERE created_at < ?", (cutoff,))
+
+
+@app.route('/login/qr')
+def qr_login_page():
+    """Экран ожидания: показывает QR, который подтверждают с телефона."""
+    if session.get('role') == 'admin':
+        return redirect(url_for('admin'))
+
+    conn = db()
+    _qr_purge(conn)
+    token = secrets.token_urlsafe(24)
+    now = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+    conn.execute("INSERT INTO qr_logins (token, created_at, ip, ua, status) VALUES (?,?,?,?, 'pending')",
+                 (token, now, _client_ip(), (request.headers.get('User-Agent') or '')[:180]))
+    conn.commit()
+
+    link = request.host_url.rstrip('/') + '/qr/' + token
+    audit('qr_start', _client_ip())
+    return render_template('qr.html', token=token, qr=_qr_png_data_uri(link),
+                           link=link, ttl=QR_TTL)
+
+
+@app.route('/qr/status')
+def qr_status():
+    """Опрос состояния: как только телефон подтвердил — пускаем в админку."""
+    token = request.args.get('token') or ''
+    conn = db()
+    row = conn.execute("SELECT * FROM qr_logins WHERE token = ?", (token,)).fetchone()
+    if not row:
+        return {'status': 'unknown'}
+    created = time.mktime(time.strptime(row['created_at'], '%Y-%m-%d %H:%M:%S')) - time.timezone
+    if row['status'] == 'pending' and time.time() - created > QR_TTL:
+        conn.execute("UPDATE qr_logins SET status = 'expired' WHERE token = ?", (token,))
+        conn.commit()
+        return {'status': 'expired'}
+    if row['status'] == 'approved' and not row['used'] and row['uid']:
+        user = conn.execute("SELECT * FROM users WHERE id = ?", (row['uid'],)).fetchone()
+        conn.execute("UPDATE qr_logins SET used = 1 WHERE token = ?", (token,))
+        conn.commit()
+        if user and user['is_active'] and user['role'] == 'admin':
+            session.clear()
+            session['uid'] = user['id']
+            session['user'] = user['username']
+            session['name'] = user['full_name'] or user['username']
+            session['role'] = user['role']
+            session.permanent = True
+            _login_ok(user['username'], _client_ip())
+            audit('qr_login', user['username'])
+            return {'status': 'ok', 'next': '/admin'}
+        return {'status': 'error'}
+    return {'status': row['status']}
+
+
+@app.route('/qr/<token>', methods=['GET', 'POST'])
+def qr_confirm(token):
+    """Страница на телефоне: подтвердить вход администратора."""
+    conn = db()
+    row = conn.execute("SELECT * FROM qr_logins WHERE token = ?", (token,)).fetchone()
+    if not row:
+        abort(404)
+    if row['status'] == 'expired' or row['used']:
+        abort(410)
+
+    if request.method == 'POST':
+        check_csrf()
+        if session.get('role') != 'admin':
+            flash('Подтвердить вход может только администратор портала')
+            return redirect(url_for('login', next=request.path))
+        conn.execute("UPDATE qr_logins SET status = 'approved', uid = ? WHERE token = ?",
+                     (session['uid'], token))
+        conn.commit()
+        audit('qr_approve', '%s %s' % (session['user'], row['ip']))
+        return render_template('qr_confirm.html', done=True, ip=row['ip'], ua=row['ua'])
+
+    return render_template('qr_confirm.html', done=False, token=token, ip=row['ip'],
+                           ua=row['ua'], logged=session.get('role') == 'admin')
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -615,6 +772,33 @@ def _cached(key, ttl, fn):
     return value
 
 
+def _cached_swr(key, ttl, max_age, fn, wait=True):
+    """Отдаёт кэш сразу, а если он устарел — обновляет в фоне (страница не ждёт rac)."""
+    now = time.time()
+    hit = _cache.get(key)
+    if hit and now - hit[0] < ttl:
+        return hit[1]
+    if hit and now - hit[0] < max_age:
+        def refresh():
+            try:
+                _cache[key] = (time.time(), fn())
+            except Exception:  # noqa: BLE001
+                pass
+        threading.Thread(target=refresh, daemon=True).start()
+        return hit[1]
+    if not wait:
+        def load():
+            try:
+                _cache[key] = (time.time(), fn())
+            except Exception:  # noqa: BLE001
+                pass
+        threading.Thread(target=load, daemon=True).start()
+        return {}
+    value = fn()
+    _cache[key] = (now, value)
+    return value
+
+
 def _cache_stamp(key):
     hit = _cache.get(key)
     return time.strftime('%H:%M:%S', time.localtime(hit[0])) if hit else time.strftime('%H:%M:%S')
@@ -658,6 +842,14 @@ def _start_warmer():
                 maintenance.tick()
             except Exception:  # noqa: BLE001
                 pass
+            try:
+                warm_counts()
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                warm_sizes()
+            except Exception:  # noqa: BLE001
+                pass
             time.sleep(45)
 
     threading.Thread(target=loop, daemon=True).start()
@@ -674,15 +866,21 @@ def admin():
         # статистика живёт на отдельном маршруте — иначе не хватает её данных
         return redirect(url_for('admin_stats'))
     counts = {}
+    sizes = {}
     if tab == 'bases' and bases:
+        try:
+            sizes = _base_sizes(bases)
+        except Exception:  # noqa: BLE001
+            sizes = {}
         _sync_cluster_state(bases)
         slugs = tuple(b['slug'] for b in bases)
-        counts = _cached('counts:' + ','.join(slugs), 60,
-                         lambda: _session_counts(list(slugs)))
+        counts = _cached_swr('counts:' + ','.join(slugs), 120, 3600,
+                             lambda: _session_counts(list(slugs)), wait=False)
     pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
     orphan_bases = [b for b in bases if b['id'] not in {base_id for _, base_id in links}]
     return render_template('admin.html', users=users, bases=bases, links=links, tab=tab,
-                           sessions=counts, pg_mode=pg_mode, maint=maintenance.state(),
+                           sessions=counts, sizes=sizes, pg_mode=pg_mode,
+                           maint=maintenance.state(),
                            orphan_bases=orphan_bases,
                            refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
 
@@ -740,10 +938,36 @@ def user_update(uid):
         db().execute("UPDATE users SET is_active = 1 - is_active WHERE id = ?", (uid,))
         db().commit()
         audit('user_toggle', row['username'])
+    elif action == 'vpn_clear':
+        db().execute("UPDATE users SET vpn_config = NULL, vpn_enabled = 0 WHERE id = ?", (uid,))
+        db().commit()
+        audit('vpn_clear', row['username'])
+        flash('VPN отключён, конфигурация удалена')
+        return redirect(url_for('admin', tab='users'))
+
     elif action == 'rename':
         name = (request.form.get('full_name') or '').strip()
         org = (request.form.get('organization') or '').strip()
-        db().execute("UPDATE users SET full_name = ?, organization = ? WHERE id = ?", (name, org, uid))
+
+        vpn_on = 1 if request.form.get('vpn_enabled') else 0
+        cfg = row['vpn_config'] if 'vpn_config' in row.keys() else None
+        upload = request.files.get('vpn_config')
+        if upload and upload.filename:
+            raw = upload.read(65536)
+            text = raw.decode('utf-8', 'replace')
+            built, error = _wg_build_config(text)
+            if error:
+                flash('Конфигурация не сохранена — ' + error)
+            else:
+                cfg = built
+                vpn_on = 1
+                saved = _wg_save_file(row['username'], cfg)
+                audit('vpn_config', '%s%s' % (row['username'], ' → ' + saved if saved else ''))
+                flash('Конфигурация собрана: ключи из файла, маршрут только на '
+                      + (_setting_get('vpn_allowed') or '192.168.0.5/32'))
+
+        db().execute("UPDATE users SET full_name = ?, organization = ?, vpn_enabled = ?, vpn_config = ? "
+                     "WHERE id = ?", (name, org, vpn_on, cfg, uid))
         db().commit()
         audit('user_rename', row['username'])
         flash(f'Карточка «{row["username"]}» обновлена')
@@ -757,6 +981,141 @@ def user_update(uid):
             audit('user_delete', row['username'])
             flash(f'Пользователь «{row["username"]}» удалён')
     return redirect(url_for('admin', tab='users'))
+
+
+
+
+WG_TEMPLATE = """[Interface]
+PrivateKey = {priv}
+Address = {addr}
+MTU = {mtu}
+
+[Peer]
+PublicKey = {pub}{psk}
+AllowedIPs = {allowed}
+Endpoint = {endpoint}
+PersistentKeepalive = {keepalive}
+"""
+
+VPN_CLIENTS_DIR = '/opt/1c-portal/vpn-clients'
+
+
+def _wg_parse(text):
+    """Достаёт ключи и адрес из загруженной конфигурации WireGuard."""
+    values = {}
+    for line in (text or '').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or line.startswith(';') or line.startswith('['):
+            continue
+        if '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        values[key.strip().lower()] = value.strip()
+    return values
+
+
+def _wg_build_config(text):
+    """Собирает правильный конфиг: из файла берём только ключи и адрес.
+
+    Возвращает (конфиг, ошибка). Ошибка — текст для администратора.
+    """
+    keys = _wg_parse(text)
+    priv = keys.get('privatekey', '').strip()
+    pub = keys.get('publickey', '').strip()
+    psk = keys.get('presharedkey', '').strip()
+    addr = keys.get('address', '').strip()
+
+    missing = []
+    if not priv or len(priv) < 40:
+        missing.append('PrivateKey')
+    if not pub or len(pub) < 40:
+        missing.append('PublicKey')
+    if missing:
+        return None, 'в файле нет ключей: ' + ', '.join(missing)
+
+    if '/' not in addr:
+        addr = addr.split(',')[0].strip()
+        addr = (addr or '10.8.0.2') + '/32'
+
+    cfg = WG_TEMPLATE.format(
+        priv=priv,
+        addr=addr,
+        mtu=_setting_get('vpn_mtu') or '1380',
+        pub=pub,
+        psk=('\nPresharedKey = %s' % psk) if psk else '',
+        allowed=_setting_get('vpn_allowed') or '192.168.0.5/32',
+        endpoint=_setting_get('vpn_endpoint') or '1c.dgek.ru:51820',
+        keepalive=_setting_get('vpn_keepalive') or '15',
+    )
+    return cfg, None
+
+
+def _wg_save_file(username, cfg):
+    """Кладёт готовый конфиг в папку клиента на сервере."""
+    try:
+        os.makedirs(VPN_CLIENTS_DIR, mode=0o750, exist_ok=True)
+        path = os.path.join(VPN_CLIENTS_DIR, '%s.conf' % username)
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(cfg)
+        os.chmod(path, 0o640)
+        return path
+    except OSError:
+        return None
+
+
+
+SOFT_DIR = '/opt/1c-portal/soft'
+WIREGUARD_FILES = {
+    'wireguard-amd64-1.1.1.msi': 'WireGuard для Windows, 64-бит (1.1.1)',
+    'wireguard-x86-1.1.1.msi': 'WireGuard для Windows, 32-бит (1.1.1)',
+}
+
+
+@app.route('/download/wireguard/<path:name>')
+@login_required
+def download_wireguard(name):
+    """Установщики WireGuard с нашего сервера: сайт производителя заблокирован в РФ."""
+    if name not in WIREGUARD_FILES:
+        abort(404)
+    row = db().execute("SELECT vpn_enabled, vpn_config FROM users WHERE id = ?",
+                       (session['uid'],)).fetchone()
+    ready = bool(row and row['vpn_enabled'] and row['vpn_config'])
+    if not ready and session.get('role') != 'admin':
+        abort(403)
+    path = os.path.join(SOFT_DIR, 'wireguard', name)
+    if not os.path.exists(path):
+        abort(404)
+    audit('vpn_soft', name)
+    return send_from_directory(os.path.join(SOFT_DIR, 'wireguard'), name,
+                               as_attachment=True, conditional=True)
+
+
+@app.route('/vpn/config')
+@login_required
+def vpn_config_download():
+    row = db().execute("SELECT username, vpn_enabled, vpn_config FROM users WHERE id = ?",
+                       (session['uid'],)).fetchone()
+    if not row or not row['vpn_enabled'] or not row['vpn_config']:
+        abort(404)
+    audit('vpn_download', row['username'])
+    resp = make_response(row['vpn_config'])
+    resp.headers['Content-Type'] = 'text/plain; charset=utf-8'
+    resp.headers['Content-Disposition'] = 'attachment; filename="%s-wireguard.conf"' % row['username']
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
+@app.route('/admin/users/<int:uid>/vpn-file')
+@admin_required
+def admin_vpn_file(uid):
+    row = db().execute("SELECT username, vpn_config FROM users WHERE id = ?", (uid,)).fetchone()
+    if not row or not row['vpn_config']:
+        abort(404)
+    resp = make_response(row['vpn_config'])
+    resp.headers['Content-Type'] = 'text/plain; charset=utf-8'
+    resp.headers['Content-Disposition'] = 'inline; filename="%s-wireguard.conf"' % row['username']
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 @app.route('/admin/bases', methods=['POST'])
@@ -874,18 +1233,11 @@ def _size_human(value):
         return value
 
 
-def _base_sizes(bases):
-    """Размеры баз в PostgreSQL для карточек клиента."""
+def _base_sizes_fetch(bases):
+    """Запрашивает размеры баз в PostgreSQL (медленно во время импорта)."""
     names = sorted({(b['db_name'] or b['slug']) for b in bases})
     if not names:
         return {}
-
-    key = 'basesize:' + ','.join(names)
-    now = time.time()
-    hit = _cache.get(key)
-    if hit and now - hit[0] < 60:
-        return hit[1]
-
     sizes = {}
     try:
         placeholders = ','.join("'%s'" % n.replace("'", "''") for n in names)
@@ -900,10 +1252,57 @@ def _base_sizes(bases):
                 sizes[name.strip()] = _size_human(size.strip())
     except Exception:  # noqa: BLE001
         sizes = {}
-
-    if sizes:
-        _cache[key] = (now, sizes)
     return sizes
+
+
+def _base_sizes(bases):
+    """Размеры баз из кэша. Никогда не тормозит страницу: обновление идёт в фоне."""
+    names = sorted({(b['db_name'] or b['slug']) for b in bases})
+    if not names:
+        return {}
+    key = 'basesize:' + ','.join(names)
+    force = has_request_context() and request.args.get('refresh') == '1'
+    ttl = 0 if force else 60
+    return _cached_swr(key, ttl, 24 * 3600, lambda: _base_sizes_fetch(bases), wait=force)
+
+
+def warm_sizes():
+    """Держит размеры баз в кэше, чтобы кабинет клиента открывался мгновенно."""
+    rows = db().execute("SELECT * FROM bases ORDER BY sort_order, title").fetchall()
+    if not rows:
+        return
+    try:
+        sizes = _base_sizes_fetch(rows)
+        names = sorted({(b['db_name'] or b['slug']) for b in rows})
+        if sizes:
+            _cache['basesize:' + ','.join(names)] = (time.time(), sizes)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def warm_counts():
+    """Обновляет кэш сеансов и состояния баз в фоне, чтобы страница «Базы» не ждала rac."""
+    rows = db().execute("SELECT slug FROM bases ORDER BY sort_order, title").fetchall()
+    names = [r['slug'] for r in rows]
+    if not names:
+        return
+    key = ','.join(names)
+    _cached('counts:' + key, 20, lambda: _session_counts(names))
+
+    def fetch_state():
+        try:
+            proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-base-state'] + names,
+                                  capture_output=True, text=True, timeout=90)
+            out = {}
+            for line in (proc.stdout or '').splitlines():
+                parts = line.split()
+                if len(parts) == 2:
+                    out[parts[0]] = parts[1] == 'yes'
+            return out
+        except Exception:  # noqa: BLE001
+            return {}
+
+    _cached('basestate:' + key, 240, fetch_state)
 
 
 def _sync_cluster_state(bases):
@@ -925,7 +1324,7 @@ def _sync_cluster_state(bases):
         except Exception:  # noqa: BLE001
             return {}
 
-    actual = _cached('basestate:' + ','.join(names), 60, fetch)
+    actual = _cached_swr('basestate:' + ','.join(names), 240, 3600, fetch, wait=False)
     if not actual:
         return
     conn = db()
@@ -1117,6 +1516,17 @@ def admin_stats():
         SELECT username, app, host, started_at, first_seen, last_seen
         FROM client_sessions ORDER BY last_seen DESC LIMIT 150""").fetchall()
 
+    vpn_rows = db().execute("""
+        SELECT u.username, u.full_name, u.organization, u.vpn_enabled,
+               (u.vpn_config IS NOT NULL AND length(u.vpn_config) > 0) AS has_cfg,
+               (SELECT MAX(ts) FROM audit a WHERE a.action = 'vpn_download' AND a.actor = u.username) AS last_download,
+               (SELECT COUNT(*) FROM audit a WHERE a.action = 'vpn_download' AND a.actor = u.username) AS downloads,
+               (SELECT MAX(ts) FROM audit a WHERE a.action = 'vpn_config'
+                  AND (a.actor = u.username OR a.details LIKE '%' || u.username || '%')) AS issued_at
+        FROM users u
+        WHERE u.vpn_enabled = 1 OR (u.vpn_config IS NOT NULL AND length(u.vpn_config) > 0)
+        ORDER BY u.username""").fetchall()
+
     lic = _cached('lic', 60, _licenses)
     srv = metrics.collect()
     try:
@@ -1161,6 +1571,7 @@ def admin_stats():
                            stats_events=events, stats_visits=visits,
                            stats_total=total_seconds,
                            stats_live=live_sessions, stats_clients=client_history, srv=srv, lic=lic,
+                           stats_vpn=vpn_rows,
                            refreshed=_cache_stamp('live'),
                            stats_visits_count=len(visits))
 
@@ -1272,6 +1683,18 @@ DEFAULT_SETTINGS = {
     'backup_dir': '/var/lib/1c-backups',
     'backup_user': '',
     'backup_pass': '',
+    'vpn_endpoint': '1c.dgek.ru:51820',
+    'vpn_allowed': '192.168.0.5/32',
+    'vpn_mtu': '1380',
+    'vpn_keepalive': '15',
+    'ic_server_name': 'srv.1c.dgek.ru',
+    'monitor_enabled': '1',
+    'monitor_url': 'https://1c.dgek.ru/healthz',
+    'monitor_hook': '',
+    'monitor_threshold': '2',
+    'monitor_disk_min_gb': '10',
+    'monitor_backup_max_h': '28',
+    'monitor_resolve': '1c.dgek.ru:443:192.168.0.15',
 }
 
 
@@ -1356,6 +1779,114 @@ def _backup_info():
             return {}
 
     return _cached('backupinfo', 30, fetch)
+
+
+
+
+def _monitor_status():
+    """Последняя проверка мониторинга из файла, который пишет 1c-monitor."""
+    try:
+        with open('/etc/1c-portal/monitor-status.json', encoding='utf-8') as fh:
+            return json.load(fh)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+@app.route('/admin/settings/monitor', methods=['POST'])
+@admin_required
+def admin_settings_monitor():
+    check_csrf()
+    url = (request.form.get('monitor_url') or '').strip()
+    hook = (request.form.get('monitor_hook') or '').strip()
+    resolve = (request.form.get('monitor_resolve') or '').strip()
+    threshold = (request.form.get('monitor_threshold') or '').strip()
+    disk_min = (request.form.get('monitor_disk_min_gb') or '').strip()
+    backup_max = (request.form.get('monitor_backup_max_h') or '').strip()
+
+    if not url.startswith(('http://', 'https://')):
+        flash('Адрес проверки должен начинаться с http:// или https://')
+        return redirect(url_for('admin_settings'))
+    if hook and not hook.startswith('https://'):
+        flash('Хук Mattermost должен начинаться с https://')
+        return redirect(url_for('admin_settings'))
+    if resolve and not re.fullmatch(r'[a-zA-Z0-9._-]+:\d{2,5}:(\d{1,3}\.){3}\d{1,3}', resolve):
+        resolve = '1c.dgek.ru:443:192.168.0.15'
+    threshold = threshold if threshold.isdigit() and 1 <= int(threshold) <= 10 else '2'
+    disk_min = disk_min if disk_min.isdigit() and 1 <= int(disk_min) <= 500 else '10'
+    backup_max = backup_max if backup_max.isdigit() and 1 <= int(backup_max) <= 240 else '28'
+
+    _setting_set('monitor_enabled', '1' if request.form.get('monitor_enabled') else '0')
+    _setting_set('monitor_url', url)
+    _setting_set('monitor_hook', hook)
+    _setting_set('monitor_resolve', resolve)
+    _setting_set('monitor_threshold', threshold)
+    _setting_set('monitor_disk_min_gb', disk_min)
+    _setting_set('monitor_backup_max_h', backup_max)
+    _write_settings_json()
+    _cache.clear()
+    audit('settings_monitor', '%s | порог %s' % (url, threshold))
+    flash('Мониторинг: %s, проверка %s, порог %s' % (
+        'включён' if request.form.get('monitor_enabled') else 'выключен', url, threshold))
+    return redirect(url_for('admin_settings'))
+
+
+@app.route('/admin/settings/monitor-run', methods=['POST'])
+@admin_required
+def admin_settings_monitor_run():
+    check_csrf()
+    code, out = _run_root(['/usr/local/bin/1c-monitor', 'check'], timeout=120)
+    st = _monitor_status()
+    if st.get('ok'):
+        flash('Проверка пройдена: ' + ', '.join(c['title'] for c in st.get('checks', []) if c['ok']))
+    else:
+        bad = [c for c in st.get('checks', []) if not c['ok']]
+        for c in bad[:3]:
+            flash('%s — %s' % (c['title'], c['detail']))
+        if not bad:
+            flash('Проверка не выполнена (код %s)' % code)
+    audit('monitor_run', 'ok' if st.get('ok') else 'fail')
+    _cache.clear()
+    return redirect(url_for('admin_settings'))
+
+
+
+@app.route('/admin/settings/vpn', methods=['POST'])
+@admin_required
+def admin_settings_vpn():
+    check_csrf()
+    endpoint = (request.form.get('vpn_endpoint') or '').strip()
+    allowed = (request.form.get('vpn_allowed') or '').strip()
+    mtu = (request.form.get('vpn_mtu') or '').strip()
+    keepalive = (request.form.get('vpn_keepalive') or '').strip()
+    server_name = (request.form.get('ic_server_name') or '').strip()
+
+    if not re.fullmatch(r'[a-zA-Z0-9._-]+:\d{2,5}', endpoint):
+        flash('Адрес VPN-сервера: имя:порт, например 1c.dgek.ru:51820')
+        return redirect(url_for('admin_settings'))
+
+    # AllowedIPs в WireGuard — только IP или подсеть: имя там работать не будет
+    if not re.fullmatch(r'(\d{1,3}\.){3}\d{1,3}/\d{1,2}(,\s*(\d{1,3}\.){3}\d{1,3}/\d{1,2})*', allowed):
+        flash('Маршрут VPN должен быть IP-подсетью (например 192.168.0.5/32). '
+              'Имя сервера здесь не поддерживается самим WireGuard.')
+        return redirect(url_for('admin_settings'))
+
+    if not mtu.isdigit() or not (1280 <= int(mtu) <= 1500):
+        mtu = '1380'
+    if not keepalive.isdigit() or not (0 <= int(keepalive) <= 120):
+        keepalive = '15'
+    if not re.fullmatch(r'[a-zA-Z0-9._-]{3,80}', server_name):
+        server_name = 'srv.1c.dgek.ru'
+
+    _setting_set('vpn_endpoint', endpoint)
+    _setting_set('vpn_allowed', allowed)
+    _setting_set('vpn_mtu', mtu)
+    _setting_set('vpn_keepalive', keepalive)
+    _setting_set('ic_server_name', server_name)
+    _write_settings_json()
+    _cache.clear()
+    audit('settings_vpn', '%s | %s | MTU %s' % (endpoint, allowed, mtu))
+    flash('VPN: сервер %s, маршрут %s, MTU %s' % (endpoint, allowed, mtu))
+    return redirect(url_for('admin_settings'))
 
 
 @app.route('/admin/settings/backup', methods=['POST'])
@@ -1449,6 +1980,7 @@ def admin_settings():
                            settings=_settings_all(), schedule=_schedule_state(),
                            maint=maintenance.state(), auto_maint=maintenance.auto_settings(),
                            pg_password_set=_pg_password_set(),
+                           monitor=_monitor_status(),
                            backup=_backup_info(),
                            backup_pass_set=_setting_get('backup_pass') != '',
                            refreshed=time.strftime('%H:%M:%S'))
@@ -1655,8 +2187,8 @@ def base_v8i(bid):
                                (session['uid'], bid)).fetchone()
         if not allowed:
             abort(403)
-    settings = _settings_all()
-    host = settings.get('ic_host') or 'localhost'
+    # в файле .v8i не должно быть внутреннего IP: клиент ходит на имя сервера через VPN
+    host = _setting_get('ic_server_name') or 'srv.1c.dgek.ru'
     ref = row['db_name'] or row['slug']
     text = ('[Соединение с сервером 1С:Предприятие]\r\n'
             'Connect=Srvr="%s";Ref="%s";\r\n' % (host, ref))

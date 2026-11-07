@@ -47,7 +47,7 @@ NOW=$($RAC "$RAS" server list --cluster=e3220a07-7374-4fc0-b4fb-25ace3789930 2>/
 
 if [ "$NOW" = "$NEW" ]; then
   echo "готово: кластер объявляет $NOW"
-  $RAC "$RAS" infobase info --cluster=e3220a07-7374-4fc0-b4fb-25ace3789930 --name=dgek \
+  $RAC "$RAS" infobase info --cluster=e3220a07-7374-4fc0-b4fb-25ace3789930 --name=base1 \
        --infobase-user=Евгений --infobase-pwd=26082001 2>/dev/null | grep -E 'infobase|descr' | head -2
 else
   echo "ОШИБКА: кластер объявляет '$NOW', откатываю"

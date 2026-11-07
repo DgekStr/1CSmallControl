@@ -74,12 +74,15 @@
               <td><span class="mono">{{ u.username }}</span></td>
               <td>{{ u.full_name }}</td>
               <td>{{ u.organization or '—' }}</td>
-              <td>{% if u.role == 'admin' %}<span class="badge warning">админ</span>{% else %}<span class="badge neutral">клиент</span>{% endif %}</td>
+              <td>
+            {% if u.role == 'admin' %}<span class="badge warning">админ</span>{% else %}<span class="badge neutral">клиент</span>{% endif %}
+            {% if u.vpn_enabled and u.vpn_config %}<span class="badge vpn" title="Клиенту выдан VPN: конфигурация WireGuard загружена"><i data-lucide="shield-check"></i>VPN</span>{% endif %}
+          </td>
               <td>{% if u.is_active %}<span class="badge success">активен</span>{% else %}<span class="badge error">заблокирован</span>{% endif %}</td>
               <td class="muted">{{ u.created_at[:10] }}</td>
               <td>
                 <div class="row-actions">
-                  <button class="icon-button" title="Изменить ФИО и организацию" data-open="dlg-user-edit" data-id="{{ u.id }}" data-login="{{ u.username }}" data-name="{{ u.full_name }}" data-org="{{ u.organization or '' }}"><i data-lucide="pencil"></i></button>
+                  <button class="icon-button" title="Изменить ФИО и организацию" data-open="dlg-user-edit" data-id="{{ u.id }}" data-login="{{ u.username }}" data-name="{{ u.full_name }}" data-org="{{ u.organization or '' }}" data-vpn="{{ 1 if u.vpn_enabled else 0 }}" data-vpnfile="{{ 1 if u.vpn_config else 0 }}"><i data-lucide="pencil"></i></button>
                   <button class="icon-button" title="Сменить пароль" data-open="dlg-pwd" data-user="{{ u.id }}" data-name="{{ u.username }}"><i data-lucide="key-round"></i></button>
                   <form method="post" action="{{ url_for('user_update', uid=u.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Активность" aria-label="Активность"><i data-lucide="power"></i></button></form>
                   <form method="post" action="{{ url_for('user_update', uid=u.id) }}" data-confirm="Пользователь и все его доступы к базам будут удалены." data-confirm-title="Удалить пользователя?" data-confirm-ok="Удалить" data-confirm-ack="1"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
@@ -97,6 +100,9 @@
         <div><div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Базы</h1><p class="muted">Публикации 1С и их адреса</p></div>
         <div class="heading-actions">
           <span class="muted small refresh-note">обновлено в {{ refreshed }}</span>
+          <a class="button" href="{{ url_for('admin', tab='bases', refresh=1) }}" title="Заново запросить размеры баз и сеансы">
+            <i data-lucide="refresh-cw"></i>Обновить размеры
+          </a>
           <a class="button" href="{{ url_for('admin', tab='bases', refresh=1) }}"><i data-lucide="refresh-cw"></i>Обновить</a>
           <button class="button primary" data-open="dlg-base"><i data-lucide="plus"></i>Добавить базу</button>
         <button class="button danger" type="button" data-open="dlg-maint-now"><i data-lucide="zap"></i>Запустить работы сейчас</button>
@@ -109,7 +115,11 @@
           <tbody>
           {% for b in bases %}
             <tr>
-              <td><span class="mono">{{ b.slug }}</span></td>
+              <td>
+          <span class="mono">{{ b.slug }}</span>
+          {% set sz = sizes.get(b.db_name or b.slug) if sizes else None %}
+          <span class="base-size-line">{{ sz or 'размер неизвестен' }}</span>
+        </td>
               <td>{{ b.title }}<span class="base-desc muted">{{ b.description }}</span></td>
               <td>{{ b.organization or '—' }}</td>
               <td class="mono">{{ b.url_path }}</td>
@@ -195,6 +205,7 @@
           <strong>{{ u.full_name or u.username }}</strong>
           <span class="mono muted">{{ u.username }}</span>
           {% if not u.is_active %}<span class="badge error">заблокирован</span>{% endif %}
+          <span class="badge neutral" title="Клиент видит только свои базы; админка портала (панель сервиса) ему недоступна">без доступа к панели сервиса</span>
         </div>
         <div class="access-list">
           {% for b in bases %}
@@ -262,6 +273,102 @@
           <p class="muted small">Смена адреса сервера 1С перерегистрирует кластер и перезапустит службу 1С — пользователи отключатся на 1-3 минуты.</p>
 
           <button class="button primary" type="submit"><i data-lucide="check"></i>Сохранить и применить</button>
+        </form>
+
+        <form class="card settings-card" method="post" action="{{ url_for('admin_settings_monitor') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <h2>Мониторинг</h2>
+          <p class="muted">Проверка портала, свободного места и бэкапов каждые 10 минут. При двух сбоях подряд — сообщение в Mattermost.</p>
+
+          <label class="check-label ack" style="margin:4px 0 12px">
+            <input type="checkbox" name="monitor_enabled" value="1" {% if settings.monitor_enabled == '1' %}checked{% endif %}>
+            Включить мониторинг
+          </label>
+
+          <label class="field">Что проверять (URL)
+            <input name="monitor_url" value="{{ settings.monitor_url }}" placeholder="https://1c.dgek.ru/healthz">
+          </label>
+
+          <div class="field-row">
+            <label class="field">Порог сбоев подряд
+              <input name="monitor_threshold" value="{{ settings.monitor_threshold }}" inputmode="numeric">
+            </label>
+            <label class="field">Мин. место, ГБ
+              <input name="monitor_disk_min_gb" value="{{ settings.monitor_disk_min_gb }}" inputmode="numeric">
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">Бэкап не старше, ч
+              <input name="monitor_backup_max_h" value="{{ settings.monitor_backup_max_h }}" inputmode="numeric">
+            </label>
+            <label class="field">Проверять через прокси
+              <input name="monitor_resolve" value="{{ settings.monitor_resolve }}" placeholder="1c.dgek.ru:443:192.168.0.15">
+            </label>
+          </div>
+
+          <label class="field">Хук Mattermost для тревог
+            <input name="monitor_hook" value="{{ settings.monitor_hook }}" placeholder="https://chat.dgek.ru/hooks/…">
+          </label>
+
+          {% if monitor %}
+          <div class="monitor-box">
+            <div class="monitor-head">
+              <span class="badge {{ 'success' if monitor.ok else 'error' }}">{{ 'всё в норме' if monitor.ok else 'есть проблемы' }}</span>
+              <span class="muted small">проверка {{ monitor.ts }}</span>
+            </div>
+            {% for c in monitor.checks %}
+            <div class="monitor-row">
+              <span class="monitor-dot {{ 'ok' if c.ok else 'fail' }}"></span>
+              <span class="monitor-title">{{ c.title }}</span>
+              <span class="muted small">{{ c.detail }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="muted small">Проверка ещё не запускалась.</p>
+          {% endif %}
+
+          <div class="field-row">
+            <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
+            <button class="button" type="submit" formaction="{{ url_for('admin_settings_monitor_run') }}"
+                    formnovalidate><i data-lucide="activity"></i>Проверить сейчас</button>
+          </div>
+        </form>
+
+        <form class="card settings-card" method="post" action="{{ url_for('admin_settings_vpn') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <h2>VPN и адреса</h2>
+          <p class="muted">Что подставляется в конфигурации WireGuard и файлы подключения.</p>
+
+          <div class="field-row">
+            <label class="field">Адрес VPN-сервера
+              <input name="vpn_endpoint" value="{{ settings.vpn_endpoint }}" placeholder="1c.dgek.ru:51820">
+            </label>
+            <label class="field">Имя сервера 1С
+              <input name="ic_server_name" value="{{ settings.ic_server_name }}" placeholder="srv.1c.dgek.ru">
+            </label>
+          </div>
+
+          <label class="field">Маршрут внутри туннеля (AllowedIPs)
+            <input name="vpn_allowed" value="{{ settings.vpn_allowed }}" placeholder="192.168.0.5/32">
+          </label>
+          <p class="muted small">Только IP или подсеть: <span class="mono">192.168.0.5/32</span>,
+            <span class="mono">192.168.0.0/24</span>. Имя сервера здесь не работает — WireGuard
+            маршрутизирует по IP, конфигурация с именем не импортируется.</p>
+
+          <div class="field-row">
+            <label class="field">MTU
+              <input name="vpn_mtu" value="{{ settings.vpn_mtu }}" placeholder="1380" inputmode="numeric">
+            </label>
+            <label class="field">Keepalive, с
+              <input name="vpn_keepalive" value="{{ settings.vpn_keepalive }}" placeholder="15" inputmode="numeric">
+            </label>
+          </div>
+
+          <div class="field-row">
+            <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
+          </div>
         </form>
 
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings_backup') }}">
@@ -419,7 +526,18 @@
         </div>
       </div>
 
-      <div class="srv-grid">
+      <nav class="stats-filter" id="stats-filter" aria-label="Навигация по статистике">
+        <a class="chip active" href="#stats-top" data-target="stats-top">Всё</a>
+        <a class="chip" href="#stats-users" data-target="stats-users">По пользователям</a>
+        <a class="chip" href="#stats-live" data-target="stats-live">В 1С сейчас</a>
+        <a class="chip" href="#stats-history" data-target="stats-history">История клиентов</a>
+        <a class="chip" href="#stats-bases" data-target="stats-bases">По базам</a>
+        <a class="chip" href="#stats-sessions" data-target="stats-sessions">Сеансы</a>
+        <a class="chip" href="#stats-vpn" data-target="stats-vpn">VPN</a>
+        <a class="chip" href="#stats-log" data-target="stats-log">Журнал действий</a>
+      </nav>
+
+      <div class="srv-grid" id="stats-top">
         <div class="srv-card">
           <i data-lucide="cpu" class="srv-ico"></i>
           <div class="srv-title">Нагрузка CPU</div>
@@ -495,7 +613,7 @@
         </div>
       </div>
 
-      <h2 class="section-title">По пользователям</h2>
+      <h2 class="section-title" id="stats-users">По пользователям</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
           <thead><tr><th>Пользователь</th><th>Входов</th><th>Всего времени</th><th>Последний вход</th><th>Последняя активность</th><th>IP</th><th>Открытий баз</th><th>Баз</th><th>Статус</th></tr></thead>
@@ -519,7 +637,7 @@
         </table>
       </div>
 
-      <h2 class="section-title">Подключения к 1С сейчас</h2>
+      <h2 class="section-title" id="stats-live">Подключения к 1С сейчас</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
           <thead><tr><th>Пользователь</th><th>Клиент</th><th>Компьютер</th><th>Начало</th><th>Активность</th></tr></thead>
@@ -539,7 +657,7 @@
         </table>
       </div>
 
-      <h2 class="section-title">История подключений клиентов 1С</h2>
+      <h2 class="section-title" id="stats-history">История подключений клиентов 1С</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
           <thead><tr><th>Пользователь</th><th>Клиент</th><th>Компьютер</th><th>Начало сеанса</th><th>Обновлено</th></tr></thead>
@@ -558,7 +676,7 @@
           </tbody>
         </table>
       </div>
-      <h2 class="section-title">По базам</h2>
+      <h2 class="section-title" id="stats-bases">По базам</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
           <thead><tr><th>База</th><th>Открытий</th><th>Пользователей</th></tr></thead>
@@ -572,7 +690,7 @@
         </table>
       </div>
 
-      <h2 class="section-title">Сеансы</h2>
+      <h2 class="section-title" id="stats-sessions">Сеансы</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
           <thead><tr><th>Пользователь</th><th>Начало</th><th>Последняя активность</th><th>Выход</th><th>Длительность</th><th>IP</th></tr></thead>
@@ -593,7 +711,38 @@
         </table>
       </div>
 
-      <h2 class="section-title">Журнал действий</h2>
+      <h2 class="section-title" id="stats-vpn">VPN у клиентов</h2>
+      <div class="table-scroll">
+        <table class="data-table filterable">
+          <thead><tr><th>Клиент</th><th>Организация</th><th>Конфиг</th><th>Выдан</th><th>Последнее скачивание</th><th>Скачиваний</th></tr></thead>
+          <tbody>
+          {% for v in stats_vpn %}
+            <tr>
+              <td>
+                <span class="mono">{{ v.username }}</span>
+                {% if v.full_name %}<span class="muted small">{{ v.full_name }}</span>{% endif %}
+              </td>
+              <td class="muted">{{ v.organization or '—' }}</td>
+              <td>
+                {% if v.has_cfg %}<span class="badge success">загружен</span>
+                {% else %}<span class="badge neutral">нет файла</span>{% endif %}
+              </td>
+              <td class="muted">{{ v.issued_at or '—' }}</td>
+              <td class="muted">{{ v.last_download or 'не скачивал' }}</td>
+              <td>{{ v.downloads or 0 }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="muted">VPN пока никому не выдан</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small" style="margin:10px 0 0">
+        Здесь видно, кому выдан VPN и кто скачивал конфигурацию. Реальные подключения к туннелю
+        (кто, когда, сколько трафика) появятся, когда подключим опрос VPN-сервера.
+      </p>
+
+      <h2 class="section-title" id="stats-log">Журнал действий</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
           <thead><tr><th>Время</th><th>Кто</th><th>Действие</th><th>Детали</th></tr></thead>
@@ -632,14 +781,40 @@
   </dialog>
 
   <dialog class="modal" id="dlg-user-edit">
-    <form method="post" id="user-form">
+    <form method="post" id="user-form" enctype="multipart/form-data">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="rename">
       <div class="modal-heading"><h2>Изменить клиента</h2><button type="button" class="icon-button" data-close><i data-lucide="x"></i></button></div>
       <label>Логин<input name="username" disabled></label>
       <label>ФИО<input name="full_name"></label>
       <label>Организация<input name="organization" placeholder="ООО «Ромашка»"></label>
+
+      <div class="vpn-block">
+        <label class="check-label">
+          <input type="checkbox" name="vpn_enabled" value="1">
+          <span>VPN для этого клиента</span>
+        </label>
+        <p class="muted small">Если включено и загружен файл, в кабинете клиента появится кнопка «Скачать конфигурацию WireGuard».</p>
+        <label class="field">Файл конфигурации WireGuard (.conf)
+          <input type="file" name="vpn_config" accept=".conf,text/plain">
+        </label>
+        <p class="muted small">Из файла берутся только ключи (PrivateKey, PublicKey, PresharedKey) и адрес. Маршрут, MTU, Endpoint и keepalive подставляются правильные: только 192.168.0.5.</p>
+        <p class="muted small">Текущий файл: <span id="vpn-state">не загружен</span></p>
+        <div class="field-row">
+          <a class="button" id="vpn-panel-link" href="https://192.168.0.39:9443/wireguard" target="_blank" rel="noopener">
+            <i data-lucide="external-link"></i>Открыть панель VPN
+          </a>
+          <button class="button danger" type="submit" form="user-vpn-clear"
+                  data-confirm="VPN будет отключён, конфигурация удалена."
+                  data-confirm-title="Отключить VPN?" data-confirm-ok="Отключить">Сбросить VPN</button>
+        </div>
+      </div>
+
       <div class="modal-footer"><button type="button" class="button" data-close>Отмена</button><button class="button primary" type="submit">Сохранить</button></div>
+    </form>
+    <form method="post" id="user-vpn-clear">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="vpn_clear">
     </form>
   </dialog>
 
@@ -892,6 +1067,12 @@
           f.querySelector('[name=username]').value = openBtn.dataset.login;
           f.querySelector('[name=full_name]').value = openBtn.dataset.name;
           f.querySelector('[name=organization]').value = openBtn.dataset.org;
+        const clearForm = document.getElementById('user-vpn-clear');
+        if (clearForm) clearForm.action = '/admin/users/' + openBtn.dataset.id;
+        const vpnBox = f.querySelector('[name=vpn_enabled]');
+        if (vpnBox) vpnBox.checked = openBtn.dataset.vpn === '1';
+        const vpnState = document.getElementById('vpn-state');
+        if (vpnState) vpnState.textContent = openBtn.dataset.vpnfile === '1' ? 'загружен' : 'не загружен';
         }
         if (openBtn.dataset.open === 'dlg-kick-all') {
           const ack = document.getElementById('kick-all-ack');
@@ -972,5 +1153,48 @@
       }
     });
   </script>
+
+<script>
+/* фильтр-навигация по статистике: подсветка активного раздела при прокрутке */
+(function () {
+  var bar = document.getElementById('stats-filter');
+  if (!bar) return;
+  var chips = Array.prototype.slice.call(bar.querySelectorAll('.chip'));
+  var sections = chips.map(function (c) { return document.getElementById(c.dataset.target); });
+
+  function chipActive(name) {
+    chips.forEach(function (c) { c.classList.toggle('active', c.dataset.target === name); });
+  }
+
+  chips.forEach(function (c) {
+    c.addEventListener('click', function (e) {
+      var el = document.getElementById(c.dataset.target);
+      if (!el) return;
+      e.preventDefault();
+      chipActive(c.dataset.target);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      history.replaceState(null, '', '#' + c.dataset.target);
+    });
+  });
+
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () {
+      var offset = 140;
+      var current = 'stats-top';
+      sections.forEach(function (sec, i) {
+        if (!sec) return;
+        var top = sec.getBoundingClientRect().top;
+        if (top - offset <= 0) current = chips[i].dataset.target;
+      });
+      chipActive(current);
+      ticking = false;
+    });
+  }, { passive: true });
+})();
+</script>
+
 </body>
 </html>
