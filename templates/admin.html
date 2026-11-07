@@ -149,7 +149,7 @@
                     <button class="icon-button" title="Опубликовать заново" aria-label="Опубликовать заново"><i data-lucide="refresh-cw"></i></button>
                   </form>
                   <button class="icon-button" title="Отключить всех пользователей от базы" aria-label="Отключить пользователей" data-open="dlg-kick" data-id="{{ b.id }}" data-slug="{{ b.slug }}"><i data-lucide="user-x"></i></button>
-                  <button class="icon-button" title="Изменить" data-open="dlg-base-edit" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-title="{{ b.title }}" data-org="{{ b.organization or '' }}" data-description="{{ b.description }}" data-url="{{ b.url_path }}" data-db="{{ b.db_name or b.slug }}"><i data-lucide="pencil"></i></button>
+                  <button class="icon-button" title="Изменить" data-open="dlg-base-edit" data-id="{{ b.id }}" data-slug="{{ b.slug }}" data-title="{{ b.title }}" data-org="{{ b.organization or '' }}" data-description="{{ b.description }}" data-url="{{ b.url_path }}" data-db="{{ b.db_name or b.slug }}" data-autouser="{{ b.auto_user or '' }}"><i data-lucide="pencil"></i></button>
                   <form method="post" action="{{ url_for('base_update', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle"><button class="icon-button" title="Показать/скрыть" aria-label="Показать или скрыть"><i data-lucide="eye"></i></button></form>
                   <form method="post" action="{{ url_for('base_update', bid=b.id) }}" data-confirm="База «{{ b.slug }}» и все доступы к ней будут удалены без возможности отмены." data-confirm-title="Удалить базу?" data-confirm-ok="Удалить" data-confirm-ack="1"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><button class="icon-button" title="Удалить" aria-label="Удалить"><i data-lucide="trash-2"></i></button></form>
                 </div>
@@ -659,6 +659,9 @@
       <label>Описание<input name="description"></label>
       <label>Адрес публикации<input name="url_path" required></label>
       <label>Имя базы в PostgreSQL<input name="db_name" required></label>
+      <label>Пользователь 1С для входа без формы<input name="auto_user" placeholder="например Гость" autocomplete="off"></label>
+      <label>Пароль этого пользователя 1С<input name="auto_pwd" type="password" autocomplete="new-password" placeholder="пусто, если пароля нет"></label>
+      <p class="muted small">Если заполнить пользователя, кнопка «Открыть» вводит клиента в базу без экрана входа 1С.</p>
       <div class="modal-footer"><button type="button" class="button" data-close>Отмена</button><button class="button primary" type="submit">Сохранить</button></div>
     </form>
   </dialog>
@@ -912,6 +915,8 @@
           f.querySelector('[name=organization]').value = openBtn.dataset.org || '';
           f.querySelector('[name=description]').value = openBtn.dataset.description;
           f.querySelector('[name=url_path]').value = openBtn.dataset.url;
+        f.querySelector('[name=auto_user]').value = openBtn.dataset.autouser || '';
+        f.querySelector('[name=auto_pwd]').value = '';
           f.querySelector('[name=db_name]').value = openBtn.dataset.db || openBtn.dataset.slug;
         }
         dlg.showModal();

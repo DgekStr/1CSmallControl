@@ -2,6 +2,7 @@
 import http.client
 import json
 import urllib.request
+from urllib.parse import quote
 import os
 import re
 import sqlite3
@@ -144,6 +145,10 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN db_name TEXT")
     if 'cluster_state' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN cluster_state TEXT")
+    if 'auto_user' not in base_cols:
+        conn.execute("ALTER TABLE bases ADD COLUMN auto_user TEXT")
+    if 'auto_pwd' not in base_cols:
+        conn.execute("ALTER TABLE bases ADD COLUMN auto_pwd TEXT")
     conn.execute("""CREATE TABLE IF NOT EXISTS login_fails (
         username TEXT NOT NULL,
         ip TEXT NOT NULL,
@@ -332,7 +337,8 @@ WEB_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']
 @app.route('/WEB/<slug>', methods=['GET', 'HEAD'])
 @login_required
 def web_gate_redirect(slug):
-    return redirect('/WEB/%s/' % slug)
+    qs = request.query_string.decode('latin-1')
+    return redirect('/WEB/%s/%s' % (slug, ('?' + qs) if qs else ''))
 
 
 @app.route('/WEB/<slug>/', defaults={'rest': ''}, methods=WEB_METHODS)
@@ -540,6 +546,18 @@ def logout():
     return redirect(url_for('login'))
 
 
+
+
+def _open_url(base):
+    """Ссылка на веб-клиент базы; при автовходе добавляет пользователя 1С."""
+    url = '/WEB/%s/' % base['slug']
+    user = (base['auto_user'] or '').strip() if 'auto_user' in base.keys() else ''
+    if user:
+        pwd = base['auto_pwd'] or ''
+        url += '?N=%s&P=%s' % (quote(user, safe=''), quote(pwd, safe=''))
+    return url
+
+
 @app.route('/open/<slug>')
 @login_required
 def open_base(slug):
@@ -552,7 +570,11 @@ def open_base(slug):
         if not allowed:
             abort(403)
     audit('open_base', slug)
-    return redirect(row['url_path'])
+    url = row['url_path'] or ('/WEB/%s/' % row['slug'])
+    user = (row['auto_user'] or '').strip() if 'auto_user' in row.keys() else ''
+    if user and '?' not in url:
+        url += '?N=%s&P=%s' % (quote(user, safe=''), quote(row['auto_pwd'] or '', safe=''))
+    return redirect(url)
 
 
 # ---------------- админка ----------------
@@ -797,7 +819,9 @@ def base_update(bid):
         url_path = (request.form.get('url_path') or row['url_path']).strip()
         db_name = (request.form.get('db_name') or row['db_name'] or row['slug']).strip()
         db().execute("UPDATE bases SET title=?, organization=?, description=?, url_path=?, db_name=? WHERE id=?",
-                     (title, org, descr, url_path, db_name, bid))
+                     (title, org, descr, url_path, db_name,
+                      (request.form.get('auto_user') or '').strip(),
+                      request.form.get('auto_pwd') or '', bid))
         db().commit()
         audit('base_edit', row['slug'])
         flash(f'База «{row["slug"]}» обновлена')
