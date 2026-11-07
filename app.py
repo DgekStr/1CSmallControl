@@ -425,20 +425,27 @@ def web_gate(slug, rest=''):
 LOGIN_MAX_FAILS = 5
 LOGIN_WINDOW = 15 * 60          # окно подсчёта, секунд
 LOGIN_BLOCK = 15 * 60           # время блокировки, секунд
-MM_LOGIN_HOOK = os.environ.get('PORTAL_MM_LOGIN_HOOK', '')
-
-
-def _mm_notify(text):
-    """Сообщение в Mattermost (для событий безопасности)."""
-    if not MM_LOGIN_HOOK:
-        return
+def _mm_notify(text, hook=None):
+    """Сообщение в Mattermost. Хук берётся из настроек портала (или из env)."""
+    url = hook
+    if not url:
+        try:
+            url = (_settings_all().get('mm_hook') or '').strip()
+        except Exception:  # noqa: BLE001
+            url = ''
+    if not url:
+        url = os.environ.get('PORTAL_MM_LOGIN_HOOK', '')
+    if not url:
+        return False
     try:
-        payload = json.dumps({'text': text}).encode('utf-8')
-        req = urllib.request.Request(MM_LOGIN_HOOK, data=payload,
+        payload = json.dumps({'text': text}, ensure_ascii=False).encode('utf-8')
+        req = urllib.request.Request(url, data=payload,
                                      headers={'Content-Type': 'application/json; charset=utf-8'})
-        urllib.request.urlopen(req, timeout=5).read()
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            resp.read()
+        return 200 <= resp.status < 300
     except Exception:  # noqa: BLE001
-        pass
+        return False
 
 
 def _login_blocked(username, ip):
@@ -469,9 +476,10 @@ def _login_fail(username, ip):
         conn.execute("UPDATE login_fails SET blocked_until = ?, notified = 0 WHERE username = ? AND ip = ?",
                      (now + LOGIN_BLOCK, username, ip))
         conn.commit()
-        _mm_notify('#### 🚫 Портал 1С: блокировка входа\n\n'
+        if (_settings_all().get('mm_login_alerts') or '1') == '1':
+            _mm_notify('#### 🚫 Портал 1С: блокировка входа\n\n'
                    'Пользователь **%s** с IP **%s** — %d неудачных попыток.\n'
-                   'Вход заблокирован на %d минут.' % (username, ip, count, LOGIN_BLOCK // 60))
+                       'Вход заблокирован на %d минут.' % (username, ip, count, LOGIN_BLOCK // 60))
         conn.execute("UPDATE login_fails SET notified = 1 WHERE username = ? AND ip = ?", (username, ip))
     conn.commit()
 
@@ -1229,6 +1237,8 @@ DEFAULT_SETTINGS = {
     'db_port': '5432',
     'db_user': 'postgres',
     'pg_admin_user': 'postgres',
+    'mm_hook': os.environ.get('PORTAL_MM_LOGIN_HOOK', ''),
+    'mm_login_alerts': '1',
 }
 
 
@@ -1299,6 +1309,31 @@ def _schedule_state():
     if out and out[0] and out[0] != 'off':
         return ' '.join(out[0].split()[:5])
     return ''
+
+
+@app.route('/admin/settings/mm', methods=['POST'])
+@admin_required
+def admin_settings_mm():
+    check_csrf()
+    hook = (request.form.get('mm_hook') or '').strip()
+    _setting_set('mm_hook', hook)
+    _setting_set('mm_login_alerts', '1' if request.form.get('mm_login_alerts') else '0')
+    _cache.clear()
+    audit('settings_mm', 'login_alerts=%s' % request.form.get('mm_login_alerts'))
+    flash('Настройки уведомлений сохранены' if hook else 'Хук очищен — уведомления отключены')
+    return redirect(url_for('admin_settings'))
+
+
+@app.route('/admin/settings/mm-test', methods=['POST'])
+@admin_required
+def admin_settings_mm_test():
+    check_csrf()
+    ok = _mm_notify('#### ✅ Портал 1С: проверка уведомлений\n\n'
+                    'Настройка Mattermost работает. Это тестовое сообщение.')
+    flash('Тестовое сообщение отправлено в Mattermost' if ok
+          else 'Не удалось отправить: проверьте адрес хука')
+    audit('settings_mm_test', 'ok' if ok else 'fail')
+    return redirect(url_for('admin_settings'))
 
 
 @app.route('/admin/settings', methods=['GET', 'POST'])
