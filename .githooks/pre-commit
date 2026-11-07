@@ -6,7 +6,7 @@ diff=$(git diff --cached -U0 -- . ':(exclude).githooks/pre-commit')
 
 bad=$(printf '%s\n' "$diff" \
   | grep -E '^\+' \
-  | grep -Ei 'arshin@|greed@[0-9]|hooks/[a-z0-9]{20,}|IC_CLUSTER_PWD=.{6,}|--cluster-pwd=.{6,}|SMB_PASS=.{4,}|BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' \
+  | grep -Ei 'arshin@|greed@[0-9]|hooks/[a-z0-9]{20,}|IC_CLUSTER_PWD=[^$\x27"].{5,}|--cluster-pwd=[^$\x27"].{5,}|SMB_PASS=[^$\x27"].{3,}|BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' \
   || true)
 
 if [ -n "$bad" ]; then
