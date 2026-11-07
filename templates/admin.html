@@ -165,6 +165,28 @@
       <div class="page-heading">
         <div><div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Доступы</h1><p class="muted">Каким клиентам какие базы видны</p></div>
       </div>
+
+      <div class="warn-box" style="margin-bottom:18px">
+        <i data-lucide="key-round"></i>
+        <div>
+          <p><strong>Без выданного доступа в базу войти нельзя.</strong></p>
+          <p class="muted">Пока у базы нет ни одного клиента с галочкой, портал отвечает «Нет доступа к этой базе» —
+          даже если человек знает адрес и у него есть логин 1С. После выдачи доступа база появится в его кабинете.</p>
+          <p class="muted">Галочки применяются кнопкой «Сохранить» внутри карточки клиента.</p>
+        </div>
+      </div>
+
+      {% if orphan_bases %}
+      <div class="warn-box" style="margin-bottom:18px;border-color:#f59e0b55">
+        <i data-lucide="triangle-alert"></i>
+        <div>
+          <p><strong>Базы без доступа ({{ orphan_bases|length }}):</strong>
+            {% for b in orphan_bases %}<span class="mono">{{ b.slug }}</span>{% if not loop.last %}, {% endif %}{% endfor %}
+          </p>
+          <p class="muted">В них сейчас не может войти ни один клиент. Отметьте нужных клиентов ниже и сохраните.</p>
+        </div>
+      </div>
+      {% endif %}
       {% for u in users if u.role == 'client' %}
       <form method="post" action="{{ url_for('access_save') }}" class="access-card">
         <input type="hidden" name="csrf" value="{{ csrf_token() }}">

@@ -680,8 +680,10 @@ def admin():
         counts = _cached('counts:' + ','.join(slugs), 60,
                          lambda: _session_counts(list(slugs)))
     pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
+    orphan_bases = [b for b in bases if b['id'] not in {base_id for _, base_id in links}]
     return render_template('admin.html', users=users, bases=bases, links=links, tab=tab,
                            sessions=counts, pg_mode=pg_mode, maint=maintenance.state(),
+                           orphan_bases=orphan_bases,
                            refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
 
 
@@ -818,7 +820,8 @@ def base_update(bid):
         descr = (request.form.get('description') or '').strip()
         url_path = (request.form.get('url_path') or row['url_path']).strip()
         db_name = (request.form.get('db_name') or row['db_name'] or row['slug']).strip()
-        db().execute("UPDATE bases SET title=?, organization=?, description=?, url_path=?, db_name=? WHERE id=?",
+        db().execute("UPDATE bases SET title=?, organization=?, description=?, url_path=?, db_name=?, "
+                     "auto_user=?, auto_pwd=? WHERE id=?",
                      (title, org, descr, url_path, db_name,
                       (request.form.get('auto_user') or '').strip(),
                       request.form.get('auto_pwd') or '', bid))
