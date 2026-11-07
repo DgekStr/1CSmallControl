@@ -242,6 +242,60 @@
           <button class="button primary" type="submit"><i data-lucide="check"></i>Сохранить и применить</button>
         </form>
 
+        <form class="card settings-card" method="post" action="{{ url_for('admin_settings_backup') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <h2>Архивация баз</h2>
+          <p class="muted">Полные копии каждой базы по расписанию: PostgreSQL → дамп → каталог хранения.</p>
+
+          <label class="check-label ack" style="margin:6px 0 12px">
+            <input type="checkbox" name="backup_enabled" value="1" {% if settings.backup_enabled == '1' %}checked{% endif %}>
+            Включить автоматическую архивацию
+          </label>
+
+          <div class="field-row">
+            <label class="field">Время запуска (МСК)
+              <input name="backup_time" value="{{ settings.backup_time }}" placeholder="04:00" pattern="[0-2][0-9]:[0-5][0-9]">
+            </label>
+            <label class="field">Хранить копий на базу
+              <input name="backup_keep" value="{{ settings.backup_keep }}" placeholder="14" inputmode="numeric">
+            </label>
+          </div>
+
+          <label class="field">Папка хранения (локальная или сетевая)
+            <input name="backup_dir" value="{{ settings.backup_dir }}" placeholder="//192.168.0.79/backup/1cbackup">
+          </label>
+          <p class="muted small">Сетевая папка — в формате <span class="mono">//сервер/ресурс/путь</span>, монтируется по SMB.</p>
+
+          <div class="field-row">
+            <label class="field">Логин SMB
+              <input name="backup_user" value="{{ settings.backup_user }}" autocomplete="off">
+            </label>
+            <label class="field">Пароль SMB
+              <input name="backup_pass" type="password" autocomplete="new-password"
+                     placeholder="{{ 'сохранён — оставьте пустым' if backup_pass_set else 'не задан' }}">
+            </label>
+          </div>
+
+          {% if backup %}
+          <div class="backup-status">
+            <div><span class="muted small">Каталог</span><span class="mono">{{ backup.target }}</span></div>
+            <div><span class="muted small">Свободно</span><strong>{{ backup.free }}</strong> из {{ backup.total }}</div>
+            <div><span class="muted small">Последний запуск</span>{{ backup.last_run or 'ещё не было' }}
+              {% if backup.last_run %}<span class="badge {{ 'success' if backup.last_fail == 0 else 'warning' }}">успешно {{ backup.last_ok }} / ошибок {{ backup.last_fail }}</span>{% endif %}
+            </div>
+            {% if backup.files %}
+            <div class="muted small">Последние файлы: {% for f in backup.files[-4:] %}<span class="mono">{{ f.name }} ({{ f.size }})</span>{% if not loop.last %}, {% endif %}{% endfor %}</div>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <div class="field-row">
+            <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
+            <button class="button" type="submit" formaction="{{ url_for('admin_settings_backup_run') }}"
+                    formnovalidate><i data-lucide="database-backup"></i>Запустить сейчас</button>
+          </div>
+        </form>
+
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings_mm') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
           <h2>Уведомления в Mattermost</h2>

@@ -1239,6 +1239,12 @@ DEFAULT_SETTINGS = {
     'pg_admin_user': 'postgres',
     'mm_hook': os.environ.get('PORTAL_MM_LOGIN_HOOK', ''),
     'mm_login_alerts': '1',
+    'backup_enabled': '1',
+    'backup_time': '04:00',
+    'backup_keep': '14',
+    'backup_dir': '/var/lib/1c-backups',
+    'backup_user': '',
+    'backup_pass': '',
 }
 
 
@@ -1311,6 +1317,61 @@ def _schedule_state():
     return ''
 
 
+
+def _backup_info():
+    """Состояние архивации: каталог, свободное место, последний запуск."""
+    def fetch():
+        try:
+            proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-backup-info'],
+                                  capture_output=True, text=True, timeout=40)
+            return json.loads(proc.stdout or '{}')
+        except Exception:  # noqa: BLE001
+            return {}
+
+    return _cached('backupinfo', 30, fetch)
+
+
+@app.route('/admin/settings/backup', methods=['POST'])
+@admin_required
+def admin_settings_backup():
+    check_csrf()
+    time_val = (request.form.get('backup_time') or '04:00').strip()
+    if not re.match(r'^([01]\d|2[0-3]):[0-5]\d$', time_val):
+        time_val = '04:00'
+    keep = (request.form.get('backup_keep') or '14').strip()
+    keep = str(max(1, min(365, int(keep)))) if keep.isdigit() else '14'
+    folder = (request.form.get('backup_dir') or '/var/lib/1c-backups').strip()
+
+    _setting_set('backup_enabled', '1' if request.form.get('backup_enabled') else '0')
+    _setting_set('backup_time', time_val)
+    _setting_set('backup_keep', keep)
+    _setting_set('backup_dir', folder)
+    _setting_set('backup_user', (request.form.get('backup_user') or '').strip())
+    pwd = (request.form.get('backup_pass') or '').strip()
+    if pwd:
+        _setting_set('backup_pass', pwd)
+
+    _write_settings_json()
+    _cache.clear()
+    audit('settings_backup', '%s keep=%s dir=%s' % (time_val, keep, folder))
+    flash('Архивация: %s в %s, хранить %s копий, каталог %s' % (
+        'включена' if request.form.get('backup_enabled') else 'выключена', time_val, keep, folder))
+    return redirect(url_for('admin_settings'))
+
+
+@app.route('/admin/settings/backup-run', methods=['POST'])
+@admin_required
+def admin_settings_backup_run():
+    check_csrf()
+    code, out = _run_root(['/usr/local/bin/1c-backup', 'run'], timeout=3600)
+    for line in (out or [])[-4:]:
+        flash(line)
+    flash('Архивация завершена' if code == 0 else 'Архивация завершилась с ошибкой')
+    _cache.clear()
+    audit('backup_run', 'ok' if code == 0 else 'fail')
+    return redirect(url_for('admin_settings'))
+
+
 @app.route('/admin/settings/mm', methods=['POST'])
 @admin_required
 def admin_settings_mm():
@@ -1361,6 +1422,8 @@ def admin_settings():
                            settings=_settings_all(), schedule=_schedule_state(),
                            maint=maintenance.state(), auto_maint=maintenance.auto_settings(),
                            pg_password_set=_pg_password_set(),
+                           backup=_backup_info(),
+                           backup_pass_set=_setting_get('backup_pass') != '',
                            refreshed=time.strftime('%H:%M:%S'))
 
 
