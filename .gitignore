@@ -40,3 +40,10 @@ server-disk-migration.html
 
 # Документы для клиентов (не в git)
 Отчёт_1С_*.docx
+# служебные скрипты и файлы с учётными данными
+rotate_*.sh
+patch_*.py
+*.cred
+smb.cred
+.new-cluster-pwd
+*.pwd
