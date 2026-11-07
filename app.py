@@ -158,6 +158,10 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN auto_user TEXT")
     if 'auto_pwd' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN auto_pwd TEXT")
+    if 'is_sandbox' not in base_cols:
+        conn.execute("ALTER TABLE bases ADD COLUMN is_sandbox INTEGER DEFAULT 0")
+    if 'sandbox_of' not in base_cols:
+        conn.execute("ALTER TABLE bases ADD COLUMN sandbox_of TEXT")
 
     user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
     if 'vpn_enabled' not in user_cols:
@@ -185,6 +189,21 @@ def init_db():
         status TEXT NOT NULL DEFAULT 'pending',
         uid INTEGER,
         used INTEGER NOT NULL DEFAULT 0)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS sandboxes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        base_id INTEGER,
+        source_slug TEXT NOT NULL,
+        source_db TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        dump_path TEXT NOT NULL,
+        dump_date TEXT,
+        keep_days INTEGER NOT NULL DEFAULT 3,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'creating',
+        error TEXT,
+        size TEXT)""")
     conn.execute("UPDATE bases SET db_name = slug WHERE db_name IS NULL OR db_name = ''")
     conn.commit()
     maintenance.init()
@@ -336,7 +355,7 @@ def index():
     rows = db().execute("""
         SELECT b.* FROM bases b
         JOIN access a ON a.base_id = b.id
-        WHERE a.user_id = ? AND b.is_active = 1
+        WHERE a.user_id = ? AND b.is_active = 1 AND COALESCE(b.is_sandbox, 0) = 0
         ORDER BY b.sort_order, b.title""", (session['uid'],)).fetchall()
     jobs = {}
     if rows:
@@ -349,8 +368,18 @@ def index():
     urow = db().execute("SELECT vpn_enabled, vpn_config FROM users WHERE id = ?",
                         (session['uid'],)).fetchone()
     vpn_ready = bool(urow and urow['vpn_enabled'] and urow['vpn_config'])
+    sandboxes = _sandbox_active(session['uid'])
+    sandbox_links = {}
+    for sb in sandboxes:
+        if sb['status'] == 'ready':
+            b = db().execute("SELECT id FROM bases WHERE slug = ?", (sb['slug'],)).fetchone()
+            if b:
+                sandbox_links[sb['id']] = b['id']
     return render_template('portal.html', vpn_ready=vpn_ready, bases=rows, jobs=jobs, pg_mode=pg_mode,
                            sizes=sizes, maint=maintenance.state(),
+                           sandboxes=sandboxes, sandbox_links=sandbox_links,
+                           sandbox_enabled=_setting_get('sandbox_enabled') == '1',
+                           sandbox_keep=int(_setting_get('sandbox_keep_days') or 3),
                            ic_server=_setting_get('ic_server_name') or 'srv.1c.dgek.ru')
 
 
@@ -876,7 +905,8 @@ def _start_warmer():
 @admin_required
 def admin():
     users = db().execute("SELECT * FROM users ORDER BY role, full_name").fetchall()
-    bases = db().execute("SELECT * FROM bases ORDER BY sort_order, title").fetchall()
+    bases = db().execute("SELECT * FROM bases WHERE COALESCE(is_sandbox, 0) = 0 "
+                         "ORDER BY sort_order, title").fetchall()
     links = {(r['user_id'], r['base_id']) for r in db().execute("SELECT * FROM access")}
     tab = request.args.get('tab', 'users')
     if tab == 'stats':
@@ -894,10 +924,15 @@ def admin():
         counts = _cached_swr('counts:' + ','.join(slugs), 120, 3600,
                              lambda: _session_counts(list(slugs)), wait=False)
     pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
+    sandboxes_all = _sandbox_active()
+    sandbox_map = {}
+    for sb in sandboxes_all:
+        sandbox_map.setdefault(sb['source_slug'], []).append(sb)
     orphan_bases = [b for b in bases if b['id'] not in {base_id for _, base_id in links}]
     return render_template('admin.html', users=users, bases=bases, links=links, tab=tab,
                            sessions=counts, sizes=sizes, pg_mode=pg_mode,
                            maint=maintenance.state(),
+                           sandboxes=sandboxes_all, sandbox_map=sandbox_map,
                            orphan_bases=orphan_bases,
                            refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
 
@@ -1712,6 +1747,10 @@ DEFAULT_SETTINGS = {
     'monitor_disk_min_gb': '10',
     'monitor_backup_max_h': '28',
     'monitor_resolve': '1c.dgek.ru:443:192.168.0.15',
+    'sandbox_enabled': '0',
+    'sandbox_keep_days': '3',
+    'sandbox_max_active': '1',
+    'sandbox_min_free_gb': '8',
 }
 
 
@@ -2424,6 +2463,202 @@ def admin_2fa_disable():
     db().commit()
     audit('2fa_disabled', row['username'])
     flash('Двухфакторный вход отключён')
+    return redirect(url_for('admin_settings'))
+
+
+
+# ===== песочница восстановления =====
+
+SANDBOX_DIR = '/mnt/1cbackup'
+
+
+def _sandbox_copies(db_name):
+    """Список доступных копий базы: ночные и ручные дампы из каталога бэкапов."""
+    import glob
+    copies = []
+    for path in sorted(glob.glob(os.path.join(SANDBOX_DIR, '%s-*.dump' % db_name)), reverse=True):
+        name = os.path.basename(path)
+        try:
+            stamp = name.rsplit('-', 2)[1] + name.rsplit('-', 1)[1].split('.')[0]
+            when = time.strftime('%d.%m.%Y %H:%M', time.strptime(stamp[:15].ljust(12, '0'), '%Y%m%d%H%M'))
+        except Exception:  # noqa: BLE001
+            when = name
+        try:
+            size = os.path.getsize(path)
+            size_h = '%.1f ГБ' % (size / 1024 ** 3) if size > 1024 ** 3 else '%.0f МБ' % (size / 1024 ** 2)
+        except OSError:
+            size, size_h = 0, '—'
+        copies.append({'path': path, 'name': name, 'when': when, 'size': size, 'size_h': size_h})
+    return copies
+
+
+def _sandbox_active(user_id=None):
+    sql = ("SELECT s.*, b.title AS sandbox_title FROM sandboxes s "
+           "LEFT JOIN bases b ON b.id = s.base_id WHERE s.status IN ('creating','ready')")
+    args = ()
+    if user_id is not None:
+        sql += " AND s.user_id = ?"
+        args = (user_id,)
+    return db().execute(sql + " ORDER BY s.id DESC", args).fetchall()
+
+
+def _sandbox_free_gb():
+    try:
+        st = os.statvfs('/var/lib/pgpro')
+        return st.f_bavail * st.f_frsize / 1024 ** 3
+    except OSError:
+        return 0.0
+
+
+def _sandbox_run_async(sandbox_id, source_db, new_slug, dump_path):
+    def work():
+        conn = db()
+        try:
+            code, out = _run_root(['/usr/local/bin/1c-sandbox', 'create', source_db, new_slug, dump_path],
+                                  timeout=3600)
+            ok = code == 0
+            tail = ' | '.join((out or [])[-3:])[:400]
+            conn.execute("UPDATE sandboxes SET status = ?, error = ? WHERE id = ?",
+                         ('ready' if ok else 'failed', None if ok else tail, sandbox_id))
+            conn.commit()
+            if not ok:
+                conn.execute("UPDATE bases SET is_active = 0 WHERE slug = ?", (new_slug,))
+                conn.commit()
+            _mm_notify('### Песочница %s\n\n%s\n%s' % (
+                'готова' if ok else 'не создана', new_slug, tail))
+        except Exception as exc:  # noqa: BLE001
+            try:
+                conn.execute("UPDATE sandboxes SET status = 'failed', error = ? WHERE id = ?",
+                             (str(exc)[:300], sandbox_id))
+                conn.commit()
+            except Exception:  # noqa: BLE001
+                pass
+        finally:
+            conn.close()
+
+    threading.Thread(target=work, daemon=True).start()
+
+
+@app.route('/bases/<int:bid>/copies')
+@login_required
+def base_copies(bid):
+    row = db().execute("SELECT * FROM bases WHERE id = ? AND is_active = 1 AND is_sandbox = 0",
+                       (bid,)).fetchone()
+    if not row:
+        abort(404)
+    if session.get('role') != 'admin':
+        allowed = db().execute("SELECT 1 FROM access WHERE user_id = ? AND base_id = ?",
+                               (session['uid'], bid)).fetchone()
+        if not allowed:
+            abort(403)
+    return {'base': row['slug'], 'copies': _sandbox_copies(row['db_name'] or row['slug']),
+            'enabled': _setting_get('sandbox_enabled') == '1',
+            'keep_days': int(_setting_get('sandbox_keep_days') or 3)}
+
+
+@app.route('/bases/<int:bid>/sandbox', methods=['POST'])
+@login_required
+def base_sandbox_create(bid):
+    check_csrf()
+    row = db().execute("SELECT * FROM bases WHERE id = ? AND is_active = 1 AND is_sandbox = 0",
+                       (bid,)).fetchone()
+    if not row:
+        abort(404)
+    if _setting_get('sandbox_enabled') != '1':
+        flash('Восстановление в песочницу выключено администратором')
+        return redirect('/')
+    if session.get('role') != 'admin':
+        allowed = db().execute("SELECT 1 FROM access WHERE user_id = ? AND base_id = ?",
+                               (session['uid'], bid)).fetchone()
+        if not allowed:
+            abort(403)
+
+    existing = _sandbox_active(session['uid'])
+    if existing:
+        flash('У вас уже есть песочница «%s». Удалите её, чтобы создать новую.' % existing[0]['slug'])
+        return redirect('/')
+
+    dump = (request.form.get('dump') or '').strip()
+    if not dump.startswith(SANDBOX_DIR + '/') or not os.path.exists(dump):
+        flash('Копия не найдена')
+        return redirect('/')
+
+    free = _sandbox_free_gb()
+    min_free = float(_setting_get('sandbox_min_free_gb') or 8)
+    need = os.path.getsize(dump) / 1024 ** 3 * 1.8
+    if free - need < min_free:
+        flash('Недостаточно места: свободно %.1f ГБ, нужно %.1f ГБ' % (free, need + min_free))
+        return redirect('/')
+
+    keep = int(_setting_get('sandbox_keep_days') or 3)
+    now = time.strftime('%Y-%m-%d %H:%M:%S')
+    expires = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() + keep * 86400))
+    slug = 'sb_%s_%s' % (row['slug'], time.strftime('%m%d%H%M'))
+    slug = slug[:32]
+
+    conn = db()
+    conn.execute("INSERT INTO bases (slug, title, organization, description, url_path, db_name, "
+                 "is_active, is_sandbox, sandbox_of, sort_order) VALUES (?,?,?,?,?,?,1,1,?,99)",
+                 (slug, 'Копия от %s (песочница)' % time.strftime('%d.%m'),
+                  row['organization'] or '', 'Восстановленная копия базы %s' % row['slug'],
+                  '/WEB/%s/' % slug, slug, row['slug']))
+    new_bid = conn.execute("SELECT id FROM bases WHERE slug = ?", (slug,)).fetchone()['id']
+    conn.execute("INSERT INTO access (user_id, base_id) VALUES (?,?)", (session['uid'], new_bid))
+    sid = conn.execute(
+        "INSERT INTO sandboxes (user_id, base_id, source_slug, source_db, slug, dump_path, dump_date, "
+        "keep_days, created_at, expires_at, status) VALUES (?,?,?,?,?,?,?,?,?,?,'creating')",
+        (session['uid'], new_bid, row['slug'], row['db_name'] or row['slug'], slug, dump,
+         time.strftime('%d.%m.%Y %H:%M'), keep, now, expires)).lastrowid
+    conn.commit()
+
+    audit('sandbox_create', '%s → %s' % (row['slug'], slug))
+    _sandbox_run_async(sid, row['db_name'] or row['slug'], slug, dump)
+    flash('Копия создаётся. Это займёт 10–20 минут — страница обновится сама.')
+    return redirect('/')
+
+
+@app.route('/sandbox/<int:sid>/delete', methods=['POST'])
+@login_required
+def sandbox_delete(sid):
+    check_csrf()
+    row = db().execute("SELECT * FROM sandboxes WHERE id = ?", (sid,)).fetchone()
+    if not row:
+        abort(404)
+    if session.get('role') != 'admin' and row['user_id'] != session['uid']:
+        abort(403)
+    slug = row['slug']
+    _run_root(['/usr/local/bin/1c-sandbox', 'drop', slug], timeout=600)
+    conn = db()
+    conn.execute("DELETE FROM access WHERE base_id = ?", (row['base_id'],))
+    conn.execute("DELETE FROM bases WHERE id = ?", (row['base_id'],))
+    conn.execute("UPDATE sandboxes SET status = 'deleted' WHERE id = ?", (sid,))
+    conn.commit()
+    audit('sandbox_delete', slug)
+    _mm_notify('### Песочница удалена\n\n%s' % slug)
+    flash('Песочница «%s» удалена' % slug)
+    return redirect('/')
+
+
+@app.route('/admin/settings/sandbox', methods=['POST'])
+@admin_required
+def admin_settings_sandbox():
+    check_csrf()
+    keep = (request.form.get('sandbox_keep_days') or '3').strip()
+    keep = keep if keep.isdigit() and 1 <= int(keep) <= 14 else '3'
+    max_active = (request.form.get('sandbox_max_active') or '1').strip()
+    max_active = max_active if max_active.isdigit() and 1 <= int(max_active) <= 5 else '1'
+    min_free = (request.form.get('sandbox_min_free_gb') or '8').strip()
+    min_free = min_free if min_free.isdigit() and 1 <= int(min_free) <= 200 else '8'
+
+    _setting_set('sandbox_enabled', '1' if request.form.get('sandbox_enabled') else '0')
+    _setting_set('sandbox_keep_days', keep)
+    _setting_set('sandbox_max_active', max_active)
+    _setting_set('sandbox_min_free_gb', min_free)
+    _write_settings_json()
+    _cache.clear()
+    audit('settings_sandbox', 'keep=%s max=%s' % (keep, max_active))
+    flash('Песочница: %s, хранение %s дн., лимит %s' % (
+        'включена' if request.form.get('sandbox_enabled') else 'выключена', keep, max_active))
     return redirect(url_for('admin_settings'))
 
 

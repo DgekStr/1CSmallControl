@@ -77,6 +77,8 @@
             <a class="button primary base-open" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener">Открыть <i data-lucide="arrow-up-right"></i></a>
             {% endif %}
             <button type="button" class="button base-config" data-open="dlg-config"><i data-lucide="terminal"></i>Конфигуратор</button>
+                <button type="button" class="button" data-copies="{{ b.id }}" data-base="{{ b.slug }}">
+                  <i data-lucide="history"></i>Копии базы</button>
             <button type="button" class="button" title="Файл подключения для тонкого клиента и Конфигуратора"
                   data-open="dlg-v8i" data-v8i="{{ url_for('base_v8i', bid=b.id) }}"
                   data-base="{{ b.slug }}"><i data-lucide="download"></i>Подключение *.v8i</button>
@@ -100,6 +102,37 @@
       <div class="empty-state"><i data-lucide="database-zap"></i><strong>Нет доступных баз</strong>Обратитесь к администратору портала.</div>
       {% endif %}
 
+      {% if sandboxes %}
+      <section class="sandbox-section" style="margin-top:22px">
+        <h2 style="font-size:calc(15px*var(--fs));margin:0 0 10px">Копии баз (песочницы)</h2>
+        {% for sb in sandboxes %}
+        <div class="sandbox-card">
+          <div>
+            <strong>{{ sb.sandbox_title or sb.slug }}</strong>
+            <p class="muted small">Копия от {{ sb.dump_date or sb.created_at[:16] }},
+              хранится до {{ sb.expires_at[:16] }}</p>
+            {% if sb.status == 'creating' %}<span class="badge warning">создаётся…</span>
+            {% elif sb.status == 'failed' %}<span class="badge error">ошибка</span>
+            {% else %}<span class="badge success">готова</span>{% endif %}
+          </div>
+          <div class="sandbox-actions">
+            {% if sb.status == 'ready' and sandbox_links.get(sb.id) %}
+            <a class="button primary" href="{{ url_for('open_base', slug=sb.slug) }}" target="_blank" rel="noopener">
+              Открыть <i data-lucide="arrow-up-right"></i></a>
+            {% endif %}
+            <form method="post" action="{{ url_for('sandbox_delete', sid=sb.id) }}"
+                  data-confirm="Песочница и все изменения в ней будут удалены безвозвратно."
+                  data-confirm-title="Удалить песочницу?" data-confirm-ok="Удалить"
+                  data-confirm-style="danger">
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+              <button class="button danger" type="submit"><i data-lucide="trash-2"></i>Удалить</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+
       <section class="conn-card" id="connect">
         <div class="conn-card-main">
           <h2><i data-lucide="life-buoy"></i>Как подключиться к 1С</h2>
@@ -111,6 +144,33 @@
         </button>
       </section>
 
+
+      <dialog class="modal conn-modal" id="dlg-copies">
+        <div class="modal-heading">
+          <h2>Копии базы</h2>
+          <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+        </div>
+        <p class="conn-lead">Портал создаст <b>отдельную копию</b> базы из выбранной резервной копии.
+          Ваша текущая база не изменится.</p>
+        <div id="copies-list" class="copies-list"><span class="muted small">Загружаем список…</span></div>
+        <div class="conn-note warn"><i data-lucide="triangle-alert"></i>
+          <span>Данные в копии — на дату резервной копии: всё, что сделано позже, в неё не попадёт.
+            Песочница будет удалена через <b id="copies-keep">{{ sandbox_keep }}</b> дн. со всеми изменениями.
+            Одновременно можно держать только одну копию.</span></div>
+        <label class="check-label ack" style="margin-top:10px">
+          <input type="checkbox" id="copies-ack">
+          <span>Понимаю, что копия временная и боевая база не изменится</span>
+        </label>
+        <form method="post" id="copies-form">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="dump" id="copies-dump">
+          <div class="modal-footer">
+            <button type="button" class="button" data-close>Отмена</button>
+            <button class="button primary" type="submit" id="copies-create" disabled>
+              <i data-lucide="database-backup"></i>Создать копию</button>
+          </div>
+        </form>
+      </dialog>
       <dialog class="modal conn-modal" id="dlg-v8i">
         <div class="modal-heading">
           <h2>Файл подключения .v8i</h2>
@@ -429,6 +489,66 @@
   });
 
   dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+})();
+</script>
+
+
+<script>
+/* выбор резервной копии для песочницы */
+(function () {
+  var dlg = document.getElementById('dlg-copies');
+  if (!dlg) return;
+  var list = document.getElementById('copies-list');
+  var form = document.getElementById('copies-form');
+  var dump = document.getElementById('copies-dump');
+  var ack = document.getElementById('copies-ack');
+  var submit = document.getElementById('copies-create');
+  var keep = document.getElementById('copies-keep');
+
+  function render(copies) {
+    if (!copies.length) {
+      list.innerHTML = '<span class="muted small">Копий пока нет — дождитесь ночного архива.</span>';
+      submit.disabled = true;
+      return;
+    }
+    list.innerHTML = copies.map(function (c, i) {
+      return '<label class="copy-row"><input type="radio" name="cp" value="' + c.path + '"' +
+        (i === 0 ? ' checked' : '') + '><span><strong>' + c.when + '</strong>' +
+        ' <span class="muted small">' + c.size_h + '</span></span></label>';
+    }).join('');
+    dump.value = copies[0].path;
+    list.querySelectorAll('input[name=cp]').forEach(function (r) {
+      r.addEventListener('change', function () { dump.value = r.value; });
+    });
+    sync();
+  }
+
+  function sync() { submit.disabled = !(ack.checked && dump.value); }
+
+  ack.addEventListener('change', sync);
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-copies]');
+    if (!opener) return;
+    e.preventDefault();
+    form.action = '/bases/' + opener.dataset.copies + '/sandbox';
+    list.innerHTML = '<span class="muted small">Загружаем список…</span>';
+    ack.checked = false;
+    submit.disabled = true;
+    dlg.showModal();
+    fetch('/bases/' + opener.dataset.copies + '/copies', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j.keep_days && keep) keep.textContent = j.keep_days;
+        if (!j.enabled) {
+          list.innerHTML = '<span class="badge warning">Восстановление в песочницу выключено администратором</span>';
+          submit.disabled = true;
+          return;
+        }
+        render(j.copies || []);
+      })
+      .catch(function () { list.innerHTML = '<span class="badge error">Не удалось получить список копий</span>'; });
+  });
 })();
 </script>
 
