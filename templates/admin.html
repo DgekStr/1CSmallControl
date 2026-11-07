@@ -120,8 +120,12 @@
           {% set sz = sizes.get(b.db_name or b.slug) if sizes else None %}
           <span class="base-size-line">{{ sz or 'размер неизвестен' }}</span>
           {% set sbs = sandbox_map.get(b.slug) if sandbox_map else None %}
-          {% if sbs %}<span class="badge warning" style="margin-top:3px"
-                title="Активных песочниц: {{ sbs|length }}">песочница: {{ sbs|length }}, до {{ sbs[0].expires_at[:10] }}</span>{% endif %}
+          {% if sbs %}
+          <button type="button" class="sandbox-flag" title="Песочница до {{ sbs[0].expires_at[:10] }} — открыть сведения"
+                  data-sandbox='{{ sandbox_details.get(b.slug, [])|tojson }}'>
+            <i data-lucide="history"></i>{% if sbs|length > 1 %}<span class="sandbox-flag-count">{{ sbs|length }}</span>{% endif %}
+          </button>
+          {% endif %}
         </td>
               <td>{{ b.title }}<span class="base-desc muted">{{ b.description }}</span></td>
               <td>{{ b.organization or '—' }}</td>
@@ -301,6 +305,12 @@
             <input name="sandbox_min_free_gb" value="{{ settings.sandbox_min_free_gb }}" inputmode="numeric">
           </label>
 
+          <label class="check-label ack" style="margin:4px 0 12px">
+            <input type="checkbox" name="sandbox_allow_transfer" value="1"
+                   {% if settings.sandbox_allow_transfer == '1' %}checked{% endif %}>
+            Разрешить администратору передавать песочницу другому клиенту
+          </label>
+
           {% if sandboxes %}
           <div class="monitor-box">
             <div class="monitor-head"><span class="badge neutral">активных: {{ sandboxes|length }}</span></div>
@@ -309,7 +319,20 @@
               <span class="monitor-dot {{ 'ok' if sb.status == 'ready' else 'fail' }}"></span>
               <span class="monitor-title">{{ sb.slug }}</span>
               <span class="muted small">{{ sb.source_slug }} · до {{ sb.expires_at[:10] }}</span>
-              <form method="post" action="{{ url_for('sandbox_delete', sid=sb.id) }}" style="margin-left:auto"
+              {% if sandbox_allow_transfer %}
+              <form method="post" action="{{ url_for('sandbox_transfer', sid=sb.id) }}" class="sandbox-transfer"
+                    style="margin-left:auto;display:flex;gap:6px;align-items:center">
+                <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                <select name="user_id" class="mono" style="font-size:11px;min-height:28px;padding:2px 6px">
+                  <option value="">кому передать…</option>
+                  {% for u in sandbox_users %}
+                  <option value="{{ u.id }}">{{ u.username }}{% if u.full_name %} — {{ u.full_name }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <button class="icon-button" type="submit" title="Передать песочницу"><i data-lucide="user-round-check"></i></button>
+              </form>
+              {% endif %}
+              <form method="post" action="{{ url_for('sandbox_delete', sid=sb.id) }}"
                     data-confirm="Песочница будет удалена." data-confirm-title="Удалить песочницу?"
                     data-confirm-ok="Удалить">
                 <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -896,6 +919,51 @@
     </form>
   </dialog>
 
+
+  <dialog class="modal conn-modal" id="dlg-sandbox">
+    <div class="modal-heading">
+      <h2>Песочница</h2>
+      <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+    </div>
+
+    <div id="sb-info" class="monitor-box" style="margin-bottom:14px"></div>
+
+    {% if sandbox_allow_transfer %}
+    <form method="post" id="sb-transfer" class="field-row" style="align-items:end">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <label class="field">Подключить/передать клиенту
+        <select name="user_id">
+          <option value="">выберите клиента…</option>
+          {% for u in sandbox_users %}
+          <option value="{{ u.id }}">{{ u.username }}{% if u.full_name %} — {{ u.full_name }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="button primary" type="submit"><i data-lucide="user-round-check"></i>Передать</button>
+    </form>
+    <p class="muted small">Владелец меняется, доступ у прежнего клиента снимается; администратор видит песочницу всегда.</p>
+    {% endif %}
+
+    {% if sandbox_allow_extend %}
+    <form method="post" id="sb-extend" class="field-row" style="align-items:end">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <label class="field">Продлить на дней (1–14)
+        <input name="days" value="3" inputmode="numeric">
+      </label>
+      <button class="button" type="submit"><i data-lucide="calendar-plus"></i>Продлить</button>
+    </form>
+    {% endif %}
+
+    <form method="post" id="sb-delete" data-confirm="Песочница и все данные в ней будут удалены."
+          data-confirm-title="Удалить песочницу?" data-confirm-ok="Удалить">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <div class="modal-footer" style="justify-content:space-between">
+        <button class="button danger" type="submit"><i data-lucide="trash-2"></i>Удалить песочницу</button>
+        <button type="button" class="button" data-close>Закрыть</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog class="modal" id="dlg-pwd">
     <form method="post" id="pwd-form">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -1271,6 +1339,50 @@
       ticking = false;
     });
   }, { passive: true });
+})();
+</script>
+
+
+<script>
+/* окно сведений о песочнице из списка баз */
+(function () {
+  var dlg = document.getElementById('dlg-sandbox');
+  if (!dlg) return;
+  var info = document.getElementById('sb-info');
+  var transfer = document.getElementById('sb-transfer');
+  var extend = document.getElementById('sb-extend');
+  var del = document.getElementById('sb-delete');
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.sandbox-flag, .sandbox-marker');
+    if (btn) {
+      var list = [];
+      try { list = JSON.parse(btn.dataset.sandbox || '[]'); } catch (err) { list = []; }
+      var sb = list[0];
+      if (!sb) return;
+      var rows = [
+        ['База', sb.source],
+        ['Кто создал', sb.owner + ' (' + sb.owner_login + ')'],
+        ['Когда создана', sb.created_at],
+        ['Копия на дату', sb.dump_date || '—'],
+        ['Хранится до', sb.expires_at],
+        ['Статус', sb.status === 'ready' ? 'готова' : (sb.status === 'creating' ? 'создаётся' : 'ошибка')],
+        ['Имя в кластере', sb.slug]
+      ];
+      info.innerHTML = rows.map(function (r) {
+        return '<div class="monitor-row"><span class="monitor-title">' + r[0] +
+          '</span><span class="muted small">' + r[1] + '</span></div>';
+      }).join('');
+      if (transfer) transfer.action = '/admin/sandbox/' + sb.id + '/transfer';
+      if (extend) extend.action = '/admin/sandbox/' + sb.id + '/extend';
+      if (del) del.action = '/admin/sandbox/' + sb.id + '/delete';
+      if (window.lucide) lucide.createIcons();
+      dlg.showModal();
+      return;
+    }
+    if (e.target.closest('#dlg-sandbox [data-close]')) dlg.close();
+  });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
 })();
 </script>
 

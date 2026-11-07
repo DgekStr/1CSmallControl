@@ -392,3 +392,19 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .copy-row{display:flex;flex-direction:row;align-items:center;gap:10px;font-size:calc(11.5px*var(--fs));
           padding:6px 4px;border-radius:7px}
 .copy-row:hover{background:var(--surface-hover)}
+
+/* ===== картинка песочницы ===== */
+.sandbox-card{align-items:center}
+.sandbox-img{width:78px;height:74px;object-fit:contain;flex:0 0 78px;filter:drop-shadow(0 4px 10px #0002)}
+.sandbox-main{flex:1 1 auto;min-width:0}
+.sandbox-main p{margin:4px 0 6px;line-height:1.45}
+@media (max-width:640px){.sandbox-img{width:64px;height:60px;flex-basis:64px}}
+
+/* ===== значок песочницы у базы (компактный, не растягивает таблицу) ===== */
+.sandbox-flag{display:inline-flex;align-items:center;justify-content:center;gap:2px;
+              vertical-align:super;margin-left:4px;padding:0;width:16px;height:16px;
+              border:1px solid #f59e0b66;border-radius:4px;background:#f59e0b1f;color:#f0a92b;
+              cursor:pointer;flex:none}
+.sandbox-flag svg{width:10px;height:10px;stroke-width:2.2}
+.sandbox-flag:hover{background:#f59e0b33;color:#ffbe3d}
+.sandbox-flag-count{font-size:8px;font-weight:700;line-height:1}

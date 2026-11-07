@@ -925,6 +925,24 @@ def admin():
                              lambda: _session_counts(list(slugs)), wait=False)
     pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
     sandboxes_all = _sandbox_active()
+    sandbox_details = {}
+    for sb in sandboxes_all:
+        owner = db().execute("SELECT username, full_name FROM users WHERE id = ?",
+                             (sb['user_id'],)).fetchone()
+        src = db().execute("SELECT title FROM bases WHERE slug = ?", (sb['source_slug'],)).fetchone()
+        sandbox_details.setdefault(sb['source_slug'], []).append({
+            'id': sb['id'],
+            'slug': sb['slug'],
+            'owner': (owner['full_name'] or owner['username']) if owner else '?',
+            'owner_login': owner['username'] if owner else '?',
+            'source': (src['title'] if src else sb['source_slug']),
+            'source_slug': sb['source_slug'],
+            'created_at': sb['created_at'][:16],
+            'dump_date': sb['dump_date'] or '',
+            'expires_at': sb['expires_at'][:16],
+            'status': sb['status'],
+            'size': sb['size'] or '—',
+        })
     sandbox_map = {}
     for sb in sandboxes_all:
         sandbox_map.setdefault(sb['source_slug'], []).append(sb)
@@ -933,6 +951,12 @@ def admin():
                            sessions=counts, sizes=sizes, pg_mode=pg_mode,
                            maint=maintenance.state(),
                            sandboxes=sandboxes_all, sandbox_map=sandbox_map,
+                           sandbox_allow_transfer=_setting_get('sandbox_allow_transfer') == '1',
+                           sandbox_allow_extend=_setting_get('sandbox_allow_extend') == '1',
+                           sandbox_details=sandbox_details,
+                           sandbox_users=db().execute(
+                               "SELECT id, username, full_name FROM users "
+                               "WHERE role = 'client' AND is_active = 1 ORDER BY username").fetchall(),
                            orphan_bases=orphan_bases,
                            refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
 
@@ -1751,6 +1775,8 @@ DEFAULT_SETTINGS = {
     'sandbox_keep_days': '3',
     'sandbox_max_active': '1',
     'sandbox_min_free_gb': '8',
+    'sandbox_allow_transfer': '1',
+    'sandbox_allow_extend': '1',
 }
 
 
@@ -2054,6 +2080,8 @@ def admin_settings():
                            maint=maintenance.state(), auto_maint=maintenance.auto_settings(),
                            pg_password_set=_pg_password_set(),
                            monitor=_monitor_status(),
+                           sandbox_allow_transfer=_setting_get('sandbox_allow_transfer') == '1',
+                           sandbox_allow_extend=_setting_get('sandbox_allow_extend') == '1',
                            twofa_enabled=bool((db().execute(
                                "SELECT totp_enabled FROM users WHERE id = ?",
                                (session['uid'],)).fetchone() or {'totp_enabled': 0})['totp_enabled']),
@@ -2493,8 +2521,13 @@ def _sandbox_copies(db_name):
 
 
 def _sandbox_active(user_id=None):
-    sql = ("SELECT s.*, b.title AS sandbox_title FROM sandboxes s "
-           "LEFT JOIN bases b ON b.id = s.base_id WHERE s.status IN ('creating','ready')")
+    sql = ("SELECT s.*, b.title AS sandbox_title, src.title AS source_title, "
+           "u.full_name AS owner_name, u.username AS owner_login "
+           "FROM sandboxes s "
+           "LEFT JOIN bases b ON b.id = s.base_id "
+           "LEFT JOIN bases src ON src.slug = s.source_slug "
+           "LEFT JOIN users u ON u.id = s.user_id "
+           "WHERE s.status IN ('creating','ready')")
     args = ()
     if user_id is not None:
         sql += " AND s.user_id = ?"
@@ -2654,12 +2687,86 @@ def admin_settings_sandbox():
     _setting_set('sandbox_keep_days', keep)
     _setting_set('sandbox_max_active', max_active)
     _setting_set('sandbox_min_free_gb', min_free)
+    _setting_set('sandbox_allow_transfer', '1' if request.form.get('sandbox_allow_transfer') else '0')
+    _setting_set('sandbox_allow_extend', '1' if request.form.get('sandbox_allow_extend') else '0')
     _write_settings_json()
     _cache.clear()
     audit('settings_sandbox', 'keep=%s max=%s' % (keep, max_active))
     flash('Песочница: %s, хранение %s дн., лимит %s' % (
         'включена' if request.form.get('sandbox_enabled') else 'выключена', keep, max_active))
     return redirect(url_for('admin_settings'))
+
+
+
+@app.route('/admin/sandbox/<int:sid>/transfer', methods=['POST'])
+@admin_required
+def sandbox_transfer(sid):
+    """Передать песочницу другому клиенту."""
+    check_csrf()
+    if _setting_get('sandbox_allow_transfer') != '1':
+        flash('Передача песочниц запрещена настройкой')
+        return redirect(url_for('admin_settings'))
+
+    row = db().execute("SELECT * FROM sandboxes WHERE id = ? AND status IN ('creating','ready')",
+                       (sid,)).fetchone()
+    if not row:
+        flash('Песочница не найдена')
+        return redirect(url_for('admin_settings'))
+
+    target = (request.form.get('user_id') or '').strip()
+    if not target.isdigit():
+        flash('Выберите клиента, которому передаём песочницу')
+        return redirect(url_for('admin_settings'))
+
+    user = db().execute("SELECT * FROM users WHERE id = ? AND is_active = 1", (int(target),)).fetchone()
+    if not user:
+        flash('Клиент не найден или заблокирован')
+        return redirect(url_for('admin_settings'))
+    if user['id'] == row['user_id']:
+        flash('Песочница уже принадлежит этому клиенту')
+        return redirect(url_for('admin_settings'))
+
+    conn = db()
+    old = conn.execute("SELECT username FROM users WHERE id = ?", (row['user_id'],)).fetchone()
+    if row['base_id']:
+        conn.execute("DELETE FROM access WHERE base_id = ? AND user_id = ?",
+                     (row['base_id'], row['user_id']))
+        conn.execute("INSERT OR IGNORE INTO access (user_id, base_id) VALUES (?,?)",
+                     (user['id'], row['base_id']))
+    conn.execute("UPDATE sandboxes SET user_id = ? WHERE id = ?", (user['id'], sid))
+    conn.commit()
+
+    audit('sandbox_transfer', '%s: %s → %s' % (row['slug'], old['username'] if old else '?', user['username']))
+    _mm_notify('### Песочница передана\n\n%s: %s → %s' % (
+        row['slug'], old['username'] if old else '?', user['username']))
+    flash('Песочница «%s» передана клиенту %s' % (row['slug'], user['username']))
+    return redirect(url_for('admin_settings'))
+
+
+
+@app.route('/admin/sandbox/<int:sid>/extend', methods=['POST'])
+@admin_required
+def sandbox_extend(sid):
+    """Продлить песочницу на N дней."""
+    check_csrf()
+    if _setting_get('sandbox_allow_extend') != '1':
+        flash('Продление песочниц запрещено настройкой')
+        return redirect(url_for('admin', tab='bases'))
+    row = db().execute("SELECT * FROM sandboxes WHERE id = ? AND status IN ('creating','ready')",
+                       (sid,)).fetchone()
+    if not row:
+        flash('Песочница не найдена')
+        return redirect(url_for('admin', tab='bases'))
+    days = (request.form.get('days') or '').strip()
+    if not days.isdigit() or not (1 <= int(days) <= 14):
+        flash('Срок продления: от 1 до 14 дней')
+        return redirect(url_for('admin', tab='bases'))
+    expires = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() + int(days) * 86400))
+    db().execute("UPDATE sandboxes SET expires_at = ? WHERE id = ?", (expires, sid))
+    db().commit()
+    audit('sandbox_extend', '%s +%s дн.' % (row['slug'], days))
+    flash('Песочница «%s» продлена до %s' % (row['slug'], expires[:16]))
+    return redirect(url_for('admin', tab='bases'))
 
 
 if __name__ == '__main__':

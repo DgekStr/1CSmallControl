@@ -107,10 +107,14 @@
         <h2 style="font-size:calc(15px*var(--fs));margin:0 0 10px">Копии баз (песочницы)</h2>
         {% for sb in sandboxes %}
         <div class="sandbox-card">
-          <div>
+          <img class="sandbox-img" src="{{ asset('sandbox.png') }}" alt="" width="78" height="74">
+          <div class="sandbox-main">
             <strong>{{ sb.sandbox_title or sb.slug }}</strong>
-            <p class="muted small">Копия от {{ sb.dump_date or sb.created_at[:16] }},
-              хранится до {{ sb.expires_at[:16] }}</p>
+            <p class="muted small">
+              Копия базы «{{ sb.source_title or sb.source_slug }}»<br>
+              Создана для: <b>{{ sb.owner_name or sb.owner_login }}</b>{% if sb.owner_login %} ({{ sb.owner_login }}){% endif %}<br>
+              Копия на {{ sb.dump_date or sb.created_at[:16] }} · хранится до {{ sb.expires_at[:16] }}
+            </p>
             {% if sb.status == 'creating' %}<span class="badge warning">создаётся…</span>
             {% elif sb.status == 'failed' %}<span class="badge error">ошибка</span>
             {% else %}<span class="badge success">готова</span>{% endif %}
