@@ -242,6 +242,29 @@
           <button class="button primary" type="submit"><i data-lucide="check"></i>Сохранить и применить</button>
         </form>
 
+        <form class="card settings-card" method="post" action="{{ url_for('admin_settings_mm') }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <h2>Уведомления в Mattermost</h2>
+          <p class="muted">Портал отправляет в канал сообщения о событиях безопасности.</p>
+
+          <label class="field">Адрес входящего хука
+            <input name="mm_hook" value="{{ settings.mm_hook }}" autocomplete="off"
+                   placeholder="https://chat.dgek.ru/hooks/...">
+          </label>
+          <p class="muted small">Mattermost → Интеграции → Входящие вебхуки. Пустое поле отключает уведомления.</p>
+
+          <label class="check-label ack" style="margin:10px 0">
+            <input type="checkbox" name="mm_login_alerts" value="1" {% if settings.mm_login_alerts == '1' %}checked{% endif %}>
+            Сообщать о блокировке входа (5 неудачных попыток)
+          </label>
+
+          <div class="field-row">
+            <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
+            <button class="button" type="submit" formaction="{{ url_for('admin_settings_mm_test') }}"
+                    formnovalidate><i data-lucide="send"></i>Проверить</button>
+          </div>
+        </form>
+
         <div class="card settings-card">
           <h2>Обслуживание</h2>
 
