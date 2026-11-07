@@ -1,5 +1,7 @@
 """Портал доступа к базам 1С: клиентский вход + админка."""
 import http.client
+import json
+import urllib.request
 import os
 import re
 import sqlite3
@@ -12,6 +14,7 @@ import maintenance
 import metrics
 from functools import wraps
 
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import (Flask, g, redirect, render_template, request, session, stream_with_context,
                    url_for, abort, flash, Response)
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -28,6 +31,8 @@ SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 APP_VERSION = os.environ.get('PORTAL_VERSION', '1.7')
 
 app = Flask(__name__)
+# за nginx: реальный IP клиента и схема https
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 2592000  # 30 дней, ссылки версионируются
 _secret_file = os.path.join(BASE_DIR, '.secret_key')
 if os.path.exists(_secret_file):
@@ -41,6 +46,7 @@ else:
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=True,  # портал всегда за HTTPS-прокси
     PERMANENT_SESSION_LIFETIME=60 * 60 * 8,
 )
 
@@ -138,6 +144,13 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN db_name TEXT")
     if 'cluster_state' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN cluster_state TEXT")
+    conn.execute("""CREATE TABLE IF NOT EXISTS login_fails (
+        username TEXT NOT NULL,
+        ip TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        blocked_until REAL,
+        notified INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (username, ip))""")
     conn.execute("UPDATE bases SET db_name = slug WHERE db_name IS NULL OR db_name = ''")
     conn.commit()
     maintenance.init()
@@ -408,6 +421,66 @@ def web_gate(slug, rest=''):
     return out
 
 
+
+LOGIN_MAX_FAILS = 5
+LOGIN_WINDOW = 15 * 60          # окно подсчёта, секунд
+LOGIN_BLOCK = 15 * 60           # время блокировки, секунд
+MM_LOGIN_HOOK = os.environ.get('PORTAL_MM_LOGIN_HOOK', '')
+
+
+def _mm_notify(text):
+    """Сообщение в Mattermost (для событий безопасности)."""
+    if not MM_LOGIN_HOOK:
+        return
+    try:
+        payload = json.dumps({'text': text}).encode('utf-8')
+        req = urllib.request.Request(MM_LOGIN_HOOK, data=payload,
+                                     headers={'Content-Type': 'application/json; charset=utf-8'})
+        urllib.request.urlopen(req, timeout=5).read()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _login_blocked(username, ip):
+    """Возвращает остаток блокировки в секундах (0 — не заблокирован)."""
+    row = db().execute("SELECT * FROM login_fails WHERE username = ? AND ip = ?",
+                       (username, ip)).fetchone()
+    if not row or not row['blocked_until']:
+        return 0
+    left = int(row['blocked_until'] - time.time())
+    return left if left > 0 else 0
+
+
+def _login_fail(username, ip):
+    """Считает неудачные попытки; на пятой блокирует и пишет в Mattermost."""
+    conn = db()
+    row = conn.execute("SELECT * FROM login_fails WHERE username = ? AND ip = ?",
+                       (username, ip)).fetchone()
+    now = time.time()
+    if row:
+        count = (row['count'] or 0) + 1
+        conn.execute("UPDATE login_fails SET count = ?, blocked_until = ? WHERE username = ? AND ip = ?",
+                     (count, row['blocked_until'], username, ip))
+    else:
+        count = 1
+        conn.execute("INSERT INTO login_fails(username, ip, count) VALUES(?,?,?)", (username, ip, count))
+
+    if count >= LOGIN_MAX_FAILS:
+        conn.execute("UPDATE login_fails SET blocked_until = ?, notified = 0 WHERE username = ? AND ip = ?",
+                     (now + LOGIN_BLOCK, username, ip))
+        conn.commit()
+        _mm_notify('#### 🚫 Портал 1С: блокировка входа\n\n'
+                   'Пользователь **%s** с IP **%s** — %d неудачных попыток.\n'
+                   'Вход заблокирован на %d минут.' % (username, ip, count, LOGIN_BLOCK // 60))
+        conn.execute("UPDATE login_fails SET notified = 1 WHERE username = ? AND ip = ?", (username, ip))
+    conn.commit()
+
+
+def _login_ok(username, ip):
+    db().execute("DELETE FROM login_fails WHERE username = ? AND ip = ?", (username, ip))
+    db().commit()
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET' and maintenance.blocking() and request.args.get('admin') != '1':
@@ -417,6 +490,12 @@ def login():
         check_csrf()
         username = (request.form.get('username') or '').strip().lower()
         password = request.form.get('password') or ''
+        ip = _client_ip()
+        left = _login_blocked(username, ip)
+        if left:
+            error = 'Слишком много неудачных попыток. Вход заблокирован ещё на %d мин.' % (left // 60 + 1)
+            audit('login_blocked', '%s %s' % (username, ip))
+            return render_template('login.html', error=error)
         row = db().execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
         if row and row['is_active'] and check_password_hash(row['pass_hash'], password):
             session.clear()
@@ -432,11 +511,13 @@ def login():
             db().commit()
             session['visit'] = cur.lastrowid
             session['seen'] = int(time.time())
+            _login_ok(row['username'], ip)
             audit('login', _client_ip())
             nxt = request.args.get('next') or '/'
             return redirect(nxt if nxt.startswith('/') else '/')
         error = 'Неверный логин или пароль'
-        audit('login_failed', username)
+        _login_fail(username, ip)
+        audit('login_failed', '%s %s' % (username, ip))
     return render_template('login.html', error=error)
 
 
