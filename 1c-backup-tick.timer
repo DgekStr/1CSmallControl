@@ -1,0 +1,10 @@
+﻿[Unit]
+Description=Check 1C backup schedule every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=10s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
