@@ -131,7 +131,7 @@ def db():
         g.db.row_factory = sqlite3.Row
         g.db.execute('PRAGMA journal_mode=WAL')
         g.db.execute('PRAGMA synchronous=NORMAL')
-        g.db.execute('PRAGMA busy_timeout=15000')
+        g.db.execute('PRAGMA busy_timeout=5000')
         g.db.execute('PRAGMA foreign_keys=ON')
     return g.db
 
@@ -357,10 +357,15 @@ def init_db():
 
 
 def audit(action, details=''):
+    """Запись в журнал не должна блокировать запрос: отдельное соединение, таймаут 2 с."""
     try:
-        db().execute("INSERT INTO audit(actor, action, details) VALUES(?,?,?)",
-                     (session.get('user', 'anonymous'), action, details))
-        db().commit()
+        actor = session.get('user', 'anonymous') if has_request_context() else 'system'
+        conn = sqlite3.connect(DB_PATH, timeout=2)
+        try:
+            conn.execute("INSERT INTO audit(actor, action, details) VALUES(?,?,?)", (actor, action, details))
+            conn.commit()
+        finally:
+            conn.close()
     except Exception:
         pass
 
@@ -3334,17 +3339,15 @@ def _job_read(jid, tail=40):
     row = conn.execute("SELECT * FROM jobs WHERE id = ?", (jid,)).fetchone()
     if not row:
         return None
-    # задание могло быть прервано перезапуском портала: лог давно не менялся
+    # статус не меняем на чтении: только показываем (обновление — на странице заданий)
     if row['status'] == 'running':
         try:
             age = time.time() - os.path.getmtime(row['log_path'])
         except OSError:
             age = 0
         if age > 900:
-            conn.execute("UPDATE jobs SET status = 'failed', finished_at = ? WHERE id = ?",
-                         (time.strftime('%Y-%m-%d %H:%M:%S'), jid))
-            conn.commit()
-            row = conn.execute("SELECT * FROM jobs WHERE id = ?", (jid,)).fetchone()
+            row = dict(row)
+            row['status'] = 'failed'
     lines = []
     try:
         with open(row['log_path'], 'r', encoding='utf-8', errors='replace') as f:
