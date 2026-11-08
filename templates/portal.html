@@ -113,7 +113,7 @@
             <p class="muted small">
               Копия базы «{{ sb.source_title or sb.source_slug }}»<br>
               Создана для: <b>{{ sb.owner_name or sb.owner_login }}</b>{% if sb.owner_login %} ({{ sb.owner_login }}){% endif %}<br>
-              Копия на {{ sb.dump_date or sb.created_at[:16] }} · хранится до {{ sb.expires_at[:16] }}
+              Копия на {{ (sb.dump_date or sb.created_at)|dt_ru }} · хранится до {{ sb.expires_at|dt_ru }}
             </p>
             {% if sb.status == 'creating' %}<span class="badge warning">создаётся…</span>
             {% elif sb.status == 'failed' %}<span class="badge error">ошибка</span>
@@ -124,6 +124,9 @@
             <a class="button primary" href="{{ url_for('open_base', slug=sb.slug) }}" target="_blank" rel="noopener">
               Открыть <i data-lucide="arrow-up-right"></i></a>
             {% endif %}
+            <button class="button" type="button" data-sb-request="{{ sb.id }}"
+                    data-sb-base="{{ sb.source_title or sb.source_slug }}">
+              <i data-lucide="user-round-check"></i>Передать</button>
             <form method="post" action="{{ url_for('sandbox_delete', sid=sb.id) }}"
                   data-confirm="Песочница и все изменения в ней будут удалены безвозвратно."
                   data-confirm-title="Удалить песочницу?" data-confirm-ok="Удалить"
@@ -175,6 +178,41 @@
           </div>
         </form>
       </dialog>
+
+      <dialog class="modal conn-modal" id="dlg-sb-request">
+        <div class="modal-heading">
+          <h2>Передать песочницу</h2>
+          <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="conn-note warn"><i data-lucide="shield-alert"></i>
+          <span><b>Передать песочницу может только администратор портала.</b>
+            Портал не показывает список клиентов: укажите получателя вручную — ФИО и организацию.
+            Администратор проверит данные, передаст копию и подтвердит вам.</span></div>
+
+        <p class="conn-lead" style="margin-top:12px">Песочница базы
+          <b id="sb-request-base">—</b>. Заявка уйдёт администратору в Mattermost.</p>
+
+        <form method="post" id="sb-request-form">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <div class="field-row">
+            <label class="field">Кому передать — ФИО
+              <input name="to_name" required minlength="2" placeholder="Иванова Мария Петровна">
+            </label>
+            <label class="field">Организация получателя
+              <input name="to_org" placeholder="ООО «Пример»">
+            </label>
+          </div>
+          <label class="field">Причина передачи
+            <input name="reason" required minlength="5" placeholder="например: сотрудник сменился, нужен доступ новому бухгалтеру">
+          </label>
+          <div class="modal-footer">
+            <button type="button" class="button" data-close>Отмена</button>
+            <button class="button primary" type="submit"><i data-lucide="send"></i>Отправить администратору</button>
+          </div>
+        </form>
+      </dialog>
+
       <dialog class="modal conn-modal" id="dlg-v8i">
         <div class="modal-heading">
           <h2>Файл подключения .v8i</h2>
@@ -553,6 +591,29 @@
       })
       .catch(function () { list.innerHTML = '<span class="badge error">Не удалось получить список копий</span>'; });
   });
+})();
+</script>
+
+
+<script>
+/* заявка на передачу песочницы администратору */
+(function () {
+  var dlg = document.getElementById('dlg-sb-request');
+  if (!dlg) return;
+  var form = document.getElementById('sb-request-form');
+  var baseLabel = document.getElementById('sb-request-base');
+
+  document.addEventListener('click', function (e) {
+    var sbRequestForm = e.target.closest('[data-sb-request]');
+    if (sbRequestForm) {
+      form.action = '/sandbox/' + sbRequestForm.dataset.sbRequest + '/request-transfer';
+      if (baseLabel) baseLabel.textContent = sbRequestForm.dataset.sbBase || '—';
+      dlg.showModal();
+      return;
+    }
+    if (e.target.closest('#dlg-sb-request [data-close]')) dlg.close();
+  });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
 })();
 </script>
 

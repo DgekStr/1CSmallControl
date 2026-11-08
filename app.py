@@ -346,6 +346,15 @@ def admin_required(fn):
     return wrapper
 
 
+@app.template_filter('dt_ru')
+def _dt_ru(value):
+    """2026-11-18 02:34:10 → 18.11.2026 02:34 (общероссийский вид)."""
+    text = str(value or '').strip()
+    if len(text) >= 16 and text[4] == '-' and text[7] == '-':
+        return '%s.%s.%s %s' % (text[8:10], text[5:7], text[0:4], text[11:16])
+    return text
+
+
 @app.route('/')
 def index():
     if not session.get('uid'):
@@ -937,9 +946,9 @@ def admin():
             'owner_login': owner['username'] if owner else '?',
             'source': (src['title'] if src else sb['source_slug']),
             'source_slug': sb['source_slug'],
-            'created_at': sb['created_at'][:16],
+            'created_at': _dt_ru(sb['created_at']),
             'dump_date': sb['dump_date'] or '',
-            'expires_at': sb['expires_at'][:16],
+            'expires_at': _dt_ru(sb['expires_at']),
             'status': sb['status'],
             'size': sb['size'] or '—',
         })
@@ -2767,6 +2776,56 @@ def sandbox_extend(sid):
     audit('sandbox_extend', '%s +%s дн.' % (row['slug'], days))
     flash('Песочница «%s» продлена до %s' % (row['slug'], expires[:16]))
     return redirect(url_for('admin', tab='bases'))
+
+
+
+@app.route('/sandbox/<int:sid>/request-transfer', methods=['POST'])
+@login_required
+def sandbox_request_transfer(sid):
+    """Клиент просит администратора передать песочницу другому человеку."""
+    check_csrf()
+    row = db().execute("SELECT * FROM sandboxes WHERE id = ? AND status IN ('creating','ready')",
+                       (sid,)).fetchone()
+    if not row:
+        abort(404)
+    if session.get('role') != 'admin' and row['user_id'] != session['uid']:
+        abort(403)
+
+    who = (request.form.get('to_name') or '').strip()
+    org = (request.form.get('to_org') or '').strip()
+    why = (request.form.get('reason') or '').strip()
+    if len(who) < 2 or len(why) < 5:
+        flash('Заполните: кому передать (ФИО) и причину передачи')
+        return redirect('/')
+
+    owner = db().execute("SELECT username, full_name, organization FROM users WHERE id = ?",
+                         (row['user_id'],)).fetchone()
+    base = db().execute("SELECT title FROM bases WHERE slug = ?", (row['source_slug'],)).fetchone()
+    text = ('### Заявка на передачу песочницы\n\n'
+            '**Песочница:** %s\n'
+            '**База:** %s\n'
+            '**Сейчас у:** %s (%s)%s\n'
+            '**Передать:** %s%s\n'
+            '**Причина:** %s\n'
+            '**Время:** %s') % (
+        row['slug'],
+        (base['title'] if base else row['source_slug']),
+        (owner['full_name'] or owner['username']) if owner else '?',
+        owner['username'] if owner else '?',
+        (' · ' + owner['organization']) if owner and owner['organization'] else '',
+        who,
+        (' · ' + org) if org else '',
+        why,
+        time.strftime('%d.%m.%Y %H:%M'))
+
+    hook = _setting_get('monitor_hook') or ''
+    sent = _mm_notify(text, hook=hook or None)
+    audit('sandbox_request', '%s → %s' % (row['slug'], who))
+    if sent:
+        flash('Заявка отправлена администратору: %s' % who)
+    else:
+        flash('Заявка сохранена в журнале, но сообщение не ушло — сообщите администратору лично')
+    return redirect('/')
 
 
 if __name__ == '__main__':
