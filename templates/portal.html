@@ -16,6 +16,7 @@
     <header class="topbar">
       <div class="brand topbar-brand"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></div>
       <div class="topbar-right">
+        <button type="button" class="icon-button" data-open="dlg-settings" title="Настройки" aria-label="Настройки"><i data-lucide="settings"></i></button>
         <div class="theme-switch" role="group" aria-label="Тема оформления">
           <button type="button" data-theme-set="light" title="Светлая тема" aria-label="Светлая тема"><i data-lucide="sun"></i></button>
           <button type="button" data-theme-set="dark" title="Тёмная тема" aria-label="Тёмная тема"><i data-lucide="moon"></i></button>
@@ -24,14 +25,8 @@
         
         <span class="account-name">{{ session.name }}</span>
         <span class="avatar">{{ (session.name or 'U')[0]|upper }}</span>
-        <form action="{{ url_for('logout') }}" method="post"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="icon-button" title="Выйти" aria-label="Выйти"><i data-lucide="log-out"></i></button></form>
       </div>
     
-      <div class="settings-gear">
-        <button type="button" class="icon-button" data-open="dlg-settings" title="Настройки" aria-label="Настройки">
-          <i data-lucide="settings"></i>
-        </button>
-      </div>
   </header>
     <main class="main-content">
       <div class="page-heading">
