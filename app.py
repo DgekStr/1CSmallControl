@@ -35,7 +35,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.1')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.2')
 
 app = Flask(__name__)
 # S-09: ограничение размера запроса
@@ -152,6 +152,21 @@ def _security_headers(resp):
 
 
 
+
+@app.before_request
+def _must_change_guard():
+    """Новый клиент обязан сменить пароль при первом входе (пункт 3)."""
+    uid = session.get('uid')
+    if not uid:
+        return None
+    if request.endpoint in ('settings_password', 'logout', 'static', 'theme', 'asset'):
+        return None
+    row = db().execute("SELECT must_change_password FROM users WHERE id = ?", (uid,)).fetchone()
+    if row and row['must_change_password']:
+        flash('Смените пароль — это обязательно при первом входе')
+        return redirect(url_for('settings_password'))
+
+
 @app.before_request
 def _check_session_fp():
     """S-11: если пароль сменили или учётку заблокировали — сессия недействительна."""
@@ -186,8 +201,17 @@ QR_TTL = 120  # секунды жизни QR-кода
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.executescript(SCHEMA)
+    # несколько воркеров стартуют одновременно: ждём блокировку, а не падаем
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute('PRAGMA busy_timeout=30000')
+    for attempt in range(5):
+        try:
+            conn.executescript(SCHEMA)
+            break
+        except sqlite3.OperationalError:
+            if attempt == 4:
+                raise
+            time.sleep(1)
     for table in ('users', 'bases'):
         cols = [r[1] for r in conn.execute("PRAGMA table_info(%s)" % table)]
         if 'organization' not in cols:
@@ -209,6 +233,8 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN sandbox_of TEXT")
 
     user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+    if 'must_change_password' not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0")
     if 'vpn_enabled' not in user_cols:
         conn.execute("ALTER TABLE users ADD COLUMN vpn_enabled INTEGER DEFAULT 0")
     if 'vpn_config' not in user_cols:
@@ -408,6 +434,56 @@ def _session_fp(row):
     raw = '%s|%s' % (row['pass_hash'] or '', 1 if row['is_active'] else 0)
     return hashlib.sha256(raw.encode('utf-8')).hexdigest()[:16]
 
+
+
+
+# ===== настройки клиента: пароль, 2FA, доверенные устройства =====
+
+def _password_ok(pw):
+    """Минимум 8 символов, есть буквы и цифры."""
+    if not pw or len(pw) < 8:
+        return False
+    return any(c.isalpha() for c in pw) and any(c.isdigit() for c in pw)
+
+
+def _trusted_set(resp, uid):
+    token = secrets.token_urlsafe(32)
+    h = hashlib.sha256(token.encode()).hexdigest()
+    days = int(_setting_get('trusted_days') or 30)
+    now = time.strftime('%Y-%m-%d %H:%M:%S')
+    exp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() + days * 86400))
+    conn = db()
+    conn.execute("INSERT INTO trusted_devices (user_id, token_hash, created_at, expires_at) VALUES (?,?,?,?)",
+                 (uid, h, now, exp))
+    conn.commit()
+    resp.set_cookie('portal_td', token, max_age=days * 86400, httponly=True, samesite='Lax',
+                    secure=request.is_secure)
+    return resp
+
+
+def _trusted_user():
+    token = request.cookies.get('portal_td')
+    if not token:
+        return None
+    h = hashlib.sha256(token.encode()).hexdigest()
+    row = db().execute("SELECT * FROM trusted_devices WHERE token_hash = ?", (h,)).fetchone()
+    if not row:
+        return None
+    if row['expires_at'] < time.strftime('%Y-%m-%d %H:%M:%S'):
+        conn = db()
+        conn.execute("DELETE FROM trusted_devices WHERE id = ?", (row['id'],))
+        conn.commit()
+        return None
+    return db().execute("SELECT * FROM users WHERE id = ? AND is_active = 1", (row['user_id'],)).fetchone()
+
+
+def _trusted_drop(user_id=None):
+    conn = db()
+    if user_id is None:
+        conn.execute("DELETE FROM trusted_devices")
+    else:
+        conn.execute("DELETE FROM trusted_devices WHERE user_id = ?", (user_id,))
+    conn.commit()
 
 
 def login_required(fn):
@@ -812,7 +888,7 @@ def login():
         if left:
             error = 'Слишком много неудачных попыток. Вход заблокирован ещё на %d мин.' % (left // 60 + 1)
             audit('login_blocked', '%s %s' % (username, ip))
-            return render_template('login.html', error=error)
+            return render_template('login.html', trusted=_trusted_user(), error=error)
         row = db().execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
         if row and row['is_active'] and check_password_hash(row['pass_hash'], password):
             if row['totp_enabled'] and row['totp_secret']:
@@ -843,6 +919,128 @@ def login():
         _login_fail(username, ip)
         audit('login_failed', '%s %s' % (username, ip))
     return render_template('login.html', error=error)
+
+
+@app.route('/settings/password', methods=['GET', 'POST'])
+@login_required
+def settings_password():
+    uid = session['uid']
+    error = None
+    if request.method == 'POST':
+        check_csrf()
+        cur = request.form.get('current') or ''
+        new = request.form.get('new') or ''
+        rep = request.form.get('repeat') or ''
+        row = db().execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+        if not check_password_hash(row['pass_hash'], cur):
+            error = 'Текущий пароль указан неверно'
+        elif new != rep:
+            error = 'Новый пароль и повтор не совпадают'
+        elif not _password_ok(new):
+            error = 'Новый пароль: минимум 8 символов, буквы и цифры'
+        elif check_password_hash(row['pass_hash'], new):
+            error = 'Новый пароль совпадает с текущим'
+        else:
+            conn = db()
+            conn.execute("UPDATE users SET pass_hash = ?, must_change_password = 0 WHERE id = ?",
+                         (generate_password_hash(new), uid))
+            conn.commit()
+            _trusted_drop(uid)
+            fresh = conn.execute("SELECT pass_hash, is_active FROM users WHERE id = ?", (uid,)).fetchone()
+            session['fp'] = _session_fp(fresh)
+            audit('password_changed', 'самостоятельно')
+            flash('Пароль изменён. Остальные устройства потребуют вход заново.')
+            return redirect('/')
+    must = db().execute("SELECT must_change_password FROM users WHERE id = ?", (uid,)).fetchone()
+    return render_template('settings_password.html', error=error,
+                           must=bool(must and must['must_change_password']))
+
+
+@app.route('/settings/2fa', methods=['GET'])
+@login_required
+def settings_2fa():
+    uid = session['uid']
+    row = db().execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    if not row['totp_secret']:
+        secret = _totp_new_secret()
+        conn = db()
+        conn.execute("UPDATE users SET totp_secret = ? WHERE id = ?", (secret, uid))
+        conn.commit()
+    else:
+        secret = row['totp_secret']
+    uri = _totp_uri(secret, row['username'], request.host.split(':')[0])
+    qr = ''
+    try:
+        proc = subprocess.run(['qrencode', '-t', 'PNG', '-s', '7', '-m', '2', '-o', '-', uri],
+                              capture_output=True, timeout=10)
+        if proc.returncode == 0 and proc.stdout:
+            qr = 'data:image/png;base64,' + base64.b64encode(proc.stdout).decode('ascii')
+    except Exception:  # noqa: BLE001
+        qr = ''
+    backup = json.loads(row['totp_backup'] or '[]')
+    return render_template('settings_2fa.html', enabled=bool(row['totp_enabled']),
+                           secret=secret, qr=qr, backup_left=len(backup))
+
+
+@app.route('/settings/2fa/enable', methods=['POST'])
+@login_required
+def settings_2fa_enable():
+    check_csrf()
+    uid = session['uid']
+    row = db().execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    code = (request.form.get('code') or '').strip()
+    if not row['totp_secret'] or not _totp_verify(row['totp_secret'], code):
+        flash('Код не подошёл. Проверьте время на телефоне.')
+        return redirect(url_for('settings_2fa'))
+    codes, hashed = _backup_codes_new()
+    conn = db()
+    conn.execute("UPDATE users SET totp_enabled = 1, totp_backup = ? WHERE id = ?", (hashed, uid))
+    conn.commit()
+    audit('2fa_enabled', 'клиент включил сам')
+    return render_template('settings_2fa.html', enabled=True, secret=row['totp_secret'],
+                           qr=None, backup_left=len(codes), codes=codes)
+
+
+@app.route('/settings/2fa/disable', methods=['POST'])
+@login_required
+def settings_2fa_disable():
+    check_csrf()
+    uid = session['uid']
+    row = db().execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    code = (request.form.get('code') or '').strip()
+    pwd = request.form.get('password') or ''
+    ok = bool(code and row['totp_secret'] and _totp_verify(row['totp_secret'], code))
+    if not ok and pwd:
+        ok = check_password_hash(row['pass_hash'], pwd)
+    if not ok:
+        flash('Укажите код из приложения или пароль портала')
+        return redirect(url_for('settings_2fa'))
+    conn = db()
+    conn.execute("UPDATE users SET totp_enabled = 0, totp_backup = NULL WHERE id = ?", (uid,))
+    conn.commit()
+    _trusted_drop(uid)
+    audit('2fa_disabled', 'клиент отключил сам')
+    flash('Двухфакторный вход отключён')
+    return redirect(url_for('settings_2fa'))
+
+
+@app.route('/trusted/login', methods=['POST'])
+def trusted_login():
+    """Вход по коду с запомненного устройства, без пароля."""
+    check_csrf()
+    user = _trusted_user()
+    if not user or not user['totp_enabled']:
+        flash('Это устройство больше не доверенное — войдите с паролем')
+        return redirect(url_for('login'))
+    code = (request.form.get('code') or '').strip()
+    ok = _totp_verify(user['totp_secret'], code)
+    if not ok:
+        ok, _rest = _backup_code_check(user['totp_backup'], code)
+    if not ok:
+        audit('trusted_login_failed', user['username'])
+        flash('Неверный код')
+        return redirect(url_for('login'))
+    return _finish_login(user)
 
 
 @app.route('/logout', methods=['POST'])
@@ -1884,6 +2082,7 @@ DEFAULT_SETTINGS = {
     'sandbox_min_free_gb': '8',
     'sandbox_allow_transfer': '1',
     'sandbox_allow_extend': '1',
+    'trusted_days': '30',
 }
 
 
@@ -2869,6 +3068,23 @@ def sandbox_delete(sid):
     if session.get('role') == 'admin':
         return redirect(url_for('admin', tab='bases'))
     return redirect('/')
+
+
+
+@app.route('/admin/users/<int:uid>/2fa/reset', methods=['POST'])
+@admin_required
+def admin_user_2fa_reset(uid):
+    check_csrf()
+    row = db().execute("SELECT username FROM users WHERE id = ?", (uid,)).fetchone()
+    if not row:
+        abort(404)
+    conn = db()
+    conn.execute("UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_backup = NULL WHERE id = ?", (uid,))
+    conn.commit()
+    _trusted_drop(uid)
+    audit('2fa_reset_by_admin', row['username'])
+    flash('2FA у клиента %s сброшен' % row['username'])
+    return redirect(url_for('admin', tab='users'))
 
 
 @app.route('/admin/settings/sandbox', methods=['POST'])

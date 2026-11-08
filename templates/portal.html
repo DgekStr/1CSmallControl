@@ -26,7 +26,13 @@
         <span class="avatar">{{ (session.name or 'U')[0]|upper }}</span>
         <form action="{{ url_for('logout') }}" method="post"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="icon-button" title="Выйти" aria-label="Выйти"><i data-lucide="log-out"></i></button></form>
       </div>
-    </header>
+    
+      <div class="settings-gear">
+        <button type="button" class="icon-button" data-open="dlg-settings" title="Настройки" aria-label="Настройки">
+          <i data-lucide="settings"></i>
+        </button>
+      </div>
+  </header>
     <main class="main-content">
       <div class="page-heading">
         <div>
@@ -151,6 +157,26 @@
         </button>
       </section>
 
+
+      
+      <dialog class="modal conn-modal" id="dlg-settings">
+        <div class="modal-heading">
+          <h2>Настройки</h2>
+          <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+        </div>
+        <div class="settings-menu">
+          <a class="settings-item" href="{{ url_for('settings_password') }}">
+            <i data-lucide="key-round"></i><span>Изменить пароль</span></a>
+          <a class="settings-item" href="{{ url_for('settings_2fa') }}">
+            <i data-lucide="shield-check"></i><span>Двухфакторный вход</span></a>
+          <button type="button" class="settings-item" data-theme-toggle>
+            <i data-lucide="sun-moon"></i><span>Тема оформления</span></button>
+          <form method="post" action="{{ url_for('logout') }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button type="submit" class="settings-item"><i data-lucide="log-out"></i><span>Выйти</span></button>
+          </form>
+        </div>
+      </dialog>
 
       <dialog class="modal conn-modal" id="dlg-copies">
         <div class="modal-heading">
