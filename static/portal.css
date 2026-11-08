@@ -449,7 +449,7 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .settings-view{display:flex;flex-direction:column;gap:8px}
 .settings-view[hidden]{display:none}
 .settings-modal .settings-menu{gap:6px}
-.settings-emoji{font-size:calc(14px*var(--fs));line-height:1;filter:saturate(.9)}
+.settings-emoji{font-size:calc(15px*var(--fs));line-height:1;margin-right:6px;vertical-align:-1px}
 .settings-back{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--muted,#94a3b8);
                cursor:pointer;font-size:calc(11px*var(--fs));padding:4px 0}
 .settings-back:hover{color:inherit}
