@@ -443,6 +443,12 @@ def _session_fp(row):
 
 # ===== настройки клиента: пароль, 2FA, доверенные устройства =====
 
+
+def _partial():
+    """Запрос из модального окна: отвечаем JSON, без перехода на страницу."""
+    return request.headers.get('X-Partial') == '1'
+
+
 def _password_ok(pw):
     """Минимум 8 символов, есть буквы и цифры."""
     if not pw or len(pw) < 8:
@@ -953,8 +959,12 @@ def settings_password():
             fresh = conn.execute("SELECT pass_hash, is_active FROM users WHERE id = ?", (uid,)).fetchone()
             session['fp'] = _session_fp(fresh)
             audit('password_changed', 'самостоятельно')
+            if _partial():
+                return {'ok': True, 'message': 'Пароль изменён. Остальные устройства потребуют вход заново.'}
             flash('Пароль изменён. Остальные устройства потребуют вход заново.')
             return redirect('/')
+    if _partial():
+        return {'ok': False, 'error': error} if request.method == 'POST' else {'ok': True}
     must = db().execute("SELECT must_change_password FROM users WHERE id = ?", (uid,)).fetchone()
     return render_template('settings_password.html', error=error,
                            must=bool(must and must['must_change_password']))
@@ -982,6 +992,9 @@ def settings_2fa():
     except Exception:  # noqa: BLE001
         qr = ''
     backup = json.loads(row['totp_backup'] or '[]')
+    if _partial():
+        return {'ok': True, 'enabled': bool(row['totp_enabled']), 'secret': secret,
+                'qr': qr, 'backup_left': len(backup)}
     return render_template('settings_2fa.html', enabled=bool(row['totp_enabled']),
                            secret=secret, qr=qr, backup_left=len(backup))
 
@@ -994,6 +1007,8 @@ def settings_2fa_enable():
     row = db().execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     code = (request.form.get('code') or '').strip()
     if not row['totp_secret'] or not _totp_verify(row['totp_secret'], code):
+        if _partial():
+            return {'ok': False, 'error': 'Код не подошёл. Проверьте время на телефоне.'}
         flash('Код не подошёл. Проверьте время на телефоне.')
         return redirect(url_for('settings_2fa'))
     codes, hashed = _backup_codes_new()
@@ -1001,6 +1016,9 @@ def settings_2fa_enable():
     conn.execute("UPDATE users SET totp_enabled = 1, totp_backup = ? WHERE id = ?", (hashed, uid))
     conn.commit()
     audit('2fa_enabled', 'клиент включил сам')
+    if _partial():
+        return {'ok': True, 'enabled': True, 'codes': codes,
+                'message': 'Двухфакторный вход включён. Сохраните коды восстановления.'}
     return render_template('settings_2fa.html', enabled=True, secret=row['totp_secret'],
                            qr=None, backup_left=len(codes), codes=codes)
 
@@ -1017,6 +1035,8 @@ def settings_2fa_disable():
     if not ok and pwd:
         ok = check_password_hash(row['pass_hash'], pwd)
     if not ok:
+        if _partial():
+            return {'ok': False, 'error': 'Укажите код из приложения или пароль портала'}
         flash('Укажите код из приложения или пароль портала')
         return redirect(url_for('settings_2fa'))
     conn = db()
@@ -1024,6 +1044,8 @@ def settings_2fa_disable():
     conn.commit()
     _trusted_drop(uid)
     audit('2fa_disabled', 'клиент отключил сам')
+    if _partial():
+        return {'ok': True, 'enabled': False, 'message': 'Двухфакторный вход отключён'}
     flash('Двухфакторный вход отключён')
     return redirect(url_for('settings_2fa'))
 

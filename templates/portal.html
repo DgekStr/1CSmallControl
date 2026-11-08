@@ -154,22 +154,46 @@
 
 
       
-      <dialog class="modal conn-modal" id="dlg-settings">
+      <dialog class="modal conn-modal settings-modal" id="dlg-settings">
         <div class="modal-heading">
           <h2>Настройки</h2>
+          <span class="settings-emoji" aria-hidden="true">⚙️</span>
           <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
         </div>
-        <div class="settings-menu">
-          <a class="settings-item" href="{{ url_for('settings_password') }}">
-            <i data-lucide="key-round"></i><span>Изменить пароль</span></a>
-          <a class="settings-item" href="{{ url_for('settings_2fa') }}">
-            <i data-lucide="shield-check"></i><span>Двухфакторный вход</span></a>
-          <button type="button" class="settings-item" data-theme-toggle>
-            <i data-lucide="sun-moon"></i><span>Тема оформления</span></button>
-          <form method="post" action="{{ url_for('logout') }}">
+
+        <div class="settings-view" id="set-view-menu">
+          <div class="settings-menu">
+            <button type="button" class="settings-item" data-settings-go="password">
+              <i data-lucide="key-round"></i><span>Изменить пароль</span><i data-lucide="chevron-right"></i></button>
+            <button type="button" class="settings-item" data-settings-go="2fa">
+              <i data-lucide="shield-check"></i><span>Двухфакторный вход</span><i data-lucide="chevron-right"></i></button>
+            <form method="post" action="{{ url_for('logout') }}">
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+              <button type="submit" class="settings-item"><i data-lucide="log-out"></i><span>Выйти</span></button>
+            </form>
+          </div>
+        </div>
+
+        <div class="settings-view" id="set-view-password" hidden>
+          <button type="button" class="settings-back" data-settings-back><i data-lucide="chevron-left"></i>Назад</button>
+          <p class="muted small">Минимум 8 символов, буквы и цифры. После смены остальные устройства потребуют вход заново.</p>
+          <div class="settings-msg" data-settings-msg></div>
+          <form data-settings-form="password">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-            <button type="submit" class="settings-item"><i data-lucide="log-out"></i><span>Выйти</span></button>
+            <label>Текущий пароль<input type="password" name="current" autocomplete="current-password" required></label>
+            <label>Новый пароль<input type="password" name="new" autocomplete="new-password" minlength="8" required></label>
+            <label>Повторите<input type="password" name="repeat" autocomplete="new-password" minlength="8" required></label>
+            <div class="modal-footer">
+              <button type="button" class="button" data-settings-back>Отмена</button>
+              <button type="submit" class="button primary"><i data-lucide="key-round"></i>Сменить пароль</button>
+            </div>
           </form>
+        </div>
+
+        <div class="settings-view" id="set-view-2fa" hidden>
+          <button type="button" class="settings-back" data-settings-back><i data-lucide="chevron-left"></i>Назад</button>
+          <div class="settings-msg" data-settings-msg></div>
+          <div id="set-2fa-body"><span class="muted small">Загружаем…</span></div>
         </div>
       </dialog>
 
@@ -729,6 +753,110 @@
     tick();
   })();
   </script>
+
+
+<script>
+/* настройки клиента: навигация внутри модалки, без перехода на страницы */
+(function () {
+  var dlg = document.getElementById('dlg-settings');
+  if (!dlg) return;
+  var views = {
+    menu: document.getElementById('set-view-menu'),
+    password: document.getElementById('set-view-password'),
+    '2fa': document.getElementById('set-view-2fa')
+  };
+  var body2fa = document.getElementById('set-2fa-body');
+
+  function show(name) {
+    Object.keys(views).forEach(function (k) { if (views[k]) views[k].hidden = (k !== name); });
+    if (window.lucide) lucide.createIcons();
+    if (name === '2fa') load2fa();
+  }
+
+  function msg(view, text, ok) {
+    var el = view.querySelector('[data-settings-msg]');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'settings-msg ' + (ok ? 'ok' : 'err');
+  }
+
+  function post(url, data) {
+    var form = new FormData();
+    Object.keys(data).forEach(function (k) { form.append(k, data[k]); });
+    return fetch(url, { method: 'POST', body: form, credentials: 'same-origin',
+                        headers: { 'X-Partial': '1' } }).then(function (r) { return r.json(); });
+  }
+
+  function load2fa() {
+    body2fa.innerHTML = '<span class="muted small">Загружаем…</span>';
+    fetch('/settings/2fa', { credentials: 'same-origin', headers: { 'X-Partial': '1' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.enabled) {
+          body2fa.innerHTML =
+            '<div class="qr-status ok"><i data-lucide="shield-check"></i><span>Двухфакторный вход включён</span></div>' +
+            '<p class="muted small">Кодов восстановления: <b>' + d.backup_left + '</b></p>' +
+            '<form data-settings-form="2fa-disable">' +
+            '<label>Код из приложения<input name="code" placeholder="000000" inputmode="numeric"></label>' +
+            '<label>или пароль портала<input name="password" type="password"></label>' +
+            '<div class="modal-footer"><button type="button" class="button" data-settings-back>Назад</button>' +
+            '<button class="button danger" type="submit">Отключить 2FA</button></div></form>';
+        } else {
+          body2fa.innerHTML =
+            (d.qr ? '<img class="qr-image" src="' + d.qr + '" alt="QR" width="180" height="180">' : '') +
+            '<p class="muted small">Отсканируйте код или введите ключ:</p>' +
+            '<p class="mono" style="word-break:break-all">' + d.secret + '</p>' +
+            '<form data-settings-form="2fa-enable">' +
+            '<label>Код из приложения<input name="code" placeholder="000000" inputmode="numeric" required></label>' +
+            '<div class="modal-footer"><button type="button" class="button" data-settings-back>Назад</button>' +
+            '<button class="button primary" type="submit">Включить 2FA</button></div></form>';
+        }
+        if (window.lucide) lucide.createIcons();
+      });
+  }
+
+  dlg.addEventListener('click', function (e) {
+    var go = e.target.closest('[data-settings-go]');
+    if (go) { show(go.getAttribute('data-settings-go')); return; }
+    if (e.target.closest('[data-settings-back]')) { show('menu'); }
+  });
+
+  dlg.addEventListener('submit', function (e) {
+    var form = e.target.closest('[data-settings-form]');
+    if (!form) return;
+    e.preventDefault();
+    var kind = form.getAttribute('data-settings-form');
+    var data = {};
+    new FormData(form).forEach(function (v, k) { data[k] = v; });
+    var view = form.closest('.settings-view');
+    if (kind === 'password') {
+      post('/settings/password', data).then(function (d) {
+        msg(view, d.ok ? (d.message || 'Пароль изменён') : (d.error || 'Ошибка'), d.ok);
+        if (d.ok) form.reset();
+      });
+    } else if (kind === '2fa-enable') {
+      post('/settings/2fa/enable', data).then(function (d) {
+        if (!d.ok) { msg(view, d.error || 'Ошибка', false); return; }
+        var codes = (d.codes || []).map(function (c) { return '<span class="mono code-chip">' + c + '</span>'; }).join('');
+        body2fa.innerHTML = '<p><strong>2FA включён.</strong> Сохраните коды восстановления:</p>' +
+          '<div class="codes-grid">' + codes + '</div>' +
+          '<div class="modal-footer"><button type="button" class="button primary" data-settings-back>Готово</button></div>';
+        if (window.lucide) lucide.createIcons();
+      });
+    } else if (kind === '2fa-disable') {
+      post('/settings/2fa/disable', data).then(function (d) {
+        if (!d.ok) { msg(view, d.error || 'Ошибка', false); return; }
+        msg(view, d.message || '2FA отключён', true);
+        load2fa();
+      });
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-open="dlg-settings"]')) show('menu');
+  });
+})();
+</script>
 
 </body>
 </html>

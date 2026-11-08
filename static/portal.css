@@ -443,3 +443,20 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
                font-size:calc(12px*var(--fs));text-decoration:none;text-align:left}
 .settings-item:hover{background:var(--surface-hover,#ffffff0a);border-color:#7c5cff55}
 .settings-item svg{width:16px;height:16px;flex:none;opacity:.9}
+
+/* ===== модалка настроек: внутренняя навигация ===== */
+.settings-modal{max-height:88vh}
+.settings-view{display:flex;flex-direction:column;gap:8px}
+.settings-view[hidden]{display:none}
+.settings-modal .settings-menu{gap:6px}
+.settings-emoji{font-size:calc(14px*var(--fs));line-height:1;filter:saturate(.9)}
+.settings-back{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--muted,#94a3b8);
+               cursor:pointer;font-size:calc(11px*var(--fs));padding:4px 0}
+.settings-back:hover{color:inherit}
+.settings-msg{min-height:18px;font-size:calc(11.5px*var(--fs))}
+.settings-msg.ok{color:#22c55e}
+.settings-msg.err{color:#ef4444}
+.settings-modal label{display:flex;flex-direction:column;gap:6px;font-size:calc(11.5px*var(--fs));margin:6px 0}
+.settings-modal input{padding:10px 12px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2,#0f172a);color:inherit}
+.settings-modal .qr-image{display:block;margin:6px auto;border-radius:12px;background:#fff;padding:8px}
+.settings-modal .settings-item svg:last-child{margin-left:auto;opacity:.5}
