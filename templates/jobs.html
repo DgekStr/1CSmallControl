@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Задания | Портал 1С</title>
+  <link rel="icon" href="{{ asset('brand.png') }}">
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('portal.css') }}">
+  <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
+  <script src="{{ asset('theme.js') }}" defer></script>
+  <script src="{{ asset('vendor/lucide.js') }}" defer></script>
+  <style>
+    .job-log{margin:0;padding:14px 16px;border-radius:12px;background:#0b1220;color:#c7d2fe;
+             font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;max-height:420px;overflow:auto}
+    .job-bar{display:inline-block;width:160px;height:6px;border-radius:3px;background:#ffffff1a;overflow:hidden}
+    .job-bar>span{display:block;height:100%;background:#7c5cff;transition:width .3s}
+    .job-row{display:flex;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
+    .job-row:last-child{border-bottom:0}
+    .job-status{font-size:11px;padding:2px 8px;border-radius:6px}
+    .job-status.running{background:#f59e0b22;color:#f59e0b}
+    .job-status.done{background:#22c55e22;color:#22c55e}
+    .job-status.failed{background:#ef444422;color:#ef4444}
+  </style>
+</head>
+<body class="app-page">
+  <header class="topbar">
+    <a class="brand" href="/admin"><img class="brand-mark" src="{{ asset('brand.png') }}" alt="">
+      <span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="">
+      <span class="brand-version">v{{ app_version }}</span></span></a>
+    <nav class="topnav">
+      <a class="nav-link" href="/admin">Админка</a>
+      <a class="nav-link active" href="/admin/jobs">Задания</a>
+    </nav>
+  </header>
+
+  <main class="app-main" style="max-width:1100px">
+    <h1 style="font-size:calc(18px*var(--fs));margin:0 0 4px">Задания сервиса</h1>
+    <p class="muted" style="margin:0 0 18px">Архивация, песочницы и другие длительные операции. Лог обновляется автоматически.</p>
+
+    {% if current %}
+    <section class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
+      <div style="display:flex;gap:10px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)">
+        <strong>{{ current.title }}</strong>
+        <span class="job-status {{ current.status }}" id="job-state">{{ current.status }}</span>
+        <span class="muted small" id="job-meta">{{ current.slug }} · {{ current.created_at }}</span>
+        <span class="job-bar" id="job-bar"><span id="job-bar-fill" style="width:0%"></span></span>
+        <span class="muted small" id="job-percent">0%</span>
+        <a class="button" style="margin-left:auto" href="/admin/jobs"><i data-lucide="refresh-cw"></i>Обновить</a>
+      </div>
+      <pre class="job-log" id="job-log">{% for line in current.log %}{{ line }}
+{% endfor %}</pre>
+    </section>
+    {% endif %}
+
+    <section class="card" style="padding:0;overflow:hidden">
+      <h2 style="margin:0;padding:14px 16px;border-bottom:1px solid var(--border);font-size:calc(13px*var(--fs))">Последние задания</h2>
+      {% if jobs %}
+        {% for j in jobs %}
+        <div class="job-row">
+          <span class="job-status {{ j.status }}">{{ j.status }}</span>
+          <span>{{ j.title or j.kind }}</span>
+          <span class="muted small mono">{{ j.slug }}</span>
+          <span class="muted small" style="margin-left:auto">{{ j.created_at }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="muted" style="padding:16px">Заданий пока нет</p>
+      {% endif %}
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    var jid = {{ current.id if current else 'null' }};
+    if (!jid) return;
+    var logEl = document.getElementById('job-log');
+    var stateEl = document.getElementById('job-state');
+    var metaEl = document.getElementById('job-meta');
+    function tick() {
+      fetch('/jobs/' + jid + '/status', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d) return;
+          if (logEl) { logEl.textContent = (d.log || []).join('\n'); logEl.scrollTop = logEl.scrollHeight; }
+          if (stateEl) { stateEl.textContent = d.status; stateEl.className = 'job-status ' + d.status; }
+          if (metaEl) metaEl.textContent = d.slug + ' · ' + (d.finished_at || d.created_at) + ' · ' + (d.log_size || 0) + ' байт';
+          var fill = document.getElementById('job-bar-fill');
+          var pct = document.getElementById('job-percent');
+          if (fill) fill.style.width = (d.percent || 0) + '%';
+          if (pct) pct.textContent = (d.percent || 0) + '%' + (d.total ? ' (' + d.done + '/' + d.total + ')' : '');
+          if (d.status === 'running') setTimeout(tick, 3000);
+        })
+        .catch(function () { setTimeout(tick, 5000); });
+    }
+    tick();
+  })();
+  </script>
+  <script>document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });</script>
+</body>
+</html>

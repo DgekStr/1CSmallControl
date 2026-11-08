@@ -128,7 +128,7 @@
                     data-sb-base="{{ sb.source_title or sb.source_slug }}">
               <i data-lucide="user-round-check"></i>Передать</button>
             <form method="post" action="{{ url_for('sandbox_delete', sid=sb.id) }}"
-                  data-confirm="Песочница и все изменения в ней будут удалены безвозвратно."
+                  data-job="Удаляем песочницу…" data-confirm="Песочница и все изменения в ней будут удалены безвозвратно."
                   data-confirm-title="Удалить песочницу?" data-confirm-ok="Удалить"
                   data-confirm-style="danger">
               <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -162,15 +162,20 @@
         <div id="copies-list" class="copies-list"><span class="muted small">Загружаем список…</span></div>
         <div class="conn-note warn"><i data-lucide="triangle-alert"></i>
           <span>Данные в копии — на дату резервной копии: всё, что сделано позже, в неё не попадёт.
-            Песочница будет удалена через <b id="copies-keep">{{ sandbox_keep }}</b> дн. со всеми изменениями.
-            Одновременно можно держать только одну копию.</span></div>
+            Песочница будет удалена через <b id="copies-keep">{{ sandbox_keep }}</b> дн. со всеми изменениями.</span></div>
+
+        <div class="conn-note error" id="copies-replace" hidden><i data-lucide="trash-2"></i>
+          <span>У вас уже есть песочница <b id="copies-old-slug">—</b> (до <span id="copies-old-exp">—</span>).
+            При создании новой <b>старая будет удалена вместе со всеми данными</b>.
+            Если в ней есть важное — сначала закончите работу.</span></div>
         <label class="check-label ack" style="margin-top:10px">
           <input type="checkbox" id="copies-ack">
           <span>Понимаю, что копия временная и боевая база не изменится</span>
         </label>
-        <form method="post" id="copies-form">
+        <form method="post" id="copies-form" data-job="Создаём копию базы — 10–20 минут…">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
           <input type="hidden" name="dump" id="copies-dump">
+          <input type="hidden" name="replace_old" id="copies-replace-flag" value="0">
           <div class="modal-footer">
             <button type="button" class="button" data-close>Отмена</button>
             <button class="button primary" type="submit" id="copies-create" disabled>
@@ -474,7 +479,7 @@
         if (!pending) return;
         pending.dataset.confirmed = '1';
         document.getElementById('dlg-confirm').close();
-        pending.submit();
+        if (pending.requestSubmit) { pending.requestSubmit(); } else { pending.submit(); }
       });
     })();
   </script>
@@ -547,6 +552,26 @@
   var submit = document.getElementById('copies-create');
   var keep = document.getElementById('copies-keep');
 
+  var replaceBox = document.getElementById('copies-replace');
+  var replaceFlag = document.getElementById('copies-replace-flag');
+
+  function showExisting(info) {
+    if (!info) {
+      if (replaceBox) replaceBox.hidden = true;
+      if (replaceFlag) replaceFlag.value = '0';
+      return;
+    }
+    if (replaceBox) {
+      replaceBox.hidden = false;
+      var s = document.getElementById('copies-old-slug');
+      var e = document.getElementById('copies-old-exp');
+      if (s) s.textContent = info.slug;
+      if (e) e.textContent = info.expires;
+    }
+    if (replaceFlag) replaceFlag.value = '1';
+    if (window.lucide) lucide.createIcons();
+  }
+
   function render(copies) {
     if (!copies.length) {
       list.innerHTML = '<span class="muted small">Копий пока нет — дождитесь ночного архива.</span>';
@@ -582,6 +607,7 @@
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j.keep_days && keep) keep.textContent = j.keep_days;
+        showExisting(j.existing || null);
         if (!j.enabled) {
           list.innerHTML = '<span class="badge warning">Восстановление в песочницу выключено администратором</span>';
           submit.disabled = true;
@@ -616,6 +642,72 @@
   dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
 })();
 </script>
+
+
+  <div id="client-overlay" class="job-overlay" hidden>
+    <div class="job-overlay-box">
+      <div class="spinner"></div>
+      <strong id="client-overlay-title">Выполняется…</strong>
+      <p class="muted small">Операция идёт на сервере. Окно закроется автоматически после завершения.</p>
+    </div>
+  </div>
+  <script>
+  (function () {
+    var box = document.getElementById('client-overlay');
+    var title = document.getElementById('client-overlay-title');
+    if (!box) return;
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!form || !form.matches('form')) return;
+      if ((form.getAttribute('method') || 'get').toLowerCase() !== 'post') return;
+      var sub = e.submitter || form.querySelector('button[type=submit]');
+      var label = form.getAttribute('data-job');
+      if (!label && sub) label = sub.getAttribute('data-job');
+      if (!label && sub) label = (sub.textContent || '').trim();
+      if (!label) label = 'Выполняется…';
+      if (title) title.textContent = label;
+      box.hidden = false;
+    }, true);
+    window.addEventListener('pageshow', function () { box.hidden = true; });
+  })();
+  </script>
+
+
+  <div id="job-band" class="job-band" hidden>
+    <span class="job-band-spin"></span>
+    <strong id="job-band-title">Выполняется…</strong>
+    <span class="job-band-bar"><span id="job-band-fill"></span></span>
+    <span id="job-band-pct" class="mono small"></span>
+    <a id="job-band-link" class="job-band-link" href="/admin/jobs">журнал</a>
+  </div>
+  <script>
+  (function () {
+    var band = document.getElementById('job-band');
+    if (!band) return;
+    var t = document.getElementById('job-band-title');
+    var f = document.getElementById('job-band-fill');
+    var pct = document.getElementById('job-band-pct');
+    var link = document.getElementById('job-band-link');
+    function tick() {
+      fetch('/jobs/active', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.active) {
+            band.hidden = false;
+            if (t) t.textContent = d.title || 'Выполняется…';
+            if (f) f.style.width = (d.percent || 0) + '%';
+            if (pct) pct.textContent = (d.percent || 0) + '%' + (d.total ? ' (' + d.done + '/' + d.total + ')' : '');
+            if (link) link.hidden = !d.admin;
+          } else {
+            band.hidden = true;
+          }
+        })
+        .catch(function () {})
+        .then(function () { setTimeout(tick, 5000); });
+    }
+    tick();
+  })();
+  </script>
 
 </body>
 </html>

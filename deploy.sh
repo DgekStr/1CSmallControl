@@ -19,7 +19,7 @@ BIND=127.0.0.1:8080
 
 echo "=== 1/5 пакеты ==="
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y python3-flask gunicorn >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get install -y python3-flask gunicorn --graceful-timeout 30 >/dev/null
 
 echo "=== 2/5 файлы ==="
 mkdir -p "$APP_DIR"
@@ -46,7 +46,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=$APP_DIR
 Environment=PORTAL_DB=$APP_DIR/portal.db
-Environment=PORTAL_VERSION=${PORTAL_VERSION:-2.0.0}
+Environment=PORTAL_VERSION=${PORTAL_VERSION:-2.0.1}
 Environment=PORTAL_IC_HOST=${PORTAL_IC_HOST:-1c.example.ru}
 Environment=PORTAL_SUPPORT_NAME=${PORTAL_SUPPORT_NAME:-example.ru}
 Environment=PORTAL_SUPPORT_URL=${PORTAL_SUPPORT_URL:-https://example.ru/contacts.html}

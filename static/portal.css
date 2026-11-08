@@ -408,3 +408,29 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .sandbox-flag svg{width:10px;height:10px;stroke-width:2.2}
 .sandbox-flag:hover{background:#f59e0b33;color:#ffbe3d}
 .sandbox-flag-count{font-size:8px;font-weight:700;line-height:1}
+
+/* ===== предупреждение о замене песочницы ===== */
+.conn-note.error{border-color:#ef444455;background:#ef44441a;color:#ef4444}
+
+/* ===== «туман» и индикатор длительных операций ===== */
+.job-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+             background:rgba(8,12,22,.55);backdrop-filter:blur(3px)}
+.job-overlay[hidden]{display:none}
+.job-overlay-box{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
+                 max-width:420px;padding:26px 28px;border-radius:16px;background:var(--surface,#111827);
+                 border:1px solid var(--border,#1f2937);box-shadow:0 24px 60px #0008}
+.job-overlay-box p{margin:0}
+.spinner{width:34px;height:34px;border-radius:50%;border:3px solid #ffffff22;border-top-color:#7c5cff;
+         animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== индикатор выполняющегося задания ===== */
+.job-band{position:fixed;left:0;right:0;bottom:0;z-index:9998;display:flex;align-items:center;gap:12px;
+          padding:10px 18px;background:#0b1220ee;color:#e6e9f5;border-top:1px solid #7c5cff55;
+          backdrop-filter:blur(6px);font-size:calc(12px*var(--fs))}
+.job-band[hidden]{display:none}
+.job-band-bar{flex:1;height:6px;border-radius:3px;background:#ffffff22;overflow:hidden;max-width:520px}
+.job-band-bar>span{display:block;height:100%;width:0;background:#7c5cff;transition:width .4s}
+.job-band-spin{width:14px;height:14px;border-radius:50%;border:2px solid #ffffff33;border-top-color:#7c5cff;
+               animation:spin .9s linear infinite;flex:none}
+.job-band-link{color:#a5b4fc;text-decoration:none;border-bottom:1px dashed #a5b4fc66}

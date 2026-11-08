@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Портал (www-data) может запускать служебные скрипты песочницы и архивации.
+# Установка: install -o root -g root -m 440 1c-sandbox.sudoers /etc/sudoers.d/1c-sandbox
+www-data ALL=(root) NOPASSWD: /usr/local/bin/1c-sandbox
+www-data ALL=(root) NOPASSWD: /usr/local/bin/1c-kick-sessions
+www-data ALL=(root) NOPASSWD: /usr/local/bin/1c-backup.sh
+www-data ALL=(root) NOPASSWD: /usr/local/bin/1c-backup

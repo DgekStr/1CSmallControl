@@ -64,9 +64,9 @@ if [[ "$DIR" == //* ]]; then
   chmod 600 "$SMB_CRED"
   mountpoint -q "$MOUNT" && umount "$MOUNT" 2>/dev/null
   UID_PG=$(id -u postgres)
-  GID_PG=$(id -g postgres)
+  GID_WWW=$(id -g www-data)
   mount -t cifs "$UNC" "$MOUNT" \
-    -o "credentials=$SMB_CRED,vers=3.0,iocharset=utf8,uid=$UID_PG,gid=$GID_PG,file_mode=0660,dir_mode=0770" \
+    -o "credentials=$SMB_CRED,vers=3.0,iocharset=utf8,uid=$UID_PG,gid=$GID_WWW,file_mode=0660,dir_mode=0770" \
     >>"$LOG" 2>&1 || log "ERROR: cannot mount $UNC"
   TARGET="$MOUNT"
 fi
@@ -83,13 +83,23 @@ OK=0
 FAIL=0
 FILES=""
 
+SKIP=$(python3 - <<'PY'
+import sqlite3
+try:
+    c = sqlite3.connect('/opt/1c-portal/portal.db')
+    print(' '.join(r[0] for r in c.execute("select slug from bases where coalesce(is_sandbox,0)=1")))
+except Exception:
+    print('')
+PY
+)
 for NAME in $LIST; do
+  case " $SKIP " in *" $NAME "*) log "$NAME пропущена (песочница)"; continue;; esac
   DB=$($RAC "$RAS" infobase info --cluster="$CLUSTER" --name="$NAME" \
          --cluster-user="${IC_CLUSTER_USER:-}" --cluster-pwd="${IC_CLUSTER_PWD:-}" 2>/dev/null \
        | awk -F' *: *' '/^db-name/{print $2; exit}')
   [ -n "$DB" ] || DB="$NAME"
   OUT="$TARGET/$NAME-$STAMP.dump"
-  su -s /bin/bash postgres -c "pg_dump -Fc -d '$DB' -f '$OUT'" >>"$LOG" 2>&1
+  ionice -c3 nice -n 10 su -s /bin/bash postgres -c "pg_dump -Fc -d '$DB' -f '$OUT'" >>"$LOG" 2>&1
   if [ -s "$OUT" ]; then
     log "$NAME ($DB) ok $(du -h "$OUT" | cut -f1)"
     OK=$((OK+1))
@@ -110,6 +120,39 @@ done
 
 FREE=$(df -h "$TARGET" 2>/dev/null | awk 'NR==2{print $4" free of "$2}')
 log "done: ok $OK, failed $FAIL, target $TARGET ($FREE)"
+
+# индекс копий: портал читает его, даже если каталог ему недоступен
+python3 - "$TARGET" <<'PY'
+import json, os, time
+target = __import__('sys').argv[1]
+items = []
+try:
+    for name in sorted(os.listdir(target)):
+        if not name.endswith('.dump'):
+            continue
+        path = os.path.join(target, name)
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        base = name.split('-')[0]
+        items.append({
+            'name': name,
+            'path': path,
+            'base': base,
+            'size': st.st_size,
+            'when': time.strftime('%d.%m.%Y %H:%M', time.localtime(st.st_mtime)),
+        })
+except OSError:
+    pass
+try:
+    json.dump({'updated_at': time.strftime('%Y-%m-%d %H:%M:%S'), 'files': items},
+              open('/etc/1c-portal/backup-files.json', 'w', encoding='utf-8'),
+              ensure_ascii=False, indent=1)
+    os.chmod('/etc/1c-portal/backup-files.json', 0o644)
+except Exception:
+    pass
+PY
 
 python3 - "$STATUS" "$TARGET" "$OK" "$FAIL" "$FILES" "$FREE" <<'PY'
 import json, sys, time

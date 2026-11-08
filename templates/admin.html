@@ -332,7 +332,7 @@
                 <button class="icon-button" type="submit" title="Передать песочницу"><i data-lucide="user-round-check"></i></button>
               </form>
               {% endif %}
-              <form method="post" action="{{ url_for('sandbox_delete', sid=sb.id) }}"
+              <form method="post" action="{{ url_for('sandbox_delete', sid=sb.id) }}" data-job="Удаляем песочницу…"
                     data-confirm="Песочница будет удалена." data-confirm-title="Удалить песочницу?"
                     data-confirm-ok="Удалить">
                 <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -521,7 +521,7 @@
 
           <div class="field-row">
             <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
-            <button class="button" type="submit" formaction="{{ url_for('admin_settings_backup_run') }}"
+            <button class="button" type="submit" formaction="{{ url_for('admin_settings_backup_run') }}" data-job="Запускаем архивацию баз 1С…"
                     formnovalidate><i data-lucide="database-backup"></i>Запустить сейчас</button>
           </div>
         </form>
@@ -929,7 +929,7 @@
     <div id="sb-info" class="monitor-box" style="margin-bottom:14px"></div>
 
     {% if sandbox_allow_transfer %}
-    <form method="post" id="sb-transfer" class="field-row" style="align-items:end">
+    <form method="post" id="sb-transfer" data-job="Передаём песочницу…" class="field-row" style="align-items:end">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
       <label class="field">Подключить/передать клиенту
         <select name="user_id">
@@ -1010,7 +1010,7 @@
   </dialog>
 
   <dialog class="modal danger-modal" id="dlg-kick-all">
-    <form method="post" action="{{ url_for('admin_stats_kick') }}">
+    <form method="post" action="{{ url_for('admin_stats_kick') }}" data-job="Отключаем всех пользователей от баз 1С…">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
       <div class="modal-heading"><h2>Отключить всех пользователей?</h2><button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button></div>
 
@@ -1192,7 +1192,7 @@
         if (!pending) return;
         pending.dataset.confirmed = '1';
         document.getElementById('dlg-confirm').close();
-        pending.submit();
+        if (pending.requestSubmit) { pending.requestSubmit(); } else { pending.submit(); }
       });
     })();
   </script>
@@ -1385,6 +1385,88 @@
   dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
 })();
 </script>
+
+
+  <div id="job-overlay" class="job-overlay" hidden>
+    <div class="job-overlay-box">
+      <div class="spinner"></div>
+      <strong id="job-overlay-title">Выполняется…</strong>
+      <p class="muted small" id="job-overlay-note">Это может занять несколько минут. Страница не зависла — операция идёт на сервере.</p>
+      <a class="button" href="/admin/jobs" target="_blank" rel="noopener">Открыть журнал заданий</a>
+    </div>
+  </div>
+
+
+<script>
+/* «туман» и индикатор выполнения для длительных операций */
+(function () {
+  var box = document.getElementById('job-overlay');
+  var title = document.getElementById('job-overlay-title');
+  if (!box) return;
+
+  function show(text) {
+    if (text && title) title.textContent = text;
+    box.hidden = false;
+  }
+  function hide() { box.hidden = true; }
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form || !form.matches('form')) return;
+    var sub = e.submitter || form.querySelector('button[type=submit]');
+    var label = form.getAttribute('data-job');
+    if (!label && sub) label = sub.getAttribute('data-job');
+    if (!label && sub) label = (sub.textContent || '').trim();
+    if (!label) label = 'Выполняется…';
+    show(label);
+  }, true);
+
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[data-job]');
+    if (a) show(a.getAttribute('data-job'));
+  }, true);
+
+  window.addEventListener('pageshow', hide);
+  window.addEventListener('focus', function () { setTimeout(hide, 1500); });
+})();
+</script>
+
+
+  <div id="job-band" class="job-band" hidden>
+    <span class="job-band-spin"></span>
+    <strong id="job-band-title">Выполняется…</strong>
+    <span class="job-band-bar"><span id="job-band-fill"></span></span>
+    <span id="job-band-pct" class="mono small"></span>
+    <a id="job-band-link" class="job-band-link" href="/admin/jobs">журнал</a>
+  </div>
+  <script>
+  (function () {
+    var band = document.getElementById('job-band');
+    if (!band) return;
+    var t = document.getElementById('job-band-title');
+    var f = document.getElementById('job-band-fill');
+    var pct = document.getElementById('job-band-pct');
+    var link = document.getElementById('job-band-link');
+    function tick() {
+      fetch('/jobs/active', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.active) {
+            band.hidden = false;
+            if (t) t.textContent = d.title || 'Выполняется…';
+            if (f) f.style.width = (d.percent || 0) + '%';
+            if (pct) pct.textContent = (d.percent || 0) + '%' + (d.total ? ' (' + d.done + '/' + d.total + ')' : '');
+            if (link) link.hidden = !d.admin;
+          } else {
+            band.hidden = true;
+          }
+        })
+        .catch(function () {})
+        .then(function () { setTimeout(tick, 5000); });
+    }
+    tick();
+  })();
+  </script>
 
 </body>
 </html>

@@ -17,6 +17,15 @@ mode="${1:-}"
 
 cluster_get() { $RAC "$RAS" cluster list 2>/dev/null | awk '/^cluster/{print $3; exit}'; }
 
+infobase_uuid() {
+  local want="$1"
+  $RAC "$RAS" infobase summary list --cluster="${CLUSTER:-}" \
+      --cluster-user="${IC_CLUSTER_USER:-}" --cluster-pwd="${IC_CLUSTER_PWD:-}" 2>/dev/null \
+    | awk -v want="$want" '
+        /^infobase/ {uuid=$3}
+        /^name/     {name=$3; if (name == want) {print uuid; exit}}'
+}
+
 check_dump() {
   local dump="$1"
   [ -f "$dump" ] || { echo "нет файла дампа: $dump"; return 2; }
@@ -27,8 +36,21 @@ check_dump() {
 tables_count() { su -s /bin/bash postgres -c "psql -d $1 -Atc \"select count(*) from pg_tables where schemaname='public'\"" 2>/dev/null; }
 
 cleanup_failed() {
-  su -s /bin/bash postgres -c "psql -c \"drop database if exists $1\"" >/dev/null 2>&1
-  su -s /bin/bash postgres -c "psql -c \"drop role if exists $2\"" >/dev/null 2>&1
+  local db="$1" role="$2"
+  [ -n "$db" ] || return 0
+  # завершаем соединения и удаляем базу принудительно (PostgreSQL 13+)
+  su -s /bin/bash postgres -c "psql -Atc \"select pg_terminate_backend(pid) from pg_stat_activity where datname = '$db' and pid <> pg_backend_pid()\"" >/dev/null 2>&1
+  su -s /bin/bash postgres -c "psql -c \"drop database if exists $db with (force)\"" >/dev/null 2>&1 \
+    || su -s /bin/bash postgres -c "psql -c \"drop database if exists $db\"" >/dev/null 2>&1
+  [ -n "$role" ] && su -s /bin/bash postgres -c "psql -c \"drop role if exists $role\"" >/dev/null 2>&1
+  # отдаём отчёт, осталась ли база
+  local left
+  left=$(su -s /bin/bash postgres -c "psql -Atc \"select count(*) from pg_database where datname = '$db'\"" 2>/dev/null)
+  if [ "${left:-0}" != "0" ]; then
+    echo "        ВНИМАНИЕ: база $db не удалена (left=$left)"
+    return 1
+  fi
+  return 0
 }
 
 case "$mode" in
@@ -51,26 +73,43 @@ case "$mode" in
 
     echo "  [1/5] база PostgreSQL $NEW"
     cleanup_failed "$NEW" "$ROLE"
-    su -s /bin/bash postgres -c "psql -c \"set password_encryption='md5'; create role $ROLE login createdb superuser password '$PWD'\"" >/dev/null 2>&1 \
+    # S-05: роль без SUPERUSER — восстановленной базе не нужны права на кластер
+    su -s /bin/bash postgres -c "psql -c \"set password_encryption='md5'; create role $ROLE login createdb password '$PWD'\"" >/dev/null 2>&1 \
       || { echo "не удалось создать роль $ROLE"; exit 4; }
     su -s /bin/bash postgres -c "psql -c \"create database $NEW owner $ROLE\"" >/dev/null 2>&1 \
       || { echo "не удалось создать базу $NEW"; cleanup_failed "$NEW" "$ROLE"; exit 4; }
 
     echo "  [2/5] восстановление из дампа"
-    su -s /bin/bash postgres -c "pg_restore -Fc -d $NEW '$DUMP'" >/tmp/sandbox-restore.log 2>&1
+    ionice -c3 nice -n 10 su -s /bin/bash postgres -c "pg_restore -Fc -d $NEW '$DUMP'" >/tmp/sandbox-restore.log 2>&1
+    RC=$?
     TABLES=$(tables_count "$NEW")
-    if [ "${TABLES:-0}" -lt 100 ]; then
-      echo "        восстановление не удалось: $(tail -2 /tmp/sandbox-restore.log | tr '\n' ' ')"
+    ERRORS=$(grep -ci 'error:' /tmp/sandbox-restore.log 2>/dev/null || true)
+    # pg_restore: 0 — без замечаний, 1 — предупреждения; всё выше или явные ошибки — провал
+    if [ "${RC:-9}" -ge 2 ] || [ "${ERRORS:-0}" -gt 0 ]; then
+      echo "        восстановление не удалось (код $RC, ошибок $ERRORS): $(grep -i 'error:' /tmp/sandbox-restore.log | head -1 | cut -c1-120)"
       cleanup_failed "$NEW" "$ROLE"
       exit 5
     fi
-    echo "        таблиц в копии: $TABLES"
+    echo "        таблиц в копии: ${TABLES:-0}, предупреждений: $(grep -ci 'warning' /tmp/sandbox-restore.log 2>/dev/null || echo 0)"
+
+    # пользователи 1С берутся из текущей базы: в старых дампах их набор может не иметь прав
+    HAS_SRC=$(su -s /bin/bash postgres -c "psql -d $SRC -Atc \"select count(*) from pg_tables where schemaname='public' and tablename='v8users'\"" 2>/dev/null)
+    if [ "${HAS_SRC:-0}" = "1" ]; then
+      su -s /bin/bash postgres -c "psql -d $SRC -c \"\\copy (select * from v8users) to '/tmp/sb-users.csv' csv\"" >/dev/null 2>&1
+      if [ -s /tmp/sb-users.csv ]; then
+        su -s /bin/bash postgres -c "psql -d $NEW -c \"delete from v8users\"" >/dev/null 2>&1
+        su -s /bin/bash postgres -c "psql -d $NEW -c \"\\copy v8users from '/tmp/sb-users.csv' csv\"" >/dev/null 2>&1
+        USERS=$(su -s /bin/bash postgres -c "psql -d $NEW -Atc \"select count(*) from v8users\"" 2>/dev/null)
+        echo "        пользователей 1С из текущей базы: ${USERS:-0}"
+      fi
+      rm -f /tmp/sb-users.csv
+    fi
 
     echo "  [3/5] информационная база в кластере"
     OUT=$($RAC "$RAS" infobase create --cluster="$CLUSTER" --name="$NEW" \
             --dbms=PostgreSQL --db-server=127.0.0.1 --db-name="$NEW" \
             --db-user="$ROLE" --db-pwd="$PWD" --locale=ru_RU \
-            --license-distribution=allow "${AUTH[@]}" 2>&1)
+            --scheduled-jobs-deny=on --license-distribution=allow "${AUTH[@]}" 2>&1)
     even=$?
     if [ $even -ne 0 ]; then
       echo "        не удалось создать инфобазу: $(echo "$OUT" | head -1)"
@@ -93,7 +132,12 @@ case "$mode" in
     echo "  [1/4] завершаю сеансы"
     /usr/local/bin/1c-kick-sessions "$NEW" >/dev/null 2>&1 || true
     echo "  [2/4] удаляю инфобазу"
-    $RAC "$RAS" infobase drop --cluster="$CLUSTER" --name="$NEW" "${AUTH[@]}" >/dev/null 2>&1 || true
+    UUID=$(infobase_uuid "$NEW")
+    if [ -n "$UUID" ]; then
+      $RAC "$RAS" infobase drop --cluster="$CLUSTER" --infobase="$UUID" "${AUTH[@]}" 2>&1 | sed 's/^/        /'
+    else
+      echo "        инфобаза не найдена — пропускаю"
+    fi
     echo "  [3/4] удаляю базу и роль PostgreSQL"
     cleanup_failed "$NEW" "$ROLE"
     echo "  [4/4] снимаю публикацию"

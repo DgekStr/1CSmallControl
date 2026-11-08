@@ -35,11 +35,13 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.0')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.1')
 
 app = Flask(__name__)
+# S-09: ограничение размера запроса
+app.config.setdefault('MAX_CONTENT_LENGTH', 8 * 1024 * 1024)
 # за nginx: реальный IP клиента и схема https
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=2, x_proto=1, x_host=1)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 2592000  # 30 дней, ссылки версионируются
 _secret_file = os.path.join(BASE_DIR, '.secret_key')
 if os.path.exists(_secret_file):
@@ -124,10 +126,53 @@ CREATE TABLE IF NOT EXISTS settings (
 
 def db():
     if 'db' not in g:
-        g.db = sqlite3.connect(DB_PATH)
+        # C-06: WAL и таймаут ожидания — меньше блокировок при параллельной записи
+        g.db = sqlite3.connect(DB_PATH, timeout=15)
         g.db.row_factory = sqlite3.Row
+        g.db.execute('PRAGMA journal_mode=WAL')
+        g.db.execute('PRAGMA synchronous=NORMAL')
+        g.db.execute('PRAGMA busy_timeout=15000')
         g.db.execute('PRAGMA foreign_keys=ON')
     return g.db
+
+
+
+@app.after_request
+def _security_headers(resp):
+    """S-11: базовые защитные заголовки."""
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('Referrer-Policy', 'same-origin')
+    resp.headers.setdefault('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
+    headers_csp = ("default-src 'self'; img-src 'self' data:; "
+                   "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
+                   "connect-src 'self'; frame-ancestors 'self'")
+    resp.headers.setdefault('Content-Security-Policy', headers_csp)
+    return resp
+
+
+
+@app.before_request
+def _check_session_fp():
+    """S-11: если пароль сменили или учётку заблокировали — сессия недействительна."""
+    uid = session.get('uid')
+    if not uid:
+        return None
+    try:
+        row = db().execute("SELECT pass_hash, is_active FROM users WHERE id = ?", (uid,)).fetchone()
+    except Exception:  # noqa: BLE001
+        return None
+    if not row:
+        session.clear()
+        return redirect(url_for('login'))
+    fp = _session_fp(row)
+    if not session.get('fp'):
+        session['fp'] = fp
+        return None
+    if session['fp'] != fp:
+        session.clear()
+        audit('session_revoked', 'uid %s' % uid)
+        return redirect(url_for('login'))
 
 
 @app.teardown_appcontext
@@ -189,6 +234,17 @@ def init_db():
         status TEXT NOT NULL DEFAULT 'pending',
         uid INTEGER,
         used INTEGER NOT NULL DEFAULT 0)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        title TEXT,
+        status TEXT NOT NULL DEFAULT 'running',
+        log_path TEXT,
+        user_id INTEGER,
+        ref TEXT,
+        created_at TEXT,
+        finished_at TEXT)""")
     conn.execute("""CREATE TABLE IF NOT EXISTS sandboxes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -279,12 +335,17 @@ def audit(action, details=''):
         pass
 
 
+TRUSTED_PROXIES = {'127.0.0.1', '::1', '192.168.0.15', '192.168.0.5'}
+
+
 def _client_ip():
-    """Реальный IP клиента: портал стоит за Apache, тот передаёт X-Forwarded-For."""
-    fwd = request.headers.get('X-Forwarded-For', '')
-    if fwd:
-        return fwd.split(',')[0].strip()
-    return request.remote_addr or ''
+    """Реальный IP клиента. X-Forwarded-For принимаем только от своих прокси (S-01)."""
+    peer = request.remote_addr or ''
+    if peer in TRUSTED_PROXIES:
+        fwd = request.headers.get('X-Forwarded-For', '')
+        if fwd:
+            return fwd.split(',')[0].strip()
+    return peer
 
 
 @app.before_request
@@ -324,6 +385,29 @@ def check_csrf():
     tok = session.get('csrf')
     if not tok or request.form.get('csrf') != tok:
         abort(400, 'CSRF token mismatch')
+
+
+
+def _safe_next(value, default='/'):
+    """S-07: разрешаем только локальные пути для редиректа после входа."""
+    from urllib.parse import urlsplit
+    if not value:
+        return default
+    if '\\' in value or value.startswith('//'):
+        return default
+    parts = urlsplit(value)
+    if parts.scheme or parts.netloc:
+        return default
+    return value if value.startswith('/') else default
+
+
+
+def _session_fp(row):
+    """S-11: отпечаток пользователя, привязанный к паролю и активности."""
+    import hashlib
+    raw = '%s|%s' % (row['pass_hash'] or '', 1 if row['is_active'] else 0)
+    return hashlib.sha256(raw.encode('utf-8')).hexdigest()[:16]
+
 
 
 def login_required(fn):
@@ -369,8 +453,9 @@ def index():
     jobs = {}
     if rows:
         slugs = tuple(b['slug'] for b in rows)
-        info = _cached('counts:' + ','.join(slugs), 60,
-                       lambda: _session_counts(list(slugs)))
+        # счётчики сеансов через rac могут отвечать секундами — не блокируем страницу
+        info = _cached_swr('counts:' + ','.join(slugs), 60, 3600,
+                           lambda: _session_counts(list(slugs)), wait=False) or {}
         jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
     pg_mode = _pg_mode_state()
     sizes = _base_sizes(rows) if rows else {}
@@ -452,6 +537,19 @@ def _web_denied(slug, kind='no-access', status=403):
 @app.route('/WEB/<slug>/<path:rest>', methods=WEB_METHODS)
 @login_required
 def web_gate(slug, rest=''):
+    # S-08: нормализуем путь и не выпускаем за пределы своей публикации
+    import posixpath
+    segs = (rest or '').split('/')
+    bad = ('\\' in (rest or '') or '/' in slug
+           or any(seg in ('.', '..') for seg in segs)
+           or any(ord(ch) < 32 for ch in (rest or '')))
+    if bad:
+        audit('web_traversal', '%s / %s' % (slug, rest))
+        return _web_denied(slug, 'not-found', 404)
+    safe_rest = posixpath.normpath('/WEB/%s/%s' % (slug, rest or ''))[len('/WEB/'):]
+    if not safe_rest.startswith(slug):
+        audit('web_traversal', '%s / %s' % (slug, rest))
+        return _web_denied(slug, 'not-found', 404)
     base = db().execute("SELECT * FROM bases WHERE slug = ? AND is_active = 1", (slug,)).fetchone()
     if not base:
         return _web_denied(slug, 'not-found', 404)
@@ -721,7 +819,7 @@ def login():
                 session.clear()
                 session['pending_uid'] = row['id']
                 session['pending_at'] = int(time.time())
-                session['pending_next'] = request.args.get('next') or '/'
+                session['pending_next'] = _safe_next(request.args.get('next'))
                 audit('login_2fa_required', row['username'])
                 return render_template('two_factor.html', error=None)
             session.clear()
@@ -739,7 +837,7 @@ def login():
             session['seen'] = int(time.time())
             _login_ok(row['username'], ip)
             audit('login', _client_ip())
-            nxt = request.args.get('next') or '/'
+            nxt = _safe_next(request.args.get('next'))
             return redirect(nxt if nxt.startswith('/') else '/')
         error = 'Неверный логин или пароль'
         _login_fail(username, ip)
@@ -2029,12 +2127,10 @@ def admin_settings_backup():
 @admin_required
 def admin_settings_backup_run():
     check_csrf()
-    code, out = _run_root(['/usr/local/bin/1c-backup', 'run'], timeout=3600)
-    for line in (out or [])[-4:]:
-        flash(line)
-    flash('Архивация завершена' if code == 0 else 'Архивация завершилась с ошибкой')
-    _cache.clear()
-    audit('backup_run', 'ok' if code == 0 else 'fail')
+    jid, slug = _job_start('backup', 'Архивация баз 1С', ['/usr/local/bin/1c-backup.sh', 'run'],
+                           session.get('uid'))
+    audit('backup_run', 'запущено в фоне: %s' % slug)
+    flash('Архивация запущена в фоне. Прогресс и лог — на странице «Задания» или в карточке «Архивация».')
     return redirect(url_for('admin_settings'))
 
 
@@ -2510,23 +2606,42 @@ SANDBOX_DIR = '/mnt/1cbackup'
 
 
 def _sandbox_copies(db_name):
-    """Список доступных копий базы: ночные и ручные дампы из каталога бэкапов."""
+    """Все копии базы из каталога архивации: и ночные, и ручные.
+
+    Сначала смотрим каталог, а если он недоступен процессу портала —
+    берём индекс, который пишет скрипт архивации (/etc/1c-portal/backup-files.json).
+    """
     import glob
-    copies = []
-    for path in sorted(glob.glob(os.path.join(SANDBOX_DIR, '%s-*.dump' % db_name)), reverse=True):
+
+    def human(size):
+        if not size:
+            return '—'
+        return '%.1f ГБ' % (size / 1024 ** 3) if size > 1024 ** 3 else '%.0f МБ' % (size / 1024 ** 2)
+
+    found = {}
+    for path in glob.glob(os.path.join(SANDBOX_DIR, '%s-*.dump' % db_name)):
         name = os.path.basename(path)
         try:
-            stamp = name.rsplit('-', 2)[1] + name.rsplit('-', 1)[1].split('.')[0]
-            when = time.strftime('%d.%m.%Y %H:%M', time.strptime(stamp[:15].ljust(12, '0'), '%Y%m%d%H%M'))
-        except Exception:  # noqa: BLE001
-            when = name
-        try:
             size = os.path.getsize(path)
-            size_h = '%.1f ГБ' % (size / 1024 ** 3) if size > 1024 ** 3 else '%.0f МБ' % (size / 1024 ** 2)
+            mtime = os.path.getmtime(path)
         except OSError:
-            size, size_h = 0, '—'
-        copies.append({'path': path, 'name': name, 'when': when, 'size': size, 'size_h': size_h})
-    return copies
+            size, mtime = 0, 0
+        when = time.strftime('%d.%m.%Y %H:%M', time.localtime(mtime)) if mtime else name
+        found[name] = {'path': path, 'name': name, 'when': when, 'size': size, 'size_h': human(size)}
+
+    if not found:
+        try:
+            import json
+            data = json.load(open('/etc/1c-portal/backup-files.json', encoding='utf-8'))
+            for item in data.get('files', []):
+                if item.get('base') == db_name:
+                    found[item['name']] = {
+                        'path': item['path'], 'name': item['name'], 'when': item.get('when') or item['name'],
+                        'size': item.get('size') or 0, 'size_h': human(item.get('size') or 0)}
+        except Exception:  # noqa: BLE001
+            pass
+
+    return [found[k] for k in sorted(found, reverse=True)]
 
 
 def _sandbox_active(user_id=None):
@@ -2554,31 +2669,59 @@ def _sandbox_free_gb():
 
 def _sandbox_run_async(sandbox_id, source_db, new_slug, dump_path):
     def work():
+        with app.app_context():
+            conn = db()
+            try:
+                code, out = _run_root(['/usr/local/bin/1c-sandbox', 'create', source_db, new_slug, dump_path],
+                                      timeout=3600)
+                ok = code == 0
+                tail = ' | '.join((out or [])[-3:])[:400]
+                conn.execute("UPDATE sandboxes SET status = ?, error = ? WHERE id = ?",
+                             ('ready' if ok else 'failed', None if ok else tail, sandbox_id))
+                conn.commit()
+                if not ok:
+                    conn.execute("UPDATE bases SET is_active = 0 WHERE slug = ?", (new_slug,))
+                    conn.commit()
+                _mm_notify('### Песочница %s\n\n%s\n%s' % (
+                    'готова' if ok else 'не создана', new_slug, tail))
+            except Exception as exc:  # noqa: BLE001
+                try:
+                    conn.execute("UPDATE sandboxes SET status = 'failed', error = ? WHERE id = ?",
+                                 (str(exc)[:300], sandbox_id))
+                    conn.commit()
+                except Exception:  # noqa: BLE001
+                    pass
+            finally:
+                conn.close()
+
+    threading.Thread(target=work, daemon=True).start()
+
+
+
+def _sandbox_run_job(sandbox_id, source_db, new_slug, dump_path):
+    """Создание песочницы как задание с логом."""
+    def done(code, path):
         conn = db()
         try:
-            code, out = _run_root(['/usr/local/bin/1c-sandbox', 'create', source_db, new_slug, dump_path],
-                                  timeout=3600)
+            tail = ''
+            try:
+                with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                    tail = ' | '.join(f.read().splitlines()[-3:])[:400]
+            except OSError:
+                pass
             ok = code == 0
-            tail = ' | '.join((out or [])[-3:])[:400]
             conn.execute("UPDATE sandboxes SET status = ?, error = ? WHERE id = ?",
                          ('ready' if ok else 'failed', None if ok else tail, sandbox_id))
-            conn.commit()
             if not ok:
                 conn.execute("UPDATE bases SET is_active = 0 WHERE slug = ?", (new_slug,))
-                conn.commit()
-            _mm_notify('### Песочница %s\n\n%s\n%s' % (
-                'готова' if ok else 'не создана', new_slug, tail))
-        except Exception as exc:  # noqa: BLE001
-            try:
-                conn.execute("UPDATE sandboxes SET status = 'failed', error = ? WHERE id = ?",
-                             (str(exc)[:300], sandbox_id))
-                conn.commit()
-            except Exception:  # noqa: BLE001
-                pass
+            conn.commit()
+            _mm_notify('### Песочница %s\n\n%s\n%s' % ('готова' if ok else 'не создана', new_slug, tail))
         finally:
             conn.close()
 
-    threading.Thread(target=work, daemon=True).start()
+    return _job_start('sandbox', 'Создание песочницы %s' % new_slug,
+                      ['/usr/local/bin/1c-sandbox', 'create', source_db, new_slug, dump_path],
+                      ref=str(sandbox_id), on_done=done)
 
 
 @app.route('/bases/<int:bid>/copies')
@@ -2593,9 +2736,12 @@ def base_copies(bid):
                                (session['uid'], bid)).fetchone()
         if not allowed:
             abort(403)
+    mine = _sandbox_active(session['uid'])
     return {'base': row['slug'], 'copies': _sandbox_copies(row['db_name'] or row['slug']),
             'enabled': _setting_get('sandbox_enabled') == '1',
-            'keep_days': int(_setting_get('sandbox_keep_days') or 3)}
+            'keep_days': int(_setting_get('sandbox_keep_days') or 3),
+            'existing': ({'slug': mine[0]['slug'], 'expires': _dt_ru(mine[0]['expires_at']),
+                          'source': mine[0]['source_slug']} if mine else None)}
 
 
 @app.route('/bases/<int:bid>/sandbox', methods=['POST'])
@@ -2616,12 +2762,34 @@ def base_sandbox_create(bid):
             abort(403)
 
     existing = _sandbox_active(session['uid'])
-    if existing:
+    if existing and request.form.get('replace_old') != '1':
         flash('У вас уже есть песочница «%s». Удалите её, чтобы создать новую.' % existing[0]['slug'])
         return redirect('/')
+    if existing:
+        # клиент подтвердил: старая песочница удаляется вместе с данными
+        old_sb = existing[0]
+        code, out = _run_root(['/usr/local/bin/1c-sandbox', 'drop', old_sb['slug']], timeout=900)
+        if code != 0:
+            tail = ' | '.join((out or [])[-2:])[:200]
+            flash('Не удалось удалить старую песочницу: %s' % tail)
+            return redirect('/')
+        conn0 = db()
+        conn0.execute("DELETE FROM access WHERE base_id = ?", (old_sb['base_id'],))
+        conn0.execute("DELETE FROM bases WHERE id = ?", (old_sb['base_id'],))
+        conn0.execute("UPDATE sandboxes SET status = 'deleted', error = 'заменена новой' WHERE id = ?",
+                      (old_sb['id'],))
+        conn0.commit()
+        audit('sandbox_replace', old_sb['slug'])
 
     dump = (request.form.get('dump') or '').strip()
-    if not dump.startswith(SANDBOX_DIR + '/') or not os.path.exists(dump):
+    # S-04: только копии этой базы, строгое имя файла и путь внутри архива
+    import re as _re
+    allowed = {c['path'] for c in _sandbox_copies(row['db_name'] or row['slug'])}
+    dbn = row['db_name'] or row['slug']
+    ok_name = bool(_re.match(r'^%s-\d{8}-\d{4}\.dump$' % _re.escape(dbn), os.path.basename(dump)))
+    ok_path = os.path.realpath(dump).startswith(os.path.realpath(SANDBOX_DIR) + os.sep)
+    if not (ok_name and ok_path and dump in allowed):
+        audit('sandbox_dump_denied', '%s: %s' % (row['slug'], dump[:120]))
         flash('Копия не найдена')
         return redirect('/')
 
@@ -2654,12 +2822,13 @@ def base_sandbox_create(bid):
     conn.commit()
 
     audit('sandbox_create', '%s → %s' % (row['slug'], slug))
-    _sandbox_run_async(sid, row['db_name'] or row['slug'], slug, dump)
-    flash('Копия создаётся. Это займёт 10–20 минут — страница обновится сама.')
+    jid, _ = _sandbox_run_job(sid, row['db_name'] or row['slug'], slug, dump)
+    flash('Копия создаётся (задание №%s). Прогресс — в разделе «Задания», 10–20 минут.' % jid)
     return redirect('/')
 
 
 @app.route('/sandbox/<int:sid>/delete', methods=['POST'])
+@app.route('/admin/sandbox/<int:sid>/delete', methods=['POST'])
 @login_required
 def sandbox_delete(sid):
     check_csrf()
@@ -2669,15 +2838,36 @@ def sandbox_delete(sid):
     if session.get('role') != 'admin' and row['user_id'] != session['uid']:
         abort(403)
     slug = row['slug']
-    _run_root(['/usr/local/bin/1c-sandbox', 'drop', slug], timeout=600)
-    conn = db()
-    conn.execute("DELETE FROM access WHERE base_id = ?", (row['base_id'],))
-    conn.execute("DELETE FROM bases WHERE id = ?", (row['base_id'],))
-    conn.execute("UPDATE sandboxes SET status = 'deleted' WHERE id = ?", (sid,))
-    conn.commit()
-    audit('sandbox_delete', slug)
-    _mm_notify('### Песочница удалена\n\n%s' % slug)
-    flash('Песочница «%s» удалена' % slug)
+    base_id = row['base_id']
+
+    def done(code, path):
+        conn = db()
+        try:
+            if code == 0:
+                conn.execute("DELETE FROM access WHERE base_id = ?", (base_id,))
+                conn.execute("DELETE FROM bases WHERE id = ?", (base_id,))
+                conn.execute("UPDATE sandboxes SET status = 'deleted' WHERE id = ?", (sid,))
+                conn.commit()
+                audit('sandbox_delete', slug)
+                _mm_notify('### Песочница удалена\n\n%s' % slug)
+            else:
+                tail = ''
+                try:
+                    with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                        tail = ' | '.join(f.read().splitlines()[-2:])[:200]
+                except OSError:
+                    pass
+                conn.execute("UPDATE sandboxes SET error = ? WHERE id = ?", (tail, sid))
+                conn.commit()
+                audit('sandbox_delete_failed', '%s: %s' % (slug, tail))
+        finally:
+            conn.close()
+
+    jid, _ = _job_start('sandbox-drop', 'Удаление песочницы %s' % slug,
+                        ['/usr/local/bin/1c-sandbox', 'drop', slug], ref=str(sid), on_done=done)
+    flash('Удаление песочницы «%s» запущено (задание №%s). Прогресс — в «Заданиях».' % (slug, jid))
+    if session.get('role') == 'admin':
+        return redirect(url_for('admin', tab='bases'))
     return redirect('/')
 
 
@@ -2733,6 +2923,10 @@ def sandbox_transfer(sid):
         return redirect(url_for('admin_settings'))
     if user['id'] == row['user_id']:
         flash('Песочница уже принадлежит этому клиенту')
+        return redirect(url_for('admin_settings'))
+    theirs = _sandbox_active(user['id'])
+    if theirs:
+        flash('У клиента %s уже есть песочница «%s» — сначала удалите её' % (user['username'], theirs[0]['slug']))
         return redirect(url_for('admin_settings'))
 
     conn = db()
@@ -2826,6 +3020,169 @@ def sandbox_request_transfer(sid):
     else:
         flash('Заявка сохранена в журнале, но сообщение не ушло — сообщите администратору лично')
     return redirect('/')
+
+
+
+# ===== длительные задания: прогресс, лог, «туман» =====
+
+JOBS_LOG_DIR = '/var/log/1c-portal'
+
+
+def _job_log(slug):
+    return os.path.join(JOBS_LOG_DIR, slug + '.log')
+
+
+def _job_start(kind, title, cmd, user_id=None, ref=None, on_done=None):
+    """Запускает служебную команду в фоне, пишет лог и статус в jobs."""
+    conn = db()
+    # предыдущие задания того же вида считаем завершёнными с ошибкой (зависли или прерваны)
+    try:
+        conn.execute("UPDATE jobs SET status = 'failed', finished_at = ? WHERE kind = ? AND status = 'running'",
+                     (time.strftime('%Y-%m-%d %H:%M:%S'), kind))
+        conn.commit()
+    except Exception:  # noqa: BLE001
+        pass
+    slug = '%s-%s' % (kind, time.strftime('%Y%m%d-%H%M%S'))
+    now = time.strftime('%Y-%m-%d %H:%M:%S')
+    jid = conn.execute("INSERT INTO jobs (slug, kind, title, status, log_path, user_id, ref, created_at) "
+                       "VALUES (?,?,?,?,?,?,?,?)",
+                       (slug, kind, title, 'running', _job_log(slug), user_id, ref, now)).lastrowid
+    conn.commit()
+    path = _job_log(slug)
+
+    def work():
+        with app.app_context():
+            c2 = db()
+            try:
+                os.makedirs(JOBS_LOG_DIR, exist_ok=True)
+                with open(path, 'w', encoding='utf-8', errors='replace') as out:
+                    proc = subprocess.Popen(['sudo', '-n'] + cmd, stdout=out, stderr=subprocess.STDOUT,
+                                            text=True, start_new_session=True)
+                    code = proc.wait()
+                c2.execute("UPDATE jobs SET status = ?, finished_at = ? WHERE id = ?",
+                           ('done' if code == 0 else 'failed', time.strftime('%Y-%m-%d %H:%M:%S'), jid))
+                c2.commit()
+                if on_done is not None:
+                    try:
+                        on_done(code, path)
+                    except Exception:  # noqa: BLE001
+                        pass
+                audit('job_' + kind, '%s: %s' % (slug, 'ok' if code == 0 else 'код %s' % code))
+            except Exception as exc:  # noqa: BLE001
+                try:
+                    c2.execute("UPDATE jobs SET status = 'failed', finished_at = ? WHERE id = ?",
+                               (time.strftime('%Y-%m-%d %H:%M:%S'), jid))
+                    c2.commit()
+                except Exception:  # noqa: BLE001
+                    pass
+                try:
+                    with open(path, 'a', encoding='utf-8') as out:
+                        out.write('\nошибка запуска: %s\n' % exc)
+                except OSError:
+                    pass
+            finally:
+                c2.close()
+
+    threading.Thread(target=work, daemon=True).start()
+    return jid, slug
+
+
+def _job_read(jid, tail=40):
+    conn = db()
+    row = conn.execute("SELECT * FROM jobs WHERE id = ?", (jid,)).fetchone()
+    if not row:
+        return None
+    # задание могло быть прервано перезапуском портала: лог давно не менялся
+    if row['status'] == 'running':
+        try:
+            age = time.time() - os.path.getmtime(row['log_path'])
+        except OSError:
+            age = 0
+        if age > 900:
+            conn.execute("UPDATE jobs SET status = 'failed', finished_at = ? WHERE id = ?",
+                         (time.strftime('%Y-%m-%d %H:%M:%S'), jid))
+            conn.commit()
+            row = conn.execute("SELECT * FROM jobs WHERE id = ?", (jid,)).fetchone()
+    lines = []
+    try:
+        with open(row['log_path'], 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.read().splitlines()[-tail:]
+    except OSError:
+        pass
+    size = 0
+    try:
+        size = os.path.getsize(row['log_path'])
+    except OSError:
+        pass
+    percent, done, total = _job_progress(row['kind'], lines)
+    return {'id': row['id'], 'slug': row['slug'], 'kind': row['kind'], 'title': row['title'],
+            'status': row['status'], 'created_at': row['created_at'],
+            'finished_at': row['finished_at'], 'log': lines, 'log_size': size,
+            'percent': percent, 'done': done, 'total': total}
+
+
+
+def _job_progress(kind, lines):
+    """Простой прогресс: этапы «1/5» или число готовых баз."""
+    import re as _re
+    total, done = 0, 0
+    for line in lines:
+        m = _re.search(r'\[(\d+)/(\d+)\]', line)
+        if m:
+            done, total = int(m.group(1)), int(m.group(2))
+        elif ' ok ' in line or 'FAILED' in line or 'пропущена' in line:
+            done += 1
+            total = max(total, done)
+    if kind == 'backup':
+        total = max(total, 5)
+    if total:
+        return int(done * 100 / total), done, total
+    return 0, 0, 0
+
+
+@app.route('/jobs/<int:jid>/status')
+@login_required
+def job_status(jid):
+    data = _job_read(jid)
+    if not data:
+        abort(404)
+    # S-06: клиент видит только свои задания
+    if session.get('role') != 'admin':
+        row = db().execute("SELECT user_id FROM jobs WHERE id = ?", (jid,)).fetchone()
+        if not row or row['user_id'] != session.get('uid'):
+            abort(404)
+    return data
+
+
+
+@app.route('/jobs/active')
+@login_required
+def job_active():
+    """Последнее выполняющееся задание — для индикатора в интерфейсе."""
+    if session.get('role') == 'admin':
+        row = db().execute("SELECT id FROM jobs WHERE status = 'running' ORDER BY id DESC LIMIT 1").fetchone()
+    else:
+        # S-06: клиенту показываем только его задания
+        row = db().execute("SELECT id FROM jobs WHERE status = 'running' AND user_id = ? "
+                           "ORDER BY id DESC LIMIT 1", (session.get('uid'),)).fetchone()
+    if not row:
+        return {'active': False}
+    data = _job_read(row['id'], tail=1)
+    if not data:
+        return {'active': False}
+    return {'active': data['status'] == 'running', 'id': data['id'], 'title': data['title'],
+            'percent': data['percent'], 'done': data['done'], 'total': data['total'],
+            'admin': session.get('role') == 'admin'}
+
+
+@app.route('/admin/jobs')
+@admin_required
+def admin_jobs():
+    rows = db().execute("SELECT * FROM jobs ORDER BY id DESC LIMIT 30").fetchall()
+    current = None
+    if rows:
+        current = _job_read(rows[0]['id'], tail=80)
+    return render_template('jobs.html', jobs=rows, current=current)
 
 
 if __name__ == '__main__':

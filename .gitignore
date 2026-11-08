@@ -51,3 +51,5 @@ smb.cred
 soft/*.msi
 soft/*.exe
 soft/*.dmg
+_db/
+*.dt

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1CSmallControl — аудит безопасности и производительности, рекомендации и промт для ИИ (08.11.2026)</title>
+<style>
+  :root { --ink:#1f2933; --muted:#616e7c; --line:#d9e2ec; --bg:#ffffff; --soft:#f5f7fa; --accent:#1f5fbf;
+          --crit:#b00020; --high:#c2410c; --mid:#a16207; --low:#2f6f3e; --info:#3b5bdb; }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); font: 14px/1.5 "Segoe UI", Arial, sans-serif; margin: 0; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 28px 34px 60px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  h2 { font-size: 20px; margin: 34px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; }
+  h4 { font-size: 14px; margin: 16px 0 6px; }
+  p { margin: 6px 0; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .box { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  .warn { border-left: 4px solid var(--high); }
+  .ok { border-left: 4px solid var(--low); }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0 16px; font-size: 13px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: var(--soft); font-weight: 600; }
+  tr { page-break-inside: avoid; }
+  code, pre { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  code { background: #eef2f7; padding: 1px 4px; border-radius: 3px; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; color: #fff; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .b-crit { background: var(--crit); } .b-high { background: var(--high); } .b-mid { background: var(--mid); }
+  .b-low { background: var(--low); } .b-info { background: var(--info); }
+  .finding { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin: 10px 0; page-break-inside: avoid; }
+  .finding h4 { margin: 0 0 6px; font-size: 14.5px; }
+  .finding .where { color: var(--muted); font-size: 12.5px; margin-bottom: 6px; }
+  .kv td:first-child { width: 220px; color: var(--muted); }
+  .toc ol { columns: 2; column-gap: 30px; margin: 6px 0; padding-left: 22px; }
+  .toc li { break-inside: avoid; }
+  .small { font-size: 12.5px; }
+  .muted { color: var(--muted); }
+  .prompt { border: 2px dashed var(--accent); border-radius: 8px; padding: 10px 14px; background: #f3f7ff; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  @media print {
+    body { font-size: 11.5px; }
+    .page { max-width: none; padding: 0; }
+    h2 { page-break-after: avoid; break-after: avoid; }
+    pre { white-space: pre-wrap; background: #f4f4f4; color: #000; border: 1px solid #ccc; }
+    a { color: inherit; text-decoration: none; }
+    .noprint { display: none; }
+    @page { size: A4; margin: 16mm 14mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>1CSmallControl — аудит безопасности, качества кода и производительности</h1>
+<p class="sub">Документ-рекомендация и готовый промт для ИИ-агента. Дата: 8 ноября 2026 г. Репозиторий: <code>E:\_Project\1CSmallControl</code>, ветка <code>main</code>, коммит <code>fbbc774</code> (версия 2.0.0, 10 локальных коммитов не отправлены). Сервер развёртывания: <code>192.168.0.5</code> (<code>1c.dgek.ru</code>).</p>
+
+<div class="box warn">
+  <strong>Режим аудита.</strong> На сервере выполнялись только команды чтения от непривилегированного пользователя <code>dgek</code> (ключ <code>id_ed25519_dgek1c</code> не авторизован для <code>root</code>; <code>sudo</code> требует пароль). Ничего не изменялось: ни код, ни конфигурация, ни версия, ни git. Разделы, требующие <code>root</code> (точное содержимое <code>sudoers.d</code>, правила <code>ufw</code>, <code>postgresql.conf</code>, <code>pg_hba.conf</code>, права на <code>/opt/1c-portal</code> и <code>/etc/1c-portal</code>), помечены как «проверить с root».
+</div>
+
+<div class="toc box">
+  <strong>Содержание</strong>
+  <ol>
+    <li><a href="#summary">Итог: главные находки</a></li>
+    <li><a href="#prompt">Промт для ИИ-агента (готов к использованию)</a></li>
+    <li><a href="#inventory">Инвентаризация: код и сервер</a></li>
+    <li><a href="#security">Безопасность (S-01…S-20)</a></li>
+    <li><a href="#code">Качество кода и оптимизация (C-01…C-12)</a></li>
+    <li><a href="#perf">Производительность: портал и сервер (P-01…P-11)</a></li>
+    <li><a href="#plan">План внедрения по этапам</a></li>
+    <li><a href="#verify">Проверки и приёмка</a></li>
+    <li><a href="#root">Что проверить с root</a></li>
+    <li><a href="#appendix">Приложение: измерения и команды</a></li>
+  </ol>
+</div>
+
+<!-- ======================================================================= -->
+<h2 id="summary">1. Итог: главные находки</h2>
+
+<p>Портал в целом спроектирован аккуратно: пароли PBKDF2, CSRF-токены во всех формах, параметризованный SQL, <code>subprocess</code> без <code>shell=True</code>, cookie <code>Secure/HttpOnly/SameSite</code>, защита от подбора, 2FA, шлюз публикаций 1С с проверкой прав. Тем не менее найдены ошибки авторизации и границ привилегий, которые позволяют авторизованному <em>клиенту</em> выйти за пределы своей базы, а также архитектурные решения, снижающие производительность и надёжность на слабом CPU (Xeon L5520, 2,27 ГГц).</p>
+
+<table>
+  <tr><th style="width:70px">ID</th><th style="width:110px">Серьёзность</th><th>Находка</th><th style="width:34%">Суть исправления</th></tr>
+  <tr><td>S-08</td><td><span class="badge b-crit">Критично</span></td><td>Обход прав доступа к базам через шлюз <code>/WEB/&lt;slug&gt;/&lt;rest&gt;</code>: сегменты <code>..</code> не нормализуются, Apache 8081 схлопывает их. Подтверждено тестами на сервере (Werkzeug передаёт <code>rest='../test/'</code>, Apache отдаёт чужую публикацию 200).</td><td>Отклонять <code>.</code>/<code>..</code>/<code>//</code>/<code>\</code> в <code>rest</code>, формировать путь через <code>posixpath.normpath</code> и сверять префикс <code>/WEB/&lt;slug&gt;/</code>.</td></tr>
+  <tr><td>S-04</td><td><span class="badge b-high">Высокий</span></td><td>Песочница: клиент может восстановить дамп <em>чужой</em> базы — проверяется только префикс каталога <code>/mnt/1cbackup/</code>.</td><td>Принимать только файлы из списка копий своей базы (по basename, regex, <code>realpath</code>).</td></tr>
+  <tr><td>S-03</td><td><span class="badge b-high">Высокий</span></td><td>Клиент может включить «режим обновления» PostgreSQL: <code>fsync=off</code>, <code>full_page_writes=off</code>, <code>autovacuum=off</code> для <em>всего</em> кластера, без авто-возврата.</td><td>Только администратор; таймер авто-возврата; не отключать <code>fsync</code>/<code>full_page_writes</code>.</td></tr>
+  <tr><td>S-01</td><td><span class="badge b-high">Высокий</span></td><td>Защита от подбора пароля обходится подделкой <code>X-Forwarded-For</code> (берётся первый элемент заголовка).</td><td><code>ProxyFix(x_for=2)</code> и <code>request.remote_addr</code> везде.</td></tr>
+  <tr><td>S-02</td><td><span class="badge b-high">Высокий</span></td><td>Веб-пользователь <code>www-data</code> (общий для Apache, модуля 1cws и портала) имеет sudo на <code>psql</code> от <code>postgres</code> → произвольный SQL суперпользователя.</td><td>Обёртка с фиксированным запросом, отдельный пользователь для gunicorn, sudo только ему.</td></tr>
+  <tr><td>S-05</td><td><span class="badge b-high">Высокий</span></td><td>Песочница создаётся без <code>--scheduled-jobs-deny=on</code> (копия выполняет регламентные обмены/рассылки как боевая база); роли PostgreSQL <code>SUPERUSER</code>, md5.</td><td>Запрет регламентных заданий в копии; минимум привилегий роли; scram-sha-256.</td></tr>
+  <tr><td>C-02</td><td><span class="badge b-mid">Средний</span></td><td>Фоновый прогрев кэша сломан: <code>warm_counts()/warm_sizes()</code> вызываются без контекста приложения и молча падают → кэш размеров/состояний не прогревается.</td><td><code>with app.app_context()</code>, убрать зависимость кэша от <code>request</code>, тест.</td></tr>
+  <tr><td>C-06</td><td><span class="badge b-mid">Средний</span></td><td>SQLite без WAL/<code>busy_timeout</code>; 7 событий «database is locked» за неделю; p90 кабинета клиента 6,1 с, p99 15 с (кратно 5-секундному ожиданию блокировки).</td><td>WAL, <code>busy_timeout</code>, индексы, ретенция журнала.</td></tr>
+  <tr><td>P-01</td><td><span class="badge b-mid">Средний</span></td><td>72 % всех HTTP-запросов (весь веб-клиент 1С) проходят через Python/gunicorn под GIL с таймаутом 300 с на поток.</td><td>nginx <code>auth_request</code> + прямой proxy к Apache, портал обслуживает только свои страницы.</td></tr>
+  <tr><td>S-10</td><td><span class="badge b-mid">Средний</span></td><td>Секреты в открытом виде: хук Mattermost в мир-читаемом unit-файле (прочитан без root), пароли SMB/автологина 1С/приватные ключи WireGuard в SQLite и <code>settings.json</code>.</td><td><code>EnvironmentFile</code> 0640, шифрование полей, ротация хука.</td></tr>
+</table>
+
+<p class="small muted">Полный список: 20 находок по безопасности, 12 по коду, 11 по производительности. Все ссылки на строки относятся к коммиту <code>fbbc774</code>.</p>
+
+<!-- ======================================================================= -->
+<h2 id="prompt">2. Промт для ИИ-агента</h2>
+<p class="sub">Скопируйте блок целиком в чат агента (Copilot/Claude/GPT) вместе с этим документом. Промт описывает роль, ограничения, порядок работ и критерии приёмки.</p>
+
+<div class="prompt">
+<pre><code>РОЛЬ
+Ты — старший инженер по безопасности и производительности Python/Flask + Linux (Ubuntu 24.04, Apache 2.4,
+PostgreSQL Pro 1C 16, сервер 1С:Предприятие 8.3.27). Работаешь в репозитории E:\_Project\1CSmallControl
+(Flask-портал доступа к базам 1С: app.py ~3140 строк, maintenance.py, metrics.py, bash-скрипты 1c-*.sh,
+sudoers, deploy.sh, templates/, static/). Продакшен: 192.168.0.5 (1c.dgek.ru), HTTPS терминирует nginx
+на 192.168.0.15 → Apache :80 на .5 → gunicorn 127.0.0.1:8080 → Apache 127.0.0.1:8081 (публикации 1С, модуль wsap24).
+
+ЖЁСТКИЕ ОГРАНИЧЕНИЯ
+1. Ничего не применять на сервере 192.168.0.5 без отдельной команды пользователя. Разрешены только
+   read-only проверки. Любой деплой — только после фразы пользователя «применяй на сервер».
+2. Не менять номер версии (PORTAL_VERSION, README, CHANGELOG «[Не выпущено]» можно дополнять).
+3. Не выполнять git push; коммиты делать локально, небольшими, с префиксами fix(security)/perf/refactor.
+4. Не печатать и не коммитить секреты (хуки Mattermost, пароли, ключи). При обнаружении — маскировать.
+5. Каждое исправление сопровождать тестом (pytest + app.test_client()) или воспроизводимой проверкой.
+6. Сохранять поведение UI; изменения в шаблонах — минимальные.
+
+ПОРЯДОК РАБОТ (по убыванию приоритета; ID — из документа аудита docs/audit-recommendations-2026-11-08.html)
+Этап A — закрыть обход прав и границы привилегий:
+  S-08 Шлюз /WEB/&lt;slug&gt;/&lt;path:rest&gt; (app.py:466-481): отклонять rest, содержащий сегменты '.', '..',
+       пустые сегменты ('//'), обратный слэш, управляющие символы; строить путь как
+       posixpath.normpath('/WEB/'+slug+'/'+rest) и проверять startswith('/WEB/'+slug+'/'); при нарушении — 404
+       через _web_denied(slug,'not-found'). Тесты: '/WEB/demo/../test/', '/WEB/demo/..%2Ftest/',
+       '/WEB/demo/%2e%2e/test/', '/WEB/demo/./ru_RU/' (последний допустим только после нормализации в '/WEB/demo/ru_RU/').
+  S-04 base_sandbox_create (app.py:2663-2735): принимать dump только если os.path.basename(dump) входит в
+       _sandbox_copies(row['db_name']) и realpath лежит в SANDBOX_DIR; regex r'^[a-z0-9_]+-\d{8}-\d{4}\.dump$'.
+  S-03 /portal/bases/&lt;bid&gt;/update-mode (app.py:2277-2298): убрать клиентский маршрут или оставить только admin;
+       в 1c-pg-update-mode.sh не трогать fsync/full_page_writes (оставить synchronous_commit=off,
+       maintenance_work_mem, max_wal_size, checkpoint_timeout); добавить systemd-timer авто-возврата через N часов
+       и уведомление в Mattermost при включении/возврате; в UI — предупреждение.
+  S-01 _client_ip (app.py:293-298): удалить ручной разбор X-Forwarded-For; ProxyFix(x_for=2, x_proto=1, x_host=1)
+       (две доверенные прокси: nginx .15 и Apache на .5); везде request.remote_addr. Тест: запрос с поддельным XFF
+       не меняет IP в audit/login_fails.
+  S-06 /jobs/&lt;jid&gt;/status и /jobs/active (app.py:3052-3080): клиент видит только задания с user_id = свой uid
+       или ref своих песочниц; admin — все.
+  S-07 open redirect: безопасная проверка next в login (754-755) и login_2fa (2451): urlsplit(next) без scheme/netloc,
+       не начинается с '//' и не содержит '\'.
+  S-11 отзыв сессий: в сессию писать fingerprint (например, sha256(pass_hash)[:16] + is_active); в before_request
+       для авторизованных — один SELECT по id, при несовпадении/блокировке → session.clear().
+  S-02/S-12 привилегии: заменить прямой вызов psql (app.py:1343-1346) на вызов /usr/local/bin/1c-db-size
+       &lt;имя…&gt; с валидацией имён ^[a-z0-9_]{1,63}$ внутри скрипта; подготовить sudoers только для нужных скриптов;
+       подготовить unit с отдельным пользователем (1c-portal), ProtectSystem=strict, ProtectHome=yes,
+       PrivateTmp=yes, NoNewPrivileges нельзя из-за sudo — зафиксировать это в комментарии.
+  S-05 1c-sandbox.sh: rac infobase create … --scheduled-jobs-deny=on --sessions-deny=off; проверить возможность
+       NOSUPERUSER для роли копии; password_encryption='scram-sha-256' при поддержке pg_hba.
+  S-10 секреты: EnvironmentFile=/etc/1c-portal/portal.env (0640 root:&lt;portal-user&gt;) вместо Environment= в unit;
+       maintenance.notify — заменить curl с URL в argv на urllib (или --config файл); шифровать auto_pwd, backup_pass,
+       vpn_config ключом из .secret_key (cryptography.Fernet или HMAC-based, если без зависимостей);
+       подготовить инструкцию по ротации хука Mattermost.
+Этап B — надёжность и производительность портала:
+  C-02 прогрев: _start_warmer выполняет warm_* и maintenance.tick() внутри with app.app_context(); _cached()
+       не должен читать request.args (передавать force параметром).
+  C-03/C-04/C-05 кэш: один фоновый коллектор (отдельный процесс/поток только в одном воркере — например,
+       через файловый lock) пишет JSON в /run/1c-portal/state.json; дедупликация обновлений (Lock на ключ);
+       1c-sessions-count: один 'rac session list --cluster' + один 'infobase summary list', группировка awk.
+  C-06 SQLite: при открытии соединения PRAGMA journal_mode=WAL (один раз при init_db), synchronous=NORMAL,
+       busy_timeout=10000; индексы audit(action, actor), audit(action, details), visits(username, id);
+       ретенция audit/visits/client_sessions (параметр, по умолчанию 180 дней) в прогреве раз в сутки.
+  C-07 логирование: logging в stderr (journald) уровня WARNING вместо except: pass в ключевых местах;
+       audit(action, details, actor=None) — явный actor из фоновых потоков.
+  C-11 /jobs/active: опрос раз в 5 с только пока active=true, иначе backoff до 60 с; исключить /jobs/*, /api/*,
+       /static/* из _touch_visit.
+  P-04 zero-downtime: ExecReload=/bin/kill -HUP $MAINPID в unit; deploy.sh использует systemctl reload;
+       gunicorn --graceful-timeout 30.
+  P-05 бэкап: pg_dump -Fd -j 3 --compress=zstd:3 во временный каталог на /var/lib/pgpro, затем перенос на CIFS;
+       проверка кода возврата и pg_restore -l; запись в &lt;имя&gt;.tmp с переименованием.
+Этап C — архитектура (отдельная ветка, после согласования):
+  P-01 вынести трафик /WEB/ из Python: эндпоинт /auth/check (200/403 по cookie и slug из X-Original-URI),
+       nginx auth_request на .15 и прямой proxy_pass на Apache-vhost 192.168.0.5:8082 (Require ip 192.168.0.15);
+       баннер регламентных работ через sub_filter на стартовой странице; подготовить конфиги, не применять.
+  C-01 разбиение app.py на blueprints: auth, gateway, admin, sandbox, jobs, settings, maintenance; services/rac.py,
+       services/pg.py, services/cache.py; единая функция run_privileged(script, *args, timeout).
+  C-09 тесты и CI: tests/ (pytest), ruff, shellcheck, bandit; GitHub Actions workflow без секретов.
+
+КРИТЕРИИ ПРИЁМКИ
+- pytest зелёный; новые тесты покрывают каждую находку этапа A (негативные сценарии).
+- flask routes: ни один клиентский маршрут не выполняет cluster-wide изменений PostgreSQL.
+- После деплоя (по команде пользователя) read-only проверки: curl с '/WEB/&lt;своя&gt;/../&lt;чужая&gt;/' → 404;
+  журнал без Traceback за 24 ч; p90 '/' &lt; 300 мс по access-логу (%D); отсутствие 'database is locked'.
+- В отчёте пользователю: что сделано, где проверено, что осталось; версия не менялась, пуш не выполнялся.
+</code></pre>
+</div>
+
+<!-- ======================================================================= -->
+<h2 id="inventory">3. Инвентаризация</h2>
+
+<h3>3.1. Код (репозиторий)</h3>
+<table class="kv">
+  <tr><td>Приложение</td><td><code>app.py</code> — Flask 3, ~3140 строк, 60+ маршрутов; <code>maintenance.py</code> (окна регламентных работ), <code>metrics.py</code> (CPU/RAM/сеть/диски из /proc), <code>1c-maintenance.py</code> (CLI).</td></tr>
+  <tr><td>Хранилище</td><td>SQLite <code>portal.db</code>: users, bases, access, audit, visits, client_sessions, metrics, settings, login_fails, qr_logins, jobs, sandboxes, maintenance, migrations. Схема мигрируется в <code>init_db()</code> при импорте модуля.</td></tr>
+  <tr><td>Аутентификация</td><td>PBKDF2 (Werkzeug), подписанная cookie-сессия 8 ч, CSRF-токен в сессии, 5 неудач → блок 15 мин по (логин, IP) + Mattermost, TOTP 2FA (только администратор может включить), вход по QR.</td></tr>
+  <tr><td>Привилегированные операции</td><td><code>sudo -n /usr/local/bin/1c-*</code>: sessions-count, sessions-list, kick-sessions, jobs-deny, base-state, licenses, create-base, republish-base, pg-update-mode, apply-settings, restart-schedule, safe-restart, monitor, backup.sh, sandbox, backup-info; прямой <code>sudo -u postgres psql</code> (размеры баз); <code>sudo systemctl reboot</code>.</td></tr>
+  <tr><td>Шлюз 1С</td><td><code>/WEB/&lt;slug&gt;/&lt;rest&gt;</code>: проверка сессии и прав → <code>http.client</code> к 127.0.0.1:8081, потоковая передача, вставка <code>maint.js</code> на стартовую страницу.</td></tr>
+  <tr><td>Скрипты</td><td>23 bash-скрипта с <code>set -uo pipefail</code>; SQL к PostgreSQL через <code>su -s /bin/bash postgres -c "psql …"</code> со строковой интерполяцией имён баз.</td></tr>
+  <tr><td>Деплой</td><td><code>deploy.sh</code>: apt python3-flask gunicorn, копирование в <code>/opt/1c-portal</code>, unit <code>1c-portal.service</code> (www-data), vhost-ы Apache. Тестов и CI нет; зависимости не зафиксированы.</td></tr>
+  <tr><td>Документация</td><td><code>docs/</code>: security.md, 1c-performance-plan.md, proxy-nginx.md, backup.md, sandbox-plan.md, new-server-plan.md, client-*.md, index.html.</td></tr>
+</table>
+
+<h3>3.2. Сервер 192.168.0.5 (снимок 08.11.2026 21:08 MSK, только чтение)</h3>
+<table class="kv">
+  <tr><td>Платформа</td><td>Ubuntu 24.04.4 LTS, ядро 6.8.0-147, ВМ KVM, 12 vCPU Intel Xeon L5520 @ 2,27 ГГц, RAM 20 ГБ (used 9,8 / shared 4,3 / available 10,2), swap-файл 3,8 ГБ (занято 57 МБ), swappiness=1, THP=madvise. Uptime 1 д 19 ч, load 1,3.</td></tr>
+  <tr><td>Диски</td><td><code>/</code> 49 ГБ ext4 — занято 69 % (32 ГБ); <code>/var/lib/pgpro</code> 40 ГБ ext4 — 40 % (15 ГБ); <code>/mnt/1cbackup</code> CIFS //192.168.0.79/backup — 470 ГБ, 50 %, опции <code>soft, uid=postgres, gid=www-data, file_mode=0660</code>. Оба тома <code>noatime</code>, планировщик none/mq-deadline (SSD/virtio).</td></tr>
+  <tr><td>1С</td><td>8.3.27.2342 (ragent/rmngr/rphost под usr1cv8, <code>-seclev 0</code>), ras на 0.0.0.0:1545 от root; старая платформа 8.3.27.1989 (2,4 ГБ) не удалена. <strong>rphost: 101 % CPU, RSS 4,4 ГБ, 1 ч 14 мин</strong> при 3–4 простаивающих сеансах. HASP (hasplm/aksusbd) активны, порт 1947 на всех интерфейсах.</td></tr>
+  <tr><td>PostgreSQL</td><td>Postgres Pro 1C 16.11, данные <code>/var/lib/pgpro/1c-16/data</code>; слушает <strong>127.0.0.1:5432 и 192.168.0.5:5432</strong>; checkpointer RSS 2 ГБ; роли вида <code>usr_&lt;база&gt;</code>; базы: dgek, goncharov, monesbuh, test, demo + песочницы <code>sb_*</code>.</td></tr>
+  <tr><td>Портал</td><td>gunicorn 20.1.0, <code>--worker-class gthread --workers 2 --threads 32 --timeout 900</code>, User=www-data, <code>PORTAL_WARM=1</code>, <code>PORTAL_VERSION=2.0.0</code>, <code>PrivateTmp=false</code>, <code>NoNewPrivileges=no</code>, хук Mattermost в <code>Environment=</code> unit-файла (644). Flask 3.0.2 / Werkzeug 3.0.1 / Jinja2 3.1.2 / Python 3.12.3 из apt. MainPID с 19:57, NRestarts=0, но в журнале 452 строки «Booting worker» (≈226 перезапусков за время жизни журнала).</td></tr>
+  <tr><td>Apache</td><td>2.4.58, mpm_event (ThreadsPerChild 25, MaxRequestWorkers 150), KeepAlive 5 с, <code>ServerTokens OS</code>, <code>ServerSignature On</code>, mod_status загружен; vhost <code>*:80</code> <code>ServerAlias *</code> → ProxyPass на 8080 (с <code>%D</code> в LogFormat — удобно для измерений); vhost 127.0.0.1:8081 с 7 публикациями (включая сироту <code>montesbuh</code> и каталог <code>dgek2026</code> владельца dgek), <code>AllowOverride All</code>; остатки <code>ProxyPass /dgek/ !</code>, <code>/dgek2/ !</code>.</td></tr>
+  <tr><td>Сеть/доступ</td><td>Слушают: 22, 80 (*), 1540/1541/1545/1560 (0.0.0.0), 1947 (*), 5432 (lo + LAN IP), 8080/8081 (lo). ufw и fail2ban активны (правила не видны без root; есть jail <code>1c-portal.conf</code>). SSH: <code>PermitRootLogin yes</code> в основном файле, переопределён <code>99-hardening.conf</code> → prohibit-password; парольная аутентификация не отключена. 65 пакетов ожидают обновления, unattended-upgrades активен, перезагрузка не требуется.</td></tr>
+  <tr><td>Таймеры/cron</td><td><code>1c-monitor.timer</code> (10 мин), <code>1c-backup-tick.timer</code> (каждую минуту), <code>/etc/cron.d/1c-portal-backup</code> (содержимое не прочитано — возможное дублирование с таймером), apt/fstrim. <code>1c-maintenance-tick.timer</code> на сервере отсутствует — tick выполняется только внутри gunicorn (в обоих воркерах).</td></tr>
+  <tr><td>Логи</td><td>Сегодня: 18 175 запросов к порталу, из них 13 154 (72 %) — <code>/WEB/</code>, 1 634 (9 %) — <code>/jobs/active</code>; 11 × 500, 45 × 402, 27 × 403. Журнал портала за 7 дней: 571 строка с ошибками, 7 × «database is locked», Traceback-и <code>BuildError 'index'</code>/<code>_dt_ru()</code> в <code>error.html</code> (08.11 02:59), <code>Worker failed to boot</code> (07.11 21:52). Apache: «Connection refused 127.0.0.1:8080» при перезапусках портала (14:16, 19:48). Journald 742 МБ, apt-кэш 243 МБ.</td></tr>
+  <tr><td>Бэкап</td><td>Ночью 5 баз по ~1 ГБ, <code>pg_dump -Fc</code> ≈ 2,5 мин на базу (≈7 МБ/с), на CIFS; индекс копий <code>backup-files.json</code> 644.</td></tr>
+</table>
+
+<!-- ======================================================================= -->
+<h2 id="security">4. Безопасность</h2>
+<p class="sub">Шкала: <span class="badge b-crit">Критично</span> — эксплуатируется клиентом и даёт доступ к чужим данным; <span class="badge b-high">Высокий</span> — нарушение границ доверия/целостности; <span class="badge b-mid">Средний</span> — требует условий или даёт ограниченный эффект; <span class="badge b-low">Низкий</span> — укрепление; <span class="badge b-info">Инфо</span>.</p>
+
+<div class="finding">
+<h4>S-08 <span class="badge b-crit">Критично</span> Обход прав доступа к базам через сегменты «..» в шлюзе /WEB/</h4>
+<div class="where">app.py:466-481 (<code>web_gate</code>), Apache vhost 127.0.0.1:8081</div>
+<p>Проверка прав выполняется для <code>slug</code> из URL, а <code>rest</code> (<code>&lt;path:rest&gt;</code>) без изменений добавляется к пути запроса к Apache 8081. Werkzeug не удаляет сегменты <code>..</code> (включая <code>%2e%2e</code> и <code>..%2F</code>), а Apache нормализует путь перед сопоставлением <code>Alias</code>. Подтверждено на сервере (in-process тест маршрутизации на Flask 3.0.2 и GET к 8081): <code>/WEB/demo/../test/</code> → <code>slug='demo', rest='../test/'</code>; Apache 8081 отвечает 200 стартовой страницей базы <code>test</code>. Клиент с доступом к одной базе получает веб-клиент любой опубликованной базы (включая чужие песочницы); аудит пишет только <code>slug</code> своей базы.</p>
+<p><strong>Исправление.</strong> В <code>web_gate</code>: разбить <code>rest</code> по <code>/</code>, отклонять сегменты <code>''</code>, <code>'.'</code>, <code>'..'</code>, символы <code>\</code>, <code>\x00</code>; альтернативно <code>norm = posixpath.normpath('/WEB/%s/%s' % (slug, rest))</code> и требовать <code>norm == '/WEB/%s' % slug or norm.startswith('/WEB/%s/' % slug)</code>, иначе <code>_web_denied(slug, 'not-found', 404)</code>. То же для <code>web_gate_redirect</code>. На Apache 8081 дополнительно можно включить отдельные <code>&lt;Location&gt;</code> с <code>Require all denied</code> для всего, кроме <code>/WEB/&lt;slug&gt;/</code>. Покрыть тестами (4 варианта кодирования).</p>
+</div>
+
+<div class="finding">
+<h4>S-04 <span class="badge b-high">Высокий</span> Песочница: восстановление дампа чужой базы</h4>
+<div class="where">app.py:2663-2735 (<code>base_sandbox_create</code>), проверка на строке 2699; 1c-sandbox.sh:66-118</div>
+<p>Поле формы <code>dump</code> проверяется только условием <code>dump.startswith('/mnt/1cbackup/') and os.path.exists(dump)</code>. Список копий в интерфейсе фильтруется по <code>db_name</code> клиента, но POST принимает любой существующий файл каталога. Имена дампов предсказуемы (<code>&lt;база&gt;-YYYYMMDD-HHMM.dump</code>), список всех баз виден в логах заданий (S-06). Результат: клиент базы A получает полную копию базы B с правами на новую публикацию. Дополнительно путь попадает в строку <code>su … -c "pg_restore … '$DUMP'"</code> (интерполяция в shell), что при появлении файла с кавычкой в имени даст выполнение команд от postgres.</p>
+<p><strong>Исправление.</strong> Сопоставлять <code>os.path.basename(dump)</code> со списком <code>_sandbox_copies(row['db_name'])</code>, проверять <code>os.path.realpath(dump)</code> внутри <code>SANDBOX_DIR</code> и regex <code>^[a-z0-9_]+-\d{8}-\d{4}\.dump$</code>; передавать в скрипт только имя файла, а каталог добавлять в скрипте. В скриптах — массивы аргументов и <code>psql -v name=…</code>/<code>format('%I')</code> вместо интерполяции.</p>
+</div>
+
+<div class="finding">
+<h4>S-03 <span class="badge b-high">Высокий</span> Клиент переводит весь кластер PostgreSQL в небезопасный режим</h4>
+<div class="where">app.py:2277-2298 (<code>portal_base_update_mode</code>), 1c-pg-update-mode.sh:37-61</div>
+<p>Маршрут доступен любому клиенту с доступом к базе. Скрипт выполняет <code>ALTER SYSTEM SET fsync='off'</code>, <code>full_page_writes='off'</code>, <code>synchronous_commit='off'</code>, <code>autovacuum='off'</code> — это параметры <em>всего</em> экземпляра, а не одной базы. При сбое питания/ядра возможна необратимая порча всех баз; выключенный autovacuum ведёт к распуханию и риску wraparound. Автоматического возврата нет (только вручную или по окончании окна регламентных работ, если режим включали через него). В UI клиента это выглядит как безобидный переключатель «ускорение обновления».</p>
+<p><strong>Исправление.</strong> Удалить клиентский маршрут (оставить <code>/admin/bases/&lt;bid&gt;/update-mode</code>); в скрипте не трогать <code>fsync</code> и <code>full_page_writes</code> (основной выигрыш даёт <code>synchronous_commit=off</code> + <code>maintenance_work_mem</code> + <code>max_wal_size</code> + <code>checkpoint_timeout</code>); таймер авто-возврата (например, через 6 ч) с уведомлением; запись в аудит и Mattermost при включении; на время режима показывать баннер администратору.</p>
+</div>
+
+<div class="finding">
+<h4>S-01 <span class="badge b-high">Высокий</span> Подделка X-Forwarded-For обходит защиту от подбора пароля</h4>
+<div class="where">app.py:293-298 (<code>_client_ip</code>), 42 (<code>ProxyFix(x_for=1)</code>), 576-607 (<code>_login_blocked/_login_fail</code>)</div>
+<p>Цепочка прокси: nginx (.15) добавляет IP клиента в конец <code>X-Forwarded-For</code>, Apache (.5) добавляет 192.168.0.15. <code>_client_ip()</code> берёт <em>первый</em> элемент заголовка — его целиком контролирует клиент. Блокировка ведётся по паре (логин, IP): меняя заголовок в каждом запросе, атакующий никогда не блокируется; журнал входов, уведомления в Mattermost и jail fail2ban (если он парсит IP из журнала портала) получают ложные адреса. Вероятная причина решения: с <code>x_for=1</code> <code>request.remote_addr</code> возвращал адрес nginx.</p>
+<p><strong>Исправление.</strong> <code>ProxyFix(app.wsgi_app, x_for=2, x_proto=1, x_host=1)</code> (две доверенные прокси) и использовать <code>request.remote_addr</code>; удалить ручной разбор. Дополнительно ограничить попытки по логину независимо от IP (например, 20 неудач за 15 мин на логин) и по IP независимо от логина. Тест: запрос с <code>X-Forwarded-For: 1.2.3.4</code> через цепочку должен записать реальный IP.</p>
+</div>
+
+<div class="finding">
+<h4>S-02 <span class="badge b-high">Высокий</span> sudo на psql для www-data: произвольный SQL суперпользователя из веб-процесса</h4>
+<div class="where">app.py:1333-1350 (<code>_base_sizes_fetch</code>), сервер <code>/etc/sudoers.d/1c-psql</code> (60 байт, содержимое не читается без root; размер совпадает со строкой <code>www-data ALL=(postgres) NOPASSWD: /opt/pgpro/1c-16/bin/psql</code>)</div>
+<p>Правило позволяет любому процессу пользователя www-data — портал, Apache, модуль 1cws, обрабатывающий внешний трафик, — выполнить <code>psql</code> с произвольными аргументами от имени <code>postgres</code>: чтение/изменение всех баз 1С, <code>COPY … TO PROGRAM</code> (команды ОС от postgres). Ошибка в любом компоненте под www-data превращается в полный доступ к данным. Экранирование имён баз в SQL (<code>'</code>→<code>''</code>) корректно, но <code>db_name</code> задаётся администратором без валидации (S-17).</p>
+<p><strong>Исправление.</strong> Портал вызывает <code>sudo -n /usr/local/bin/1c-db-size &lt;имя&gt;…</code> (скрипт уже есть на сервере), скрипт проверяет имена regex и выполняет фиксированный запрос; правило на <code>psql</code> удалить. Запустить gunicorn под отдельным пользователем (<code>1c-portal</code>) и выдать sudo-правила только ему; Apache оставить без sudo. В долгосрочной перспективе — привилегированный helper (systemd-служба с unix-socket и allow-list команд) вместо sudo.</p>
+</div>
+
+<div class="finding">
+<h4>S-05 <span class="badge b-high">Высокий</span> Песочница выполняет регламентные задания боевой базы; роли SUPERUSER</h4>
+<div class="where">1c-sandbox.sh:76-82, 113-116; 1c-create-base.sh:40-42; 1c-prepare-base.sh:22</div>
+<p><code>rac infobase create</code> для копии вызывается без <code>--scheduled-jobs-deny=on</code>: восстановленная копия с теми же настройками выполняет обмены, рассылки писем, интеграции с внешними системами — от имени клиента и с его данными. Роли PostgreSQL для баз и копий создаются с <code>SUPERUSER</code> (комментарий ссылается на практику 1С для C-функций) и <code>password_encryption='md5'</code>. Пароль роли передаётся в командной строке <code>rac … --db-pwd=</code> (виден в <code>ps</code> на время вызова). Временные файлы <code>/tmp/sandbox-restore.log</code>, <code>/tmp/sb-users.csv</code> с фиксированными именами (при <code>PrivateTmp=false</code>).</p>
+<p><strong>Исправление.</strong> Добавить <code>--scheduled-jobs-deny=on</code> (и при желании <code>--denied-message</code>); в карточке песочницы показывать «регламентные задания отключены»; проверить на тестовой базе работу 1С с ролью без SUPERUSER после создания (<code>ALTER ROLE … NOSUPERUSER</code>); перейти на scram-sha-256 (требует согласованного <code>pg_hba.conf</code>); <code>mktemp</code> для временных файлов.</p>
+</div>
+
+<div class="finding">
+<h4>S-06 <span class="badge b-mid">Средний</span> IDOR: логи любых заданий доступны любому авторизованному пользователю</h4>
+<div class="where">app.py:3052-3080 (<code>job_status</code>, <code>job_active</code>), 2997-3035 (<code>_job_read</code>)</div>
+<p><code>/jobs/&lt;jid&gt;/status</code> защищён только <code>login_required</code>: клиент перебором id получает логи архивации (имена всех баз, размеры, пути на CIFS) и логи песочниц других клиентов. <code>/jobs/active</code> показывает всем заголовок текущего задания.</p>
+<p><strong>Исправление.</strong> Для роли client — только задания, где <code>user_id = session['uid']</code> или <code>ref</code> ссылается на песочницу пользователя; остальным 404. В <code>/jobs/active</code> для клиентов отдавать только собственные задания.</p>
+</div>
+
+<div class="finding">
+<h4>S-07 <span class="badge b-mid">Средний</span> Open redirect в параметре next</h4>
+<div class="where">app.py:754-755 (<code>login</code>), 2451 (<code>login_2fa</code>)</div>
+<p>Проверка <code>nxt.startswith('/')</code> пропускает <code>//evil.example/…</code> и <code>/\evil.example</code> — браузер уходит на внешний сайт после успешного входа (фишинг «введите пароль ещё раз»).</p>
+<p><strong>Исправление.</strong> <code>u = urlsplit(nxt); ok = not u.scheme and not u.netloc and nxt.startswith('/') and not nxt.startswith('//') and '\\' not in nxt</code>.</p>
+</div>
+
+<div class="finding">
+<h4>S-09 <span class="badge b-mid">Средний</span> Пароль автологина 1С передаётся в URL и хранится открытым текстом</h4>
+<div class="where">app.py:775-801 (<code>_open_url</code>, <code>open_base</code>), поле <code>bases.auto_pwd</code></div>
+<p>Ссылка <code>/WEB/&lt;slug&gt;/?N=&lt;пользователь&gt;&amp;P=&lt;пароль&gt;</code> попадает в access-логи nginx (.15) и Apache (.5), историю браузера и Referer; <code>auto_pwd</code> хранится в SQLite без шифрования, доступен через <code>/admin</code> в HTML формы.</p>
+<p><strong>Исправление.</strong> Минимум: не логировать query-string для <code>/WEB/</code> (<code>SetEnvIf Request_URI "[?&amp;]P=" nolog</code> в Apache; <code>map</code>/условный access_log в nginx), заголовок <code>Referrer-Policy: no-referrer</code> на ответах портала, шифрование <code>auto_pwd</code> ключом из <code>.secret_key</code>. Лучше: отдельный пользователь 1С с минимальными правами на каждую базу автологина и предупреждение в UI, что автологин = общая учётная запись.</p>
+</div>
+
+<div class="finding">
+<h4>S-10 <span class="badge b-mid">Средний</span> Секреты в открытом виде</h4>
+<div class="where">сервер <code>/etc/systemd/system/1c-portal.service</code> (644), app.py:1835-1865 (<code>_write_settings_json</code>), maintenance.py:81-84 (<code>notify</code> через curl), таблица <code>settings</code>/<code>users.vpn_config</code></div>
+<p>Хук Mattermost прочитан непривилегированным пользователем из unit-файла — его следует считать скомпрометированным локально. В <code>portal.db</code> и <code>/etc/1c-portal/settings.json</code> лежат <code>backup_pass</code> (SMB), <code>mm_hook</code>, <code>monitor_hook</code>, <code>auto_pwd</code>, приватные ключи WireGuard клиентов (и копии в <code>/opt/1c-portal/vpn-clients/*.conf</code>). <code>maintenance.notify()</code> передаёт хук в аргументах <code>curl</code> — виден в <code>ps</code> всем пользователям на время вызова.</p>
+<p><strong>Исправление.</strong> <code>EnvironmentFile=/etc/1c-portal/portal.env</code> 0640 root:&lt;пользователь портала&gt;; шифрование чувствительных полей (Fernet из <code>cryptography</code> либо AES через <code>hashlib</code>/<code>hmac</code>-схему без зависимостей); <code>urllib</code> вместо curl; ротация хука после внедрения; <code>settings.json</code> 0640 без паролей (пароль SMB — только в <code>/etc/1c-backup/smb.cred</code>).</p>
+</div>
+
+<div class="finding">
+<h4>S-11 <span class="badge b-mid">Средний</span> Сессии не отзываются при блокировке/удалении пользователя или смене пароля</h4>
+<div class="where">app.py:340-356 (<code>login_required</code>, <code>admin_required</code>)</div>
+<p>Проверяется только <code>session['uid']</code> в подписанной cookie. Отключённый пользователь (<code>is_active=0</code>) продолжает работать до 8 часов, включая шлюз 1С.</p>
+<p><strong>Исправление.</strong> В <code>before_request</code> для авторизованных — один SELECT по id (<code>is_active</code>, fingerprint пароля); при несовпадении <code>session.clear()</code>. Либо серверные сессии (таблица sessions) с возможностью «завершить все сеансы пользователя» из админки.</p>
+</div>
+
+<div class="finding">
+<h4>S-12 <span class="badge b-mid">Средний</span> Общий пользователь www-data и ослабленный unit</h4>
+<div class="where">сервер unit <code>1c-portal.service</code>; deploy.sh:40-62</div>
+<p>Портал, Apache и модуль 1cws работают под одним пользователем; unit на сервере отличается от <code>deploy.sh</code>: <code>PrivateTmp=false</code>, <code>NoNewPrivileges=no</code>, нет <code>ProtectSystem/ProtectHome/PrivateDevices/RestrictAddressFamilies</code>. Компрометация любого компонента даёт доступ к <code>portal.db</code>, <code>.secret_key</code> (подделка сессий) и sudo-правилам.</p>
+<p><strong>Исправление.</strong> Отдельный пользователь <code>1c-portal</code> (группа www-data только там, где нужен доступ к файлам), <code>ProtectSystem=strict</code> + <code>ReadWritePaths=/opt/1c-portal /etc/1c-portal /var/log/1c-portal</code>, <code>ProtectHome=yes</code>, <code>PrivateTmp=yes</code> (sudo-скрипты, использующие /tmp, перевести на <code>mktemp</code>), <code>RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX</code>. <code>NoNewPrivileges</code> несовместим с sudo — задокументировать.</p>
+</div>
+
+<div class="finding">
+<h4>S-13 <span class="badge b-mid">Средний</span> Целостность резервных копий не контролируется</h4>
+<div class="where">1c-backup.sh:100-112; монтирование CIFS <code>soft</code></div>
+<p>Успех определяется по непустому файлу (<code>[ -s "$OUT" ]</code>), код возврата <code>pg_dump</code> игнорируется. При сетевом сбое на <code>soft</code>-монтировании частичный дамп засчитывается как «ok», мониторинг сообщает «бэкап в норме». Дампы доступны группе www-data (0660) — все веб-процессы читают копии всех баз.</p>
+<p><strong>Исправление.</strong> Проверять <code>$?</code> pg_dump, писать в <code>&lt;имя&gt;.part</code> и переименовывать после <code>pg_restore -l</code>; локальный временный каталог + копирование; отдельная группа для чтения копий; периодический тестовый <code>pg_restore</code> в песочницу (уже есть механизм).</p>
+</div>
+
+<div class="finding">
+<h4>S-14 <span class="badge b-low">Низкий</span> Заголовки безопасности и раскрытие версий</h4>
+<div class="where">app.py:2154-2185 (<code>_no_store</code>), Apache security.conf, nginx на .15</div>
+<p>Нет <code>Content-Security-Policy</code>, <code>X-Frame-Options</code>/<code>frame-ancestors</code>, <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code>; HSTS на nginx не подтверждён. Apache отдаёт <code>ServerTokens OS</code>/<code>ServerSignature On</code>, gunicorn — <code>Server: gunicorn</code>.</p>
+<p><strong>Исправление.</strong> В <code>after_request</code> для страниц портала (не для <code>/WEB/</code>): <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Referrer-Policy: same-origin</code>, CSP с <code>'self'</code> (inline-скрипты шаблонов перевести на nonce или отдельные файлы постепенно). <code>ServerTokens Prod</code>, <code>ServerSignature Off</code>; HSTS на nginx.</p>
+</div>
+
+<div class="finding">
+<h4>S-15 <span class="badge b-low">Низкий</span> Криптографические мелочи</h4>
+<div class="where">app.py:334-337 (<code>check_csrf</code>), 2369-2374 (<code>_totp_verify</code>), 2387-2389 (<code>_backup_codes_new</code>), 729-731 (<code>login</code>)</div>
+<p>Сравнение CSRF-токена не константное по времени; TOTP допускает повторное использование кода в окне ±30 с; резервные коды 32 бита (<code>token_hex(4)</code>); при несуществующем логине хеш не вычисляется — перечисление пользователей по времени ответа.</p>
+<p><strong>Исправление.</strong> <code>hmac.compare_digest</code>; хранить <code>totp_last_counter</code> и отклонять повтор; <code>token_hex(5)</code> и более; «пустой» <code>check_password_hash</code> с фиктивным хешем при отсутствии пользователя.</p>
+</div>
+
+<div class="finding">
+<h4>S-16 <span class="badge b-low">Низкий</span> Вход по QR: любой пользователь подтверждает любой QR; расхождение с документацией</h4>
+<div class="where">app.py:659-712 (<code>qr_status</code>, <code>qr_confirm</code>); docs/security.md</div>
+<p>Документация утверждает, что подтвердить может только администратор, код роль не проверяет. Сценарий фишинга: «отсканируйте QR для проверки» → сессия атакующего становится сессией жертвы (в том числе администратора).</p>
+<p><strong>Исправление.</strong> Для администраторов требовать пароль/TOTP при подтверждении; явное предупреждение на странице подтверждения; синхронизировать документацию с кодом.</p>
+</div>
+
+<div class="finding">
+<h4>S-17 <span class="badge b-low">Низкий</span> Ввод администратора без валидации уходит в shell-скрипты, XML и cron</h4>
+<div class="where">app.py:1220-1300 (<code>db_name</code>, <code>url_path</code>), 2112-2122 (<code>cron</code>), 1538-1541 (<code>access_save</code>), 2053-2060 (<code>mm_hook</code>); 1c-republish-base.sh:24-40; 1c-restart-schedule.sh:24-27</div>
+<p><code>db_name</code> интерполируется в default.vrd (<code>ib="Srvr=…;Ref=$DBNAME;"</code>), конфиг Apache и строки <code>psql</code>; расписание cron проверяется только по числу полей; <code>int(user_id)</code> без обработки → 500; хук Mattermost без проверки схемы. Эксплуатация требует прав администратора портала, но нарушает принцип минимального доверия к sudo-скриптам.</p>
+<p><strong>Исправление.</strong> regex <code>^[a-z0-9_]{1,63}$</code> для <code>db_name</code>, валидация полей cron, <code>https://</code> для хуков, <code>try/except ValueError</code>; в скриптах — проверка аргументов на входе.</p>
+</div>
+
+<div class="finding">
+<h4>S-18 <span class="badge b-low">Низкий</span> Сетевая поверхность: PostgreSQL на LAN-адресе, RAS/кластер на всех интерфейсах, Apache :80 на всех интерфейсах</h4>
+<div class="where">сервер: <code>ss -tln</code></div>
+<p>PostgreSQL слушает 192.168.0.5:5432 (есть сеансы <code>postgres dgek 192.168.0.5</code>), RAS 1545 и порты кластера доступны на 0.0.0.0, Apache принимает HTTP с любого адреса при <code>ServerAlias *</code> — весь периметр держится на ufw, правила которого не проверены. Документ security.md заявляет «PostgreSQL — только localhost».</p>
+<p><strong>Исправление.</strong> <code>listen_addresses='localhost'</code>, если внешние клиенты PG не нужны; в vhost <code>*:80</code> — <code>Require ip 192.168.0.15 127.0.0.1</code> (или <code>Listen 192.168.0.5:80</code> + ufw только с .15); убедиться в правилах ufw для 1545/1540-1560/1947 (только VPN/LAN). См. раздел «Что проверить с root».</p>
+</div>
+
+<div class="finding">
+<h4>S-19 <span class="badge b-low">Низкий</span> innerHTML с данными сервера в шаблонах</h4>
+<div class="where">templates/portal.html:581-585, templates/admin.html:1372-1375</div>
+<p>Путь/дата копии и ФИО владельца/название базы вставляются в <code>innerHTML</code> без экранирования. Источники контролирует администратор (self-XSS), но при появлении пользовательского ввода станет XSS.</p>
+<p><strong>Исправление.</strong> Строить DOM через <code>createElement</code>/<code>textContent</code> или функцию <code>esc()</code>.</p>
+</div>
+
+<div class="finding">
+<h4>S-20 <span class="badge b-info">Инфо</span> Состояние ОС и SSH</h4>
+<p><code>PermitRootLogin yes</code> в основном файле переопределён <code>99-hardening.conf</code> (работает, но хрупко — убрать из основного); <code>PasswordAuthentication</code> не отключён; 65 обновлений в ожидании (unattended-upgrades активен); ключ <code>id_ed25519_dgek1c</code> авторизован для <code>dgek</code>, а не для <code>root</code> — для автоматизированного деплоя стоит завести отдельный ключ деплоя с ограничением команд (<code>command=</code> в authorized_keys) вместо root.</p>
+</div>
+
+<!-- ======================================================================= -->
+<h2 id="code">5. Качество кода и оптимизация</h2>
+
+<div class="finding">
+<h4>C-01 Монолит и дублирование</h4>
+<div class="where">app.py целиком; дубли: <code>login</code> (716-759) и <code>_finish_login</code> (2406-2421); <code>_pg_update_mode</code> (1470-1483) и <code>portal_base_update_mode</code> (2277-2298); <code>_sandbox_run_async</code> (2584-2612) — мёртвый код; <code>_cached</code>/<code>_cached_swr</code>; повторяющийся блок проверки доступа к базе (7 мест).</div>
+<p><strong>Рекомендация.</strong> Blueprints: <code>auth</code>, <code>gateway</code>, <code>admin</code>, <code>sandbox</code>, <code>jobs</code>, <code>settings</code>, <code>maintenance</code>; модули <code>services/rac.py</code>, <code>services/pg.py</code>, <code>services/cache.py</code>, <code>services/privileged.py</code> (<code>run_privileged(script, *args, timeout)</code> с allow-list скриптов); декоратор <code>@base_access_required</code>; <code>config.py</code> для констант и настроек по умолчанию. Делать поэтапно без изменения URL.</p>
+</div>
+
+<div class="finding">
+<h4>C-02 Фоновый прогрев не работает (без контекста приложения)</h4>
+<div class="where">app.py:901-919 (<code>_start_warmer</code>), 830-839 (<code>_cached</code> читает <code>request.args</code>), 1366-1402 (<code>warm_sizes</code>, <code>warm_counts</code> используют <code>db()</code> → <code>g</code>), 1676-1709 (<code>_sessions_snapshot</code>)</div>
+<p>Поток прогрева вызывает функции, которые обращаются к <code>flask.g</code> и <code>request</code>; вне контекста это <code>RuntimeError</code>, который проглатывается <code>except Exception: pass</code>. Следствие: <code>basesize:*</code>, <code>basestate:*</code> и <code>counts:*</code> для списка всех баз не прогреваются (только частично через <code>_warm_once</code>), история <code>client_sessions</code> из прогрева не пишется. Пользователь при первом открытии страницы получает пустые размеры/счётчики, а затем SWR-потоки из запросов делают работу, которую должен был делать прогрев.</p>
+<p><strong>Рекомендация.</strong> <code>with app.app_context():</code> вокруг тела цикла; <code>_cached(key, ttl, fn, force=False)</code>; тест, вызывающий <code>_warm_once()</code>/<code>warm_counts()</code> из отдельного потока с заглушками subprocess.</p>
+</div>
+
+<div class="finding">
+<h4>C-03 Кэш и фоновые задачи на каждый воркер</h4>
+<div class="where">app.py:828 (<code>_cache = {}</code>), 3085-3091, <code>_cache.clear()</code> в 12 местах</div>
+<p>При 2 воркерах gunicorn существуют два независимых кэша и два потока прогрева: двойные вызовы <code>sudo rac</code> каждые 45 с, разные данные на соседних запросах, <code>_cache.clear()</code> очищает только один воркер, <code>maintenance.tick()</code> выполняется дважды (гонка <code>kick_all()</code>/уведомлений). Кэш не ограничен по размеру (ключи <code>counts:&lt;список slug&gt;</code> плодятся при изменении состава баз).</p>
+<p><strong>Рекомендация.</strong> Один коллектор (отдельная systemd-служба <code>1c-portal-collector</code> или поток только в воркере, взявшем файловую блокировку) пишет состояние в <code>/run/1c-portal/state.json</code> атомарно; воркеры читают файл (mtime-кэш). При текущей нагрузке (~1 запрос/с) допустимо и <code>--workers 1 --threads 64</code> как быстрый вариант.</p>
+</div>
+
+<div class="finding">
+<h4>C-04 SWR без дедупликации — шторм процессов rac</h4>
+<div class="where">app.py:842-866 (<code>_cached_swr</code>)</div>
+<p>Пока значение устарело, каждый запрос порождает новый поток и новый процесс <code>sudo rac</code> (несколько секунд на 2,27 ГГц). Автообновляемые страницы администратора и кабинета дают десятки параллельных rac-процессов → рост CPU и времени ответа всего сервера.</p>
+<p><strong>Рекомендация.</strong> Словарь «обновление идёт» под <code>threading.Lock</code>; ограниченный <code>ThreadPoolExecutor(max_workers=2)</code>; метрика числа запущенных обновлений в <code>/healthz</code>.</p>
+</div>
+
+<div class="finding">
+<h4>C-05 N+1 вызовов rac</h4>
+<div class="where">1c-sessions-count.sh:24-37; 1c-base-state.sh; app.py <code>_licenses</code>, <code>_sessions_snapshot</code></div>
+<p>На каждую базу — <code>infobase info</code> + <code>session list</code> (2N+1 вызовов), плюс отдельные скрипты для состояний, лицензий и списка сеансов — один и тот же <code>session list</code> выполняется несколько раз в минуту.</p>
+<p><strong>Рекомендация.</strong> Один скрипт <code>1c-cluster-snapshot</code>: <code>cluster list</code> → <code>infobase summary list</code> → <code>session list --cluster</code> один раз → группировка по <code>infobase</code> (awk) → JSON с сеансами, счётчиками, флагами <code>scheduled-jobs-deny</code> (требует <code>infobase info</code> — кэшировать 5 мин) и лицензиями. Все потребители читают JSON.</p>
+</div>
+
+<div class="finding">
+<h4>C-06 SQLite: режим журнала, блокировки, индексы, ретенция</h4>
+<div class="where">app.py:125-130 (<code>db()</code>), 143-282 (<code>init_db</code>), 1597-1673 (<code>admin_stats</code>)</div>
+<p>Журнал в режиме DELETE (писатель блокирует читателей), таймаут ожидания 5 с по умолчанию, 64 потока + фоновые писатели. За неделю 7 × «database is locked»; распределение времени ответа кабинета (<code>/</code>: p50 4 мс, p90 6,1 с, p99 15,2 с) кратно 5 с — характерно для ожидания блокировки. <code>/admin/stats</code> (p50 1,36 с) выполняет полные агрегаты по <code>visits</code>/<code>audit</code> и коррелированные подзапросы без индекса <code>(action, actor)</code>; таблицы растут без ограничения (<code>_touch_visit</code>, <code>audit</code> на каждое открытие базы).</p>
+<p><strong>Рекомендация.</strong> <code>PRAGMA journal_mode=WAL</code> (однократно), <code>synchronous=NORMAL</code>, <code>busy_timeout=10000</code> в каждом соединении; индексы <code>audit(action, actor)</code>, <code>audit(action, details)</code>, <code>visits(username, id)</code>; ретенция (180 дней) и <code>VACUUM</code> раз в сутки из коллектора; агрегаты статистики считать в коллекторе и хранить в таблице <code>stats_daily</code>. Измерять: логировать запросы &gt; 1 с с длительностью этапов.</p>
+</div>
+
+<div class="finding">
+<h4>C-07 Ошибки глотаются; аудит из фоновых потоков теряется</h4>
+<div class="where">более 40 конструкций <code>except Exception: pass</code>; app.py:284-290 (<code>audit</code> обращается к <code>session</code>), 2942-2995 (<code>_job_start.work</code>), 2740-2790 (<code>sandbox_delete.done</code>)</div>
+<p><code>audit('job_…')</code>, <code>audit('sandbox_delete')</code> вызываются из потоков без request-контекста → <code>RuntimeError</code> внутри <code>audit</code> → запись не создаётся. Диагностика проблем (например, C-02) невозможна без логов.</p>
+<p><strong>Рекомендация.</strong> <code>import logging; log = logging.getLogger('portal')</code>, <code>log.warning(..., exc_info=True)</code> в catch-блоках; <code>audit(action, details, actor=None)</code>; единый обработчик 500 с записью в журнал.</p>
+</div>
+
+<div class="finding">
+<h4>C-08 Шлюз /WEB/: соединения, таймауты, память</h4>
+<div class="where">app.py:466-543 (<code>web_gate</code>), unit <code>--timeout 900</code></div>
+<p>Новое TCP-соединение к 8081 на каждый запрос; один таймаут 300 с на все типы запросов; стартовая страница читается целиком и перекодируется ради вставки <code>&lt;script&gt;</code>; <code>Content-Length</code> не пробрасывается (chunked везде). При 32 потоках на воркер длинные <code>poll</code>-запросы 1С (60 с) занимают потоки.</p>
+<p><strong>Рекомендация.</strong> Пул соединений (<code>urllib3.HTTPConnectionPool</code> с keep-alive) или <code>http.client</code> с повторным использованием; connect-timeout 5 с, read-timeout 120 с (300 с только для печатных форм по признаку пути); пробрасывать <code>Content-Length</code> при потоковой передаче; главное — P-01.</p>
+</div>
+
+<div class="finding">
+<h4>C-09 Тесты, CI, зависимости</h4>
+<p>Нет <code>tests/</code>, нет workflow в <code>.github/</code> (только шаблоны), зависимости из apt без фиксации версий, <code>shellcheck</code> не применяется (в скриптах есть интерполяция в <code>su -c</code>). Есть полезный pre-commit hook против секретов.</p>
+<p><strong>Рекомендация.</strong> pytest + <code>app.test_client()</code> с временной SQLite и заглушкой <code>subprocess.run</code>; <code>ruff</code>, <code>bandit -r .</code>, <code>shellcheck *.sh</code>; GitHub Actions (без секретов); <code>requirements.txt</code>/<code>constraints</code> с версиями apt-пакетов для воспроизводимости.</p>
+</div>
+
+<div class="finding">
+<h4>C-10 Расхождение репозитория и сервера</h4>
+<p>Unit на сервере отличается от <code>deploy.sh</code> (timeout 900 против 9000, PrivateTmp, NoNewPrivileges, PORTAL_WARM, хук); на сервере есть скрипты вне репозитория (<code>1c-publish</code>, <code>1c-db-backup.sh</code>, <code>1c-import-base</code>, <code>1c-db-size</code>, <code>1c-base-size</code>); 8 файлов sudoers против 2 в репозитории; <code>1c-safe-restart.sh</code> с захардкоженными <code>base1 base2</code> и <code>1c.dgek.ru</code> (отключает сеансы не тех баз); публикации-сироты <code>montesbuh</code>, каталог <code>dgek2026</code>; старая платформа 8.3.27.1989. В AGENTS.md указана версия на сервере 1.9.5, фактически unit содержит 2.0.0.</p>
+<p><strong>Рекомендация.</strong> Каталог <code>deploy/</code> в репозитории с unit, sudoers, apache-конфигами, скриптами; <code>deploy.sh</code> с режимами <code>check</code> (diff/sha256 без изменений) и <code>apply</code>; список баз для safe-restart брать из <code>portal.db</code>/rac; удалить сироты после подтверждения.</p>
+</div>
+
+<div class="finding">
+<h4>C-11 Опрос /jobs/active и учёт визитов</h4>
+<div class="where">templates/portal.html:692-706, templates/admin.html:1451-1465, app.py:302-316 (<code>_touch_visit</code>)</div>
+<p>Каждая открытая вкладка опрашивает <code>/jobs/active</code> каждые 5 с (1 634 запроса за день, 9 % трафика портала) независимо от наличия заданий; каждый запрос попадает в <code>_touch_visit</code> и продлевает визит — статистика «времени в портале» отражает время открытой вкладки.</p>
+<p><strong>Рекомендация.</strong> Опрос 5 с только при <code>active=true</code>, иначе 60 с; <code>_touch_visit</code> пропускать для <code>/jobs/</code>, <code>/api/</code>, <code>/static/</code>; либо Server-Sent Events.</p>
+</div>
+
+<div class="finding">
+<h4>C-12 Мелочи</h4>
+<p><code>query_string.decode('latin-1')</code> корректно для побайтовой передачи — добавить комментарий; <code>_cached</code> зависит от <code>request</code>; <code>time.strptime</code>/<code>time.timezone</code> в <code>qr_status</code> (ошибка при переходе на летнее время — для MSK неактуально); пароль администратора при первичной инициализации печатается в journald (257-265) — лучше в файл 0600; <code>error.html</code> использует <code>url_for('index')</code> — при неполном импорте модуля даёт 500 внутри обработчика 500 (наблюдалось 08.11 02:59).</p>
+</div>
+
+<!-- ======================================================================= -->
+<h2 id="perf">6. Производительность</h2>
+
+<h3>6.1. Измерения (access-лог Apache за 08.11.2026, поле %D)</h3>
+<table>
+  <tr><th>Класс запросов</th><th>n</th><th>p50</th><th>p90</th><th>p99</th><th>max</th></tr>
+  <tr><td>Все запросы портала</td><td>18 175</td><td>16 мс</td><td>118 мс</td><td>2,5 с</td><td>245 с</td></tr>
+  <tr><td><code>/WEB/*</code> (веб-клиент 1С через портал)</td><td>13 154</td><td>21 мс</td><td>130 мс</td><td>1,66 с</td><td>60 с</td></tr>
+  <tr><td>… из них статика 1С (js/css/png)</td><td>1 069</td><td>14 мс</td><td>166 мс</td><td>625 мс</td><td>8,2 с</td></tr>
+  <tr><td>… e1cib/ping, poll</td><td>570</td><td>15 мс</td><td>37 мс</td><td>1,0 с</td><td>10 с</td></tr>
+  <tr><td><code>/</code> (кабинет клиента)</td><td>338</td><td>4 мс</td><td><strong>6,1 с</strong></td><td><strong>15,2 с</strong></td><td>43,6 с</td></tr>
+  <tr><td><code>/admin*</code></td><td>468</td><td>55 мс</td><td>1,36 с</td><td>15,8 с</td><td>245 с (действия с rac/psql)</td></tr>
+  <tr><td><code>/admin/stats</code></td><td>58</td><td>1,36 с</td><td>—</td><td>—</td><td>—</td></tr>
+  <tr><td><code>/login</code></td><td>357</td><td>6 мс</td><td>266 мс</td><td>2,9 с</td><td>10 с</td></tr>
+  <tr><td><code>/jobs/active</code></td><td>1 634</td><td>5 мс</td><td>6 мс</td><td>27 мс</td><td>4,5 с</td></tr>
+  <tr><td><code>/static/*</code></td><td>1 611</td><td>6 мс</td><td>28 мс</td><td>42 мс</td><td>83 мс</td></tr>
+</table>
+<p class="small muted">Пиковая нагрузка 14:00–17:00 — до 3 900 запросов/час (≈1,1 запрос/с). HTTP-слой не является узким местом по пропускной способности; проблема — в хвостах (блокировки SQLite, ожидание rac/psql) и в стоимости одного ядра для 1С.</p>
+
+<div class="finding">
+<h4>P-01 Вынести трафик веб-клиента 1С из Python</h4>
+<p>Сейчас каждый из 13 тыс. запросов в день проходит nginx → Apache → gunicorn (Python, GIL, 64 потока) → Apache 8081 → 1С. Это добавляет два hop-а, занимает потоки на long-poll (60 с) и печать (до 300 с), и делает портал единой точкой отказа для работы в 1С (при перезапуске портала веб-клиент падает — в логах Apache «Connection refused» 14:16 и 19:48).</p>
+<p><strong>Схема.</strong> nginx на .15: <code>location /WEB/ { auth_request /_portal_auth; proxy_pass http://192.168.0.5:8082; }</code>; <code>location = /_portal_auth { internal; proxy_pass http://192.168.0.5:80/auth/check; proxy_set_header X-Original-URI $request_uri; proxy_pass_request_body off; }</code>. Портал: <code>/auth/check</code> читает cookie сессии и slug из <code>X-Original-URI</code> (с нормализацией — S-08), отвечает 200/403/401 и кэшируется nginx 30 с по cookie+slug. Apache на .5: новый vhost <code>192.168.0.5:8082</code> c теми же публикациями и <code>Require ip 192.168.0.15</code>. Баннер регламентных работ — <code>sub_filter '&lt;/body&gt;' '&lt;script src="/static/maint.js" defer&gt;&lt;/script&gt;&lt;/body&gt;'</code> только для <code>location ~ ^/WEB/[^/]+/$</code>. Ожидаемый эффект: p50 /WEB/ ≈ время 1С без надбавки Python, устойчивость к перезапускам портала, освобождение потоков gunicorn. Сначала добавить <code>%D</code> в LogFormat vhost-а 8081, чтобы измерить вклад портала до/после.</p>
+</div>
+
+<div class="finding">
+<h4>P-02 Хвосты кабинета и админки</h4>
+<p>См. C-06 (WAL, busy_timeout, индексы, ретенция) и C-02/C-04 (прогрев и дедупликация). Цель: <code>/</code> p90 &lt; 300 мс, <code>/admin?tab=bases</code> p90 &lt; 500 мс, <code>/admin/stats</code> p50 &lt; 300 мс. Контроль по полю %D в access-логе.</p>
+</div>
+
+<div class="finding">
+<h4>P-03 Коллектор rac и снижение числа процессов</h4>
+<p>Один процесс каждые 60 с: один <code>session list</code>, один <code>infobase summary list</code>, размеры баз одним запросом через обёртку (S-02), лицензии раз в 5 мин. Запись JSON атомарно. Убирает десятки <code>sudo</code>+<code>rac</code> процессов в минуту на 2,27 ГГц ядрах (сейчас по журналу sudo — вызовы каждые ~45 с из каждого воркера плюс SWR-потоки из запросов).</p>
+</div>
+
+<div class="finding">
+<h4>P-04 Перезапуск без простоя</h4>
+<p>В unit добавить <code>ExecReload=/bin/kill -HUP $MAINPID</code>, в deploy — <code>systemctl reload 1c-portal</code> (gunicorn перезапускает воркеры по очереди); <code>--graceful-timeout 30</code>; на Apache <code>ProxyPass … retry=0</code> уже есть. После P-01 перезапуск портала перестанет влиять на веб-клиент 1С.</p>
+</div>
+
+<div class="finding">
+<h4>P-05 Резервное копирование быстрее и надёжнее</h4>
+<p>Текущие ≈2,5 мин на 1 ГБ базы: однопоточное сжатие zlib в <code>pg_dump -Fc</code> на медленном ядре плюс запись на CIFS. PostgreSQL 16 поддерживает <code>--compress=zstd:3</code>/<code>lz4</code> и параллельный формат каталога <code>-Fd -j 3</code>. Дамп во временный локальный каталог (на <code>/var/lib/pgpro</code> свободно 23 ГБ), проверка <code>pg_restore -l</code>, затем перенос на CIFS (<code>tar</code> или каталог). Ожидаемо в 3–5 раз быстрее при меньшей нагрузке на CPU в рабочее время (ручные запуски днём наблюдались 15:08–18:38).</p>
+</div>
+
+<div class="finding">
+<h4>P-06 Сервер 1С: rphost 100 % одного ядра</h4>
+<p>В момент снимка (воскресенье 21:08) <code>rphost</code> потреблял 101 % CPU и 4,4 ГБ RSS более часа при 3–4 простаивающих сеансах — вероятно, регламентные/фоновые задания (в том числе баз <code>test</code>, <code>demo</code>, песочниц). На CPU с низкой частотой это напрямую удлиняет отклик интерактивных сеансов.</p>
+<p><strong>Действия.</strong> <code>rac session list</code> с <code>cpu-time-current</code>/<code>current-service-name</code>, технологический журнал (события CALL/SCALL по длительности); по умолчанию <code>scheduled-jobs-deny=on</code> для test/demo/песочниц (S-05); ограничить фоновые задания по расписанию; перезапуск rphost в нерабочее время (уже в docs/1c-performance-plan.md). Рассмотреть ограничение памяти рабочего процесса в настройках кластера.</p>
+</div>
+
+<div class="finding">
+<h4>P-07 PostgreSQL (проверить с root)</h4>
+<p>Конфигурация не читается без root. По памяти процессов <code>shared_buffers</code> ≈ 4 ГБ (20 % RAM — норма для 1С). Проверить: <code>effective_cache_size</code> ≈ 12 ГБ, <code>work_mem</code> 32–64 МБ, <code>maintenance_work_mem</code> 1 ГБ, <code>random_page_cost=1.1</code> (SSD), <code>checkpoint_completion_target=0.9</code>, <code>wal_compression=on</code>, <code>huge_pages=try</code>, <code>max_connections</code> (сейчас много idle-подключений от 1С), настройки autovacuum для 1С (<code>autovacuum_vacuum_scale_factor=0.02</code>, <code>autovacuum_analyze_scale_factor=0.01</code>, <code>autovacuum_max_workers=4</code>), <code>pg_stat_statements</code> и <code>track_io_timing</code> для поиска тяжёлых запросов; регулярный <code>REINDEX</code>/<code>VACUUM ANALYZE</code> в окно регламентных работ (есть механизм окон).</p>
+</div>
+
+<div class="finding">
+<h4>P-08 ОС и место на диске</h4>
+<p>Корень 69 %: удалить платформу 8.3.27.1989 (2,4 ГБ), <code>journalctl --vacuum-size=200M</code> + <code>SystemMaxUse=200M</code> (742 МБ), <code>apt-get clean</code> (243 МБ); установить обновления в окно работ; <code>sysstat</code> уже активен — использовать <code>sar</code> для истории CPU/IO. Параметры VM (swappiness=1, THP madvise, noatime) настроены хорошо.</p>
+</div>
+
+<div class="finding">
+<h4>P-09 Apache</h4>
+<p><code>KeepAliveTimeout 5</code> → 15–30 с (nginx держит upstream keepalive 32); <code>ProxyPass … enablereuse=on keepalive=On</code> к 8080 и 8081; <code>AllowOverride None</code> в публикациях (экономит stat .htaccess на каждый запрос); удалить <code>ProxyPass /dgek/ !</code>, <code>/dgek2/ !</code> и публикации-сироты; <code>ServerTokens Prod</code>; <code>mod_status</code> — только с 127.0.0.1 или отключить; после P-01 — vhost 8082.</p>
+</div>
+
+<div class="finding">
+<h4>P-10 Фронтенд портала</h4>
+<p>Статика версионируется (<code>?v=2.0.0</code>) и кэшируется 30 дней — хорошо. <code>brand.png</code> запрошен 487 раз за день (проверить, что ответы 304/кэш, а не 200 с телом; добавить <code>immutable</code>). Иконки Lucide (<code>vendor/lucide.js</code>) грузятся 156 раз — рассмотреть инлайн-спрайт нужных иконок.</p>
+</div>
+
+<div class="finding">
+<h4>P-11 Железо</h4>
+<p>Главный ограничитель интерфейса 1С — Xeon L5520 2,27 ГГц (2009 г.): всё однопоточное (rphost, pg_dump, Python) упирается в частоту. План переезда на i7-10700K (docs/new-server-plan.md) остаётся основным рычагом ускорения 1С (×3 на поток); меры этого документа ускоряют портал и снижают риск, но не заменяют переезд.</p>
+</div>
+
+<!-- ======================================================================= -->
+<h2 id="plan">7. План внедрения</h2>
+<table>
+  <tr><th style="width:90px">Этап</th><th>Содержание</th><th style="width:28%">Результат/критерий</th></tr>
+  <tr><td>A. Срочно</td><td>S-08, S-04, S-03, S-01, S-06, S-07 в коде; S-02 (обёртка вместо psql), S-05 (<code>--scheduled-jobs-deny=on</code>), S-10 (EnvironmentFile, ротация хука), S-11; тесты на каждую находку.</td><td>Клиент не выходит за пределы своих баз; cluster-wide действия только у администратора; журнал IP достоверен.</td></tr>
+  <tr><td>B. Надёжность</td><td>C-02, C-03/C-04/C-05 (коллектор), C-06 (WAL, индексы, ретенция), C-07, C-11, P-04, P-05, S-13, S-12 (отдельный пользователь, hardening unit), C-10 (deploy/ в репозитории, check/apply).</td><td>Нет «database is locked»; p90 кабинета &lt; 300 мс; перезапуск без ошибок у пользователей; бэкап проверяется pg_restore -l.</td></tr>
+  <tr><td>C. Архитектура</td><td>P-01 (auth_request), C-01 (blueprints), C-09 (CI), S-14 (заголовки/CSP), S-09 (шифрование и логи), S-18 (сетевой периметр), P-07/P-09 на сервере.</td><td>Веб-клиент 1С не зависит от Python; код разбит на модули с тестами; периметр задокументирован и проверен.</td></tr>
+  <tr><td>D. Сервер 1С</td><td>P-06 (анализ rphost, регламентные задания), P-08 (место, обновления), затем переезд по new-server-plan.md.</td><td>Нет постоянной 100 % загрузки ядра; корень &lt; 50 %; обновления установлены.</td></tr>
+</table>
+
+<!-- ======================================================================= -->
+<h2 id="verify">8. Проверки и приёмка</h2>
+<h3>8.1. Негативные тесты (pytest, app.test_client)</h3>
+<pre><code># S-08: клиент с доступом к demo не достигает test
+for url in ('/WEB/demo/../test/', '/WEB/demo/..%2Ftest/', '/WEB/demo/%2e%2e/test/'):
+    assert client.get(url).status_code == 404
+# S-04: чужой дамп отклоняется
+r = client.post('/bases/1/sandbox', data={'csrf': tok, 'dump': '/mnt/1cbackup/other-20261108-0400.dump', 'ack': '1'})
+assert 'Копия не найдена' in flashes(r)
+# S-03: клиентский маршрут удалён
+assert client.post('/portal/bases/1/update-mode', data={'csrf': tok}).status_code in (403, 404, 405)
+# S-01: поддельный XFF не влияет на IP
+client.post('/login', data=bad_creds, headers={'X-Forwarded-For': '1.2.3.4, 10.0.0.1'})
+assert audit_last_ip() == '127.0.0.1'
+# S-06: чужое задание недоступно
+assert client.get('/jobs/%d/status' % foreign_job).status_code == 404
+# S-07: open redirect
+assert client.post('/login?next=//evil.example', data=good_creds).headers['Location'].endswith('/')
+</code></pre>
+
+<h3>8.2. Read-only проверки на сервере (до и после деплоя, выполняются по команде пользователя)</h3>
+<pre><code># хвосты времени ответа по access-логу (мкс в предпоследнем поле)
+awk '$7 == "/" {print $(NF-1)}' /var/log/apache2/1c-portal-access.log | sort -n | awk '{a[NR]=$1} END {print "p50", a[int(NR*0.5)]/1000, "p90", a[int(NR*0.9)]/1000, "ms"}'
+# блокировки SQLite и трассировки за сутки
+journalctl -u 1c-portal --since -1d --no-pager -q | grep -ciE 'database is locked|Traceback'
+# нормализация пути на внутреннем vhost (должен остаться 200 — это поведение Apache; защита делается в портале)
+curl -s -o /dev/null --path-as-is -w '%{http_code}\n' http://127.0.0.1:8081/WEB/nonexist/../demo/
+# заголовки портала
+curl -sI https://1c.dgek.ru/login | grep -iE 'strict-transport|x-frame|content-security|referrer-policy|x-content-type'
+</code></pre>
+
+<!-- ======================================================================= -->
+<h2 id="root">9. Что проверить с root (не выполнялось)</h2>
+<ul>
+  <li><code>cat /etc/sudoers.d/1c-*</code> — подтвердить правило на <code>psql</code> (S-02) и полный перечень разрешённых команд; сверить с репозиторием.</li>
+  <li><code>ufw status verbose</code> — закрыты ли 5432 (LAN), 1545, 1540–1560, 1947, 80 для всех, кроме .15 и VPN (S-18).</li>
+  <li><code>/var/lib/pgpro/1c-16/data/postgresql.conf</code>, <code>postgresql.auto.conf</code> (нет ли остатков <code>fsync=off</code> после «режима обновления»), <code>pg_hba.conf</code> (md5 → scram), <code>listen_addresses</code> (P-07, S-03, S-18).</li>
+  <li>Права: <code>ls -la /opt/1c-portal /etc/1c-portal /opt/1c-portal/vpn-clients</code>; <code>portal.db</code>, <code>.secret_key</code>, <code>settings.json</code> (S-10, S-12).</li>
+  <li><code>/etc/cron.d/1c-portal-backup</code> и <code>1c-backup-tick.timer</code> — нет ли двойного запуска архивации.</li>
+  <li><code>/etc/fail2ban/jail.d/1c-portal.conf</code> и фильтр — какой IP парсится из журнала (после S-01 формат может измениться).</li>
+  <li><code>/etc/1c-portal/pg-mode.state</code> — текущее состояние режима обновления (S-03).</li>
+  <li><code>rac session list</code> / техжурнал — причина 100 % CPU rphost (P-06).</li>
+</ul>
+
+<!-- ======================================================================= -->
+<h2 id="appendix">10. Приложение</h2>
+<h3>10.1. Как собирались данные</h3>
+<ul class="small">
+  <li>Код: чтение <code>app.py</code>, <code>maintenance.py</code>, скриптов <code>1c-*.sh</code>, <code>deploy.sh</code>, sudoers, шаблонов, <code>docs/</code>; <code>git log</code>.</li>
+  <li>Сервер: два bash-скрипта только для чтения от пользователя <code>dgek</code> (hostname/lscpu/free/df/ps/ss/systemctl cat/ls/journalctl/awk по логам Apache/curl к 127.0.0.1); in-process тест маршрутизации Flask на тестовом приложении; GET-запросы к 127.0.0.1:8081 (аналог штатного мониторинга). Временные файлы в <code>/tmp</code> удалены.</li>
+  <li>Не выполнялось: любые записи, sudo, запросы с учётными данными, запросы к внешним адресам.</li>
+</ul>
+<h3>10.2. Ограничения и допущения</h3>
+<ul class="small">
+  <li>Содержимое sudoers восстановлено по размеру файла (60 байт) и вызову в коде — требует подтверждения с root.</li>
+  <li>Причина хвостов времени ответа кабинета (5-секундные ожидания) — обоснованная гипотеза по распределению и событиям «database is locked»; подтвердить логированием длительности этапов запроса.</li>
+  <li>Правила ufw/fail2ban, конфигурация PostgreSQL и права на каталоги портала не проверены.</li>
+</ul>
+<h3>10.3. Связанные документы репозитория</h3>
+<p class="small"><code>docs/security.md</code> (обновить пункты о QR и «PostgreSQL только localhost»), <code>docs/1c-performance-plan.md</code>, <code>docs/proxy-nginx.md</code> (основа для P-01), <code>docs/backup.md</code> (P-05, S-13), <code>docs/sandbox-plan.md</code> (S-04, S-05), <code>docs/new-server-plan.md</code> (P-11).</p>
+
+<footer>1CSmallControl · аудит и рекомендации · 08.11.2026 · версия портала не изменялась (2.0.0), изменения на сервер не применялись, git push не выполнялся.</footer>
+</div>
+</body>
+</html>
