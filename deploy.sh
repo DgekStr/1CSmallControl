@@ -108,3 +108,17 @@ systemctl reload apache2
 echo
 echo "Готово. Портал: http://$SERVER_NAME/"
 echo "Логин администратора: admin (пароль — см. вывод инициализации БД)"
+
+echo
+echo "Уборка после выкладки"
+# временные файлы деплоя и отладки
+find /tmp -maxdepth 1 -type f \( -name '*.py' -o -name '*.sh' -o -name '*.html' -o -name '*.css' \) -mtime +1 -delete 2>/dev/null || true
+rm -rf /opt/1c-portal/__pycache__ 2>/dev/null || true
+# логи заданий старше 7 дней
+find /var/log/1c-portal -type f -mtime +7 -delete 2>/dev/null || true
+# старые дампы: оставляем по 10 последних на базу и ничего старше 30 дней
+for base in $(ls /mnt/1cbackup/*.dump 2>/dev/null | sed 's#.*/##; s/-[0-9]*-[0-9]*\.dump$//' | sort -u); do
+  ls -1t /mnt/1cbackup/$base-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f
+done
+find /mnt/1cbackup -maxdepth 1 -type f -name '*.dump' -mtime +30 -delete 2>/dev/null || true
+echo "  временные файлы, кэш и старые архивы убраны"
