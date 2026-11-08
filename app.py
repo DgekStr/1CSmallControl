@@ -139,7 +139,11 @@ def db():
 
 @app.after_request
 def _security_headers(resp):
-    """S-11: базовые защитные заголовки."""
+    """S-11: базовые защитные заголовки (CSP не ставим на веб-клиент 1С)."""
+    if request.path.startswith('/WEB/'):
+        resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        resp.headers.setdefault('Referrer-Policy', 'same-origin')
+        return resp
     resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
     resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
     resp.headers.setdefault('Referrer-Policy', 'same-origin')
