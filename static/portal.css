@@ -535,3 +535,9 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
   .help-scroll{position:absolute;left:0;top:0;width:100%;max-height:none;overflow:visible}
   .help-actions,.modal-heading,.settings-back{display:none!important}
 }
+
+/* большая модалка инструкции */
+#dlg-help{width:min(1180px,96vw);height:min(88vh,900px);max-height:88vh;display:flex;flex-direction:column}
+#dlg-help .help-scroll{flex:1;overflow-y:auto;padding-right:6px}
+#dlg-help .help-actions{display:flex;gap:10px;margin-top:12px}
+#dlg-help .help-actions .button{flex:1;justify-content:center;min-height:44px}
