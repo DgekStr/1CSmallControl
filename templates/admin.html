@@ -1498,5 +1498,28 @@
   })();
   </script>
 
+
+  <script>
+  /* после завершения задания (удаление/создание копии) обновляем страницу,
+     чтобы цифры и списки были актуальны без ручной перезагрузки */
+  (function () {
+    var key = 'admin-jobs-refresh';
+    var had = sessionStorage.getItem(key) === '1';
+    function check() {
+      fetch('/jobs/active', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var active = !!(d && d.jobs && d.jobs.length);
+          if (had && !active) { sessionStorage.removeItem(key); location.reload(); return; }
+          if (active) sessionStorage.setItem(key, '1');
+          had = active;
+          setTimeout(check, 5000);
+        })
+        .catch(function () { setTimeout(check, 8000); });
+    }
+    check();
+  })();
+  </script>
+
 </body>
 </html>
