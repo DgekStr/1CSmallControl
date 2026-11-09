@@ -3590,7 +3590,7 @@ def job_active():
 @app.route('/admin/jobs')
 @admin_required
 def admin_jobs():
-    rows = db().execute("SELECT * FROM jobs ORDER BY id DESC LIMIT 30").fetchall()
+    rows = db().execute("SELECT * FROM jobs ORDER BY id DESC LIMIT 200").fetchall()
     current = None
     if rows:
         current = _job_read(rows[0]['id'], tail=80)
