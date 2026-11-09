@@ -157,6 +157,20 @@ def _security_headers(resp):
 
 
 
+def _warm_caches():
+    """Прогреваем тяжёлые кэши после старта: первый заход в статистику без задержки."""
+    try:
+        with app.app_context():
+            _cached_swr('live', 60, 1800, _sessions_snapshot)
+            _cached_swr('lic', 300, 7200, _licenses)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+if not app.config.get('TESTING'):
+    threading.Timer(3.0, _warm_caches).start()
+
+
 @app.before_request
 def _must_change_guard():
     """Новый клиент обязан сменить пароль при первом входе (пункт 3)."""
@@ -1923,7 +1937,7 @@ def admin_stats():
         GROUP BY v.username
         ORDER BY last_seen DESC""").fetchall()
 
-    live_sessions = _cached('live', 30, _sessions_snapshot)
+    live_sessions = _cached_swr('live', 60, 1800, _sessions_snapshot)
     client_history = db().execute("""
         SELECT username, app, host, started_at, first_seen, last_seen
         FROM client_sessions ORDER BY last_seen DESC LIMIT 150""").fetchall()
@@ -1939,7 +1953,7 @@ def admin_stats():
         WHERE u.vpn_enabled = 1 OR (u.vpn_config IS NOT NULL AND length(u.vpn_config) > 0)
         ORDER BY u.username""").fetchall()
 
-    lic = _cached('lic', 60, _licenses)
+    lic = _cached_swr('lic', 300, 7200, _licenses)
     srv = metrics.collect()
     try:
         db().execute("INSERT INTO metrics(cpu, rx, tx) VALUES(?,?,?)",
