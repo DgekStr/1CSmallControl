@@ -761,20 +761,18 @@ def _mm_sandbox_event(kind, slug, source, owner, created, expires, extra=''):
 
 
 
-def _sb_sizes():
-    """Размеры баз песочниц из PostgreSQL: {slug: '1,2 ГБ'}."""
-    try:
-        proc = subprocess.run(['sudo', '-n', '-u', 'postgres', 'psql', '-Atc',
-                               "select datname || '|' || pg_size_pretty(pg_database_size(datname)) "
-                               "from pg_database where datname like 'sb\\_%'"],
-                              capture_output=True, text=True, timeout=20)
-    except Exception:  # noqa: BLE001
-        return {}
+def _sb_sizes(slugs):
+    """Размеры баз песочниц через разрешённый в sudoers 1c-base-size: {slug: '69 MB'}."""
     out = {}
-    for line in (proc.stdout or '').splitlines():
-        if '|' in line:
-            k, v = line.split('|', 1)
-            out[k.strip()] = v.strip()
+    for slug in slugs:
+        try:
+            proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-base-size', slug],
+                                  capture_output=True, text=True, timeout=15)
+            val = (proc.stdout or '').strip().splitlines()
+            if val:
+                out[slug] = val[-1].strip()
+        except Exception:  # noqa: BLE001
+            continue
     return out
 
 
@@ -1312,7 +1310,7 @@ def admin():
                              lambda: _session_counts(list(slugs)), wait=False)
     pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
     sandboxes_all = _sandbox_active()
-    _sizes_sb = _sb_sizes()
+    _sizes_sb = _sb_sizes([s['slug'] for s in _sandbox_active()])
     sandbox_details = {}
     for sb in sandboxes_all:
         owner = db().execute("SELECT username, full_name FROM users WHERE id = ?",
