@@ -3012,6 +3012,18 @@ def _sandbox_run_job(sandbox_id, source_db, new_slug, dump_path):
                       ref=str(sandbox_id), on_done=done)
 
 
+@app.route('/sandbox/pending')
+@login_required
+def sandbox_pending():
+    """Сколько копий клиента ещё создаётся — для автообновления кабинета."""
+    try:
+        row = db().execute("SELECT COUNT(*) AS c FROM sandboxes WHERE user_id = ? AND status = 'creating'",
+                           (session['uid'],)).fetchone()
+        return {'pending': int(row['c'] or 0)}
+    except Exception:  # noqa: BLE001
+        return {'pending': 0}
+
+
 @app.route('/bases/<int:bid>/copies')
 @login_required
 def base_copies(bid):

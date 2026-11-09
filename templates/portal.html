@@ -875,7 +875,15 @@
         })
         .catch(function () { setTimeout(check, 8000); });
     }
-    if (document.body.innerText.indexOf('создаётся') !== -1) check();
+    if (document.body.innerText.indexOf('создаётся') !== -1) {
+      /* копия создаётся: опрашиваем её статус и перезагружаем кабинет, когда готова */
+      var timer = setInterval(function () {
+        fetch('/sandbox/pending', { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (d && d.pending === 0) { clearInterval(timer); location.reload(); } })
+          .catch(function () {});
+      }, 5000);
+    }
   })();
   </script>
 
