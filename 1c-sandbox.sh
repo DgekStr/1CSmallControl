@@ -98,6 +98,9 @@ case "$mode" in
     su -s /bin/bash postgres -c "psql -d $NEW -c \"GRANT ALL ON SCHEMA public TO $ROLE\"" >/dev/null 2>&1
     su -s /bin/bash postgres -c "psql -d $NEW -c \"ALTER DATABASE $NEW OWNER TO $ROLE\"" >/dev/null 2>&1
     echo "        права на объекты переданы роли $ROLE"
+    # в копии должен быть администратор ИБ, иначе её нельзя ни проверить, ни удалить
+    su -s /bin/bash postgres -c "psql -d $NEW -c \"update v8users set admrole = true where name in ('Бухгалтер','Администратор') and coalesce(admrole,false) = false\"" >/dev/null 2>&1
+    echo "        признак администратора ИБ выставлен"
 
     # пользователи 1С берутся из текущей базы: в старых дампах их набор может не иметь прав
     HAS_SRC=$(su -s /bin/bash postgres -c "psql -d $SRC -Atc \"select count(*) from pg_tables where schemaname='public' and tablename='v8users'\"" 2>/dev/null)
