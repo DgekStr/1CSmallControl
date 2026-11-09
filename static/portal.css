@@ -496,3 +496,11 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .header-tools .theme-switch{border:0;background:transparent;padding:0}
 .header-tools .icon-button{width:30px;height:30px;border-radius:9px}
 .header-tools form{margin:0;display:flex}
+
+/* ===== выбор песочницы в модалке ===== */
+.sb-list{display:none;flex-direction:column;gap:6px;margin-bottom:10px}
+.sb-list.visible{display:flex}
+.sb-pick{display:flex;flex-direction:column;gap:2px;text-align:left;padding:9px 11px;border-radius:10px;
+         border:1px solid var(--border);background:transparent;color:inherit;cursor:pointer}
+.sb-pick.active{border-color:#7c5cff88;background:rgba(124,92,255,.10)}
+.sandbox-flag-count{font-weight:700;font-size:calc(11px*var(--fs))}

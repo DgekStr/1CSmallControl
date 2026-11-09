@@ -123,9 +123,9 @@
           <span class="base-size-line">{{ sz or 'размер неизвестен' }}</span>
           {% set sbs = sandbox_map.get(b.slug) if sandbox_map else None %}
           {% if sbs %}
-          <button type="button" class="sandbox-flag" title="Песочница до {{ sbs[0].expires_at|dt_ru }} — открыть сведения"
+          <button type="button" class="sandbox-flag" title="Песочниц: {{ sbs|length }} — открыть список"
                   data-sandbox='{{ sandbox_details.get(b.slug, [])|tojson }}'>
-            <i data-lucide="history"></i>{% if sbs|length > 1 %}<span class="sandbox-flag-count">{{ sbs|length }}</span>{% endif %}
+            <span class="sandbox-flag-count">{{ sbs|length }}</span>
           </button>
           {% endif %}
         </td>
@@ -932,7 +932,8 @@
       <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
     </div>
 
-    <div id="sb-info" class="monitor-box" style="margin-bottom:14px"></div>
+    <div id="sb-list" class="sb-list"></div>
+      <div id="sb-info" class="monitor-box" style="margin-bottom:14px"></div>
 
     {% if sandbox_allow_transfer %}
     <form method="post" id="sb-transfer" data-job="Передаём песочницу…" class="field-row" style="align-items:end">

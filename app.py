@@ -741,6 +741,25 @@ def web_gate(slug, rest=''):
 LOGIN_MAX_FAILS = 5
 LOGIN_WINDOW = 15 * 60          # окно подсчёта, секунд
 LOGIN_BLOCK = 15 * 60           # время блокировки, секунд
+
+def _mm_sandbox_event(kind, slug, source, owner, created, expires, extra=''):
+    """Табличное уведомление в Mattermost о песочнице."""
+    title = {'created': '🧪 Песочница создана',
+             'deleted': '🗑 Песочница удалена',
+             'failed': '⚠️ Песочница не создана',
+             'transfer': '↔️ Песочница передана'}.get(kind, 'Песочница')
+    rows = [('Песочница', '`%s`' % slug), ('Исходная база', '`%s`' % source),
+            ('Клиент', owner)]
+    if created:
+        rows.append(('Создана', created))
+    if expires:
+        rows.append(('Действует до', expires))
+    body = '| Что | Значение |\n|---|---|\n' + '\n'.join('| %s | %s |' % r for r in rows)
+    if extra:
+        body += '\n\n' + extra
+    _mm_notify('#### %s\n\n%s' % (title, body))
+
+
 def _mm_notify(text, hook=None):
     """Сообщение в Mattermost. Хук берётся из настроек портала (или из env)."""
     url = hook
@@ -2956,7 +2975,14 @@ def _sandbox_run_job(sandbox_id, source_db, new_slug, dump_path):
             if not ok:
                 conn.execute("UPDATE bases SET is_active = 0 WHERE slug = ?", (new_slug,))
             conn.commit()
-            _mm_notify('### Песочница %s\n\n%s\n%s' % ('готова' if ok else 'не создана', new_slug, tail))
+            _sbrow = conn.execute("SELECT * FROM sandboxes WHERE id = ?", (sandbox_id,)).fetchone()
+            _owner = conn.execute("SELECT username, full_name FROM users WHERE id = ?",
+                                  (_sbrow['user_id'],)).fetchone() if _sbrow else None
+            _mm_sandbox_event('created' if ok else 'failed', new_slug, source_db,
+                              ('%s (%s)' % (_owner['full_name'] or _owner['username'], _owner['username'])) if _owner else '—',
+                              _dt_ru(_sbrow['created_at']) if _sbrow else '',
+                              _dt_ru(_sbrow['expires_at']) if _sbrow else '',
+                              '' if ok else ('```\n%s\n```' % tail))
         finally:
             conn.close()
 
@@ -3090,7 +3116,13 @@ def sandbox_delete(sid):
                 conn.execute("UPDATE sandboxes SET status = 'deleted' WHERE id = ?", (sid,))
                 conn.commit()
                 audit('sandbox_delete', slug)
-                _mm_notify('### Песочница удалена\n\n%s' % slug)
+                _sbd = db().execute("SELECT * FROM sandboxes WHERE slug = ? ORDER BY id DESC LIMIT 1", (slug,)).fetchone()
+                _ow = db().execute("SELECT username, full_name FROM users WHERE id = ?", (_sbd['user_id'],)).fetchone() if _sbd else None
+                _mm_sandbox_event('deleted', slug, (_sbd['source_slug'] if _sbd else '—'),
+                ('%s (%s)' % (_ow['full_name'] or _ow['username'], _ow['username'])) if _ow else '—',
+                _dt_ru(_sbd['created_at']) if _sbd else '',
+                'удалена: %s' % _dt_ru(time.strftime('%Y-%m-%d %H:%M:%S')),
+                'Удалил: %s' % (session.get('name') or session.get('user') or 'администратор'))
             else:
                 tail = ''
                 try:
