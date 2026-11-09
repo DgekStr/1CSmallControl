@@ -241,7 +241,11 @@
         </div>
       </div>
 
-      <div class="settings-grid">
+      <div class="heading-actions" style="margin:0 0 14px">
+  <a class="button" href="{{ url_for('admin_jobs') }}"><i data-lucide="list-checks"></i>Журнал заданий сервера</a>
+</div>
+
+<div class="settings-grid">
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
           <h2>Подключение к 1С</h2>
