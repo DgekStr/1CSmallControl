@@ -3135,9 +3135,41 @@ def _rac(args, timeout=60):
         return 1, str(exc)
 
 
-def _rac_infobases():
-    """Список инфобаз кластера: uuid, name, descr, db-name."""
+_RAC_CACHE = {'ts': 0, 'items': None, 'raw': '', 'rc': 0, 'ttl': 15}
+
+
+def _rac_parse(out):
+    """Разбор вывода rac: список инфобаз."""
+    items = []
+    cur = {}
+    for line in (out or '').splitlines():
+        if ':' not in line:
+            continue
+        key, val = line.split(':', 1)
+        key, val = key.strip(), val.strip().strip('"')
+        if key == 'infobase':
+            if cur.get('uuid'):
+                items.append(cur)
+            cur = {'uuid': val}
+        elif key == 'name':
+            cur['name'] = val
+        elif key == 'descr':
+            cur['descr'] = val
+    if cur.get('uuid'):
+        items.append(cur)
+    return items
+
+
+def _rac_infobases(force=False):
+    """Список инфобаз кластера с кэшем на 15 с: rac работает ~0,5 с на вызов."""
+    now = time.time()
+    if not force and _RAC_CACHE['items'] is not None and now - _RAC_CACHE['ts'] < _RAC_CACHE['ttl']:
+        return _RAC_CACHE['rc'], _RAC_CACHE['raw'], _RAC_CACHE['items']
     rc, out = _rac(['infobase', 'summary', 'list'])
+    items = _rac_parse(out)
+    _RAC_CACHE.update(ts=now, items=items, raw=(out or '')[:2000], rc=rc)
+    return rc, (out or '')[:2000], items
+
     items = []
     cur = {}
     for line in (out or '').splitlines():
@@ -3161,8 +3193,8 @@ def _rac_infobases():
 @app.route('/admin/cluster')
 @admin_required
 def admin_cluster():
-    rc, raw = _rac(['infobase', 'summary', 'list'])
-    return render_template('cluster.html', items=_rac_infobases(), raw=(raw or '')[:2000],
+    rc, raw, items = _rac_infobases(force=(request.args.get('refresh') == '1'))
+    return render_template('cluster.html', items=items, raw=raw,
                            rc=rc, cluster_user=(_setting_get('cluster_user') or ''))
 
 
@@ -3181,6 +3213,7 @@ def admin_cluster_create():
                     '--db-server=127.0.0.1', '--db-name=%s' % db_name,
                     '--db-user=%s' % db_user, '--db-pwd=%s' % db_pwd,
                     '--locale=ru_RU', '--license-distribution=allow'], timeout=120)
+    _RAC_CACHE.update(ts=0, items=None)
     audit('cluster_create', '%s → %s' % (name, 'ok' if rc == 0 else out.strip()[:120]))
     flash('Инфобаза %s создана' % name if rc == 0 else 'Не удалось создать: %s' % out.strip()[:200])
     return redirect(url_for('admin_cluster'))
@@ -3191,6 +3224,7 @@ def admin_cluster_create():
 def admin_cluster_drop(uuid):
     check_csrf()
     rc, out = _rac(['infobase', 'drop', '--infobase=%s' % uuid])
+    _RAC_CACHE.update(ts=0, items=None)
     audit('cluster_drop', '%s → %s' % (uuid, 'ok' if rc == 0 else out.strip()[:120]))
     flash('Инфобаза удалена' if rc == 0 else 'Не удалось удалить: %s' % out.strip()[:200])
     return redirect(url_for('admin_cluster'))
@@ -3205,6 +3239,7 @@ def admin_cluster_rename(uuid):
         flash('Укажите новое имя')
         return redirect(url_for('admin_cluster'))
     rc, out = _rac(['infobase', 'update', '--infobase=%s' % uuid, '--name=%s' % name])
+    _RAC_CACHE.update(ts=0, items=None)
     audit('cluster_rename', '%s → %s (%s)' % (uuid, name, 'ok' if rc == 0 else out.strip()[:120]))
     flash('Инфобаза переименована в %s' % name if rc == 0 else 'Не удалось переименовать: %s' % out.strip()[:200])
     return redirect(url_for('admin_cluster'))
@@ -3217,6 +3252,7 @@ def admin_cluster_sessions(uuid):
     deny = request.form.get('deny') == '1'
     rc, out = _rac(['infobase', 'update', '--infobase=%s' % uuid,
                     '--sessions-deny=%s' % ('true' if deny else 'false')])
+    _RAC_CACHE.update(ts=0, items=None)
     audit('cluster_sessions', '%s deny=%s' % (uuid, deny))
     flash('Сеансы %s' % ('запрещены' if deny else 'разрешены') if rc == 0 else 'Ошибка: %s' % out.strip()[:200])
     return redirect(url_for('admin_cluster'))
