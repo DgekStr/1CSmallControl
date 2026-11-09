@@ -1396,7 +1396,8 @@
         ['Копия на дату', sb.dump_date || '—'],
         ['Хранится до', sb.expires_at],
         ['Статус', sb.status === 'ready' ? 'готова' : (sb.status === 'creating' ? 'создаётся' : 'ошибка')],
-        ['Имя в кластере', sb.slug]
+        ['Имя в кластере', sb.slug],
+        ['Размер БД', '<span class="sb-size">' + (sb.size || 'неизвестен') + '</span>']
       ];
       info.innerHTML = rows.map(function (r) {
         return '<div class="monitor-row"><span class="monitor-title">' + r[0] +
