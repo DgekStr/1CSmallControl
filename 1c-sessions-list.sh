@@ -11,11 +11,20 @@ fi
 
 RAC=${IC_RAC:-/opt/1cv8/x86_64/8.3.27.2342/rac}
 RAS=${IC_RAS:-127.0.0.1:1545}
+CU=${IC_CLUSTER_USER:-}
+CP=${IC_CLUSTER_PWD:-}
 
-CLUSTER=$($RAC "$RAS" cluster list 2>/dev/null | awk '/^cluster/{print $3; exit}')
+AUTH=()
+[ -n "$CU" ] && AUTH+=("--cluster-user=$CU")
+[ -n "$CP" ] && AUTH+=("--cluster-pwd=$CP")
+
+CLUSTER=${IC_CLUSTER:-}
+if [ -z "$CLUSTER" ]; then
+  CLUSTER=$($RAC "$RAS" cluster list "${AUTH[@]}" 2>/dev/null | awk '/^cluster/{print $3; exit}')
+fi
 [ -n "$CLUSTER" ] || exit 2
 
-$RAC "$RAS" session list --cluster="$CLUSTER" 2>/dev/null | awk -F' +: +' '
+$RAC "$RAS" session list --cluster="$CLUSTER" "${AUTH[@]}" 2>/dev/null | awk -F' +: +' '
   /^session /{sid=$2}
   /^user-name /{user=$2}
   /^app-id /{app=$2}
