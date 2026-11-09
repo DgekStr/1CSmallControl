@@ -760,6 +760,24 @@ def _mm_sandbox_event(kind, slug, source, owner, created, expires, extra=''):
     _mm_notify('#### %s\n\n%s' % (title, body))
 
 
+
+def _sb_sizes():
+    """Размеры баз песочниц из PostgreSQL: {slug: '1,2 ГБ'}."""
+    try:
+        proc = subprocess.run(['sudo', '-n', '-u', 'postgres', 'psql', '-Atc',
+                               "select datname || '|' || pg_size_pretty(pg_database_size(datname)) "
+                               "from pg_database where datname like 'sb\\_%'"],
+                              capture_output=True, text=True, timeout=20)
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {}
+    for line in (proc.stdout or '').splitlines():
+        if '|' in line:
+            k, v = line.split('|', 1)
+            out[k.strip()] = v.strip()
+    return out
+
+
 def _mm_notify(text, hook=None):
     """Сообщение в Mattermost. Хук берётся из настроек портала (или из env)."""
     url = hook
@@ -1294,6 +1312,7 @@ def admin():
                              lambda: _session_counts(list(slugs)), wait=False)
     pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
     sandboxes_all = _sandbox_active()
+    _sizes_sb = _sb_sizes()
     sandbox_details = {}
     for sb in sandboxes_all:
         owner = db().execute("SELECT username, full_name FROM users WHERE id = ?",
@@ -1310,7 +1329,7 @@ def admin():
             'dump_date': sb['dump_date'] or '',
             'expires_at': _dt_ru(sb['expires_at']),
             'status': sb['status'],
-            'size': sb['size'] or '—',
+            'size': sb['size'] or _sizes_sb.get(sb['slug']) or '—',
         })
     sandbox_map = {}
     for sb in sandboxes_all:
