@@ -35,7 +35,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.3')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.4')
 
 app = Flask(__name__)
 # S-09: ограничение размера запроса
