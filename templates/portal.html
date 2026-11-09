@@ -1004,7 +1004,12 @@
     if (pr) pr.addEventListener('click', function () { window.print(); });
     if (pf) pf.addEventListener('click', function () { window.print(); });
     document.addEventListener('click', function (e) {
-      if (e.target.closest('[data-open="dlg-help"]')) { d.showModal(); if (window.lucide) lucide.createIcons(); }
+      if (e.target.closest('[data-open="dlg-help"]')) {
+        var s2 = document.getElementById('dlg-settings');
+        if (s2 && s2.open) s2.close();
+        d.showModal();
+        if (window.lucide) lucide.createIcons();
+      }
       else if (d && d.open && (e.target.closest('#dlg-help [data-close]') || e.target === d)) d.close();
     });
   })();
