@@ -6,7 +6,7 @@
   <title>Мои базы | Портал 1С</title>
   <link rel="icon" href="{{ asset('brand.png') }}">
   <link rel="stylesheet" href="{{ asset('app.css') }}">
-  <link rel="stylesheet" href="{{ asset('portal.css') }}">
+  <link rel="stylesheet" href="{{ asset('portal.css') }}&amp;rev=dialogs-20261109">
     <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
   <script src="{{ asset('theme.js') }}" defer></script>
   <script src="{{ asset('vendor/lucide.js') }}" defer></script>
@@ -80,7 +80,7 @@
             <a class="button primary base-open" href="{{ url_for('open_base', slug=b.slug) }}" target="_blank" rel="noopener">Открыть <i data-lucide="arrow-up-right"></i></a>
             {% endif %}
             <button type="button" class="button base-config" data-open="dlg-config"><i data-lucide="terminal"></i>Конфигуратор</button>
-                <button type="button" class="button" data-copies="{{ b.id }}" data-base="{{ b.slug }}">
+                <button type="button" class="button" data-open="dlg-copies" data-copies="{{ b.id }}" data-base="{{ b.slug }}">
                   <i data-lucide="history"></i>Копии базы</button>
             <button type="button" class="button" title="Файл подключения для тонкого клиента и Конфигуратора"
                   data-open="dlg-v8i" data-v8i="{{ url_for('base_v8i', bid=b.id) }}"
@@ -127,7 +127,7 @@
             <a class="button primary" href="{{ url_for('open_base', slug=sb.slug) }}" target="_blank" rel="noopener">
               Открыть <i data-lucide="arrow-up-right"></i></a>
             {% endif %}
-            <button class="button" type="button" data-sb-request="{{ sb.id }}"
+            <button class="button" type="button" data-open="dlg-sb-request" data-sb-request="{{ sb.id }}"
                     data-sb-base="{{ sb.source_title or sb.source_slug }}">
               <i data-lucide="user-round-check"></i>Передать</button>
             <form method="post" action="{{ url_for('sandbox_delete', sid=sb.id) }}"
@@ -474,15 +474,46 @@
   </dialog>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });
+    function openPortalDialog(id) {
+      var dialog = document.getElementById(id);
+      if (!dialog || dialog.tagName !== 'DIALOG') return;
+      document.querySelectorAll('dialog[open]').forEach(function (item) { item.close(); });
+      dialog.showModal();
+      if (window.lucide) lucide.createIcons();
+    }
+    function resetPortalDialogs() {
+      document.querySelectorAll('dialog[open]').forEach(function (dialog) { dialog.close(); });
+      var band = document.getElementById('job-band');
+      if (band) band.hidden = true;
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      resetPortalDialogs();
+      if (window.lucide) lucide.createIcons();
+    });
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted) resetPortalDialogs();
+    });
     document.addEventListener('click', function (e) {
-      const openBtn = e.target.closest('[data-open]');
+      var openBtn = e.target.closest('[data-open]');
       if (openBtn) {
-        const dlg = document.getElementById(openBtn.dataset.open);
-        if (dlg) { dlg.showModal(); if (window.lucide) lucide.createIcons(); }
+        openPortalDialog(openBtn.dataset.open);
+        return;
       }
-      const closeBtn = e.target.closest('[data-close]');
-      if (closeBtn) closeBtn.closest('dialog').close();
+      if (e.target.closest('[data-close]')) {
+        var dialog = e.target.closest('dialog');
+        if (dialog) dialog.close();
+        return;
+      }
+      if (e.target.matches('dialog[open]')) {
+        var bounds = e.target.getBoundingClientRect();
+        if (e.clientX < bounds.left || e.clientX > bounds.right ||
+            e.clientY < bounds.top || e.clientY > bounds.bottom) e.target.close();
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('dialog[open]').forEach(function (dialog) { dialog.close(); });
+      }
     });
   </script>
 
@@ -518,9 +549,7 @@
         ack.checked = false;
         okBtn.disabled = needAck;
         ack.onchange = function () { okBtn.disabled = !ack.checked; };
-        var dlg = document.getElementById('dlg-confirm');
-        if (dlg.showModal) dlg.showModal();
-        if (window.lucide) lucide.createIcons();
+        openPortalDialog('dlg-confirm');
       });
       okBtn.addEventListener('click', function () {
         if (!pending) return;
@@ -536,16 +565,6 @@
 (function () {
   var dlg = document.getElementById('dlg-connect');
   if (!dlg) return;
-
-  document.addEventListener('click', function (e) {
-    var opener = e.target.closest('[data-open="dlg-connect"]');
-    if (opener) { dlg.showModal(); return; }
-    if (e.target.closest('#dlg-connect [data-close]')) { dlg.close(); return; }
-  });
-
-  dlg.addEventListener('click', function (e) {
-    if (e.target === dlg) dlg.close();
-  });
 
   dlg.querySelectorAll('.conn-tabs .chip').forEach(function (chip) {
     chip.addEventListener('click', function () {
@@ -576,13 +595,8 @@
       var name = opener.dataset.base || '';
       if (baseLabel) baseLabel.textContent = name;
       link.setAttribute('download', (name || 'base') + '.v8i');
-      dlg.showModal();
-      return;
     }
-    if (e.target.closest('#dlg-v8i [data-close]')) { dlg.close(); }
   });
-
-  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
 })();
 </script>
 
@@ -649,7 +663,6 @@
     list.innerHTML = '<span class="muted small">Загружаем список…</span>';
     ack.checked = false;
     submit.disabled = true;
-    dlg.showModal();
     fetch('/bases/' + opener.dataset.copies + '/copies', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
@@ -681,43 +694,10 @@
     if (sbRequestForm) {
       form.action = '/sandbox/' + sbRequestForm.dataset.sbRequest + '/request-transfer';
       if (baseLabel) baseLabel.textContent = sbRequestForm.dataset.sbBase || '—';
-      dlg.showModal();
-      return;
     }
-    if (e.target.closest('#dlg-sb-request [data-close]')) dlg.close();
   });
-  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
 })();
 </script>
-
-
-  <div id="client-overlay" class="job-overlay" hidden>
-    <div class="job-overlay-box">
-      <div class="spinner"></div>
-      <strong id="client-overlay-title">Выполняется…</strong>
-      <p class="muted small">Операция идёт на сервере. Окно закроется автоматически после завершения.</p>
-    </div>
-  </div>
-  <script>
-  (function () {
-    var box = document.getElementById('client-overlay');
-    var title = document.getElementById('client-overlay-title');
-    if (!box) return;
-    document.addEventListener('submit', function (e) {
-      var form = e.target;
-      if (!form || !form.matches('form')) return;
-      if ((form.getAttribute('method') || 'get').toLowerCase() !== 'post') return;
-      var sub = e.submitter || form.querySelector('button[type=submit]');
-      var label = form.getAttribute('data-job');
-      if (!label && sub) label = sub.getAttribute('data-job');
-      if (!label && sub) label = (sub.textContent || '').trim();
-      if (!label) label = 'Выполняется…';
-      if (title) title.textContent = label;
-      box.hidden = false;
-    }, true);
-    window.addEventListener('pageshow', function () { box.hidden = true; });
-  })();
-  </script>
 
 
   <div id="job-band" class="job-band" hidden>
@@ -737,7 +717,10 @@
     var link = document.getElementById('job-band-link');
     function tick() {
       fetch('/jobs/active', { credentials: 'same-origin' })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          if (!r.ok) throw new Error('Job status unavailable');
+          return r.json();
+        })
         .then(function (d) {
           if (d && d.active) {
             band.hidden = false;
@@ -749,7 +732,7 @@
             band.hidden = true;
           }
         })
-        .catch(function () {})
+        .catch(function () { band.hidden = true; })
         .then(function () { setTimeout(tick, 5000); });
     }
     tick();

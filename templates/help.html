@@ -20,10 +20,14 @@
     .help-body code{background:rgba(148,163,184,.14);padding:1px 5px;border-radius:5px}
     .help-bar{display:flex;gap:10px;margin-top:16px}
     .help-bar .button{min-height:42px;justify-content:center}
+    @page{size:A4;margin:15mm}
     @media print{
-      .topbar,.help-bar{display:none!important}
-      .help-page{width:100%;padding:0}
-      .help-card{border:0;padding:0}
+      .topbar,.help-bar,.heading-actions{display:none!important}
+      .help-page{width:100%;margin:0;padding:0;--text:#000;--muted:#444;color:#000}
+      .help-card{border:0;border-radius:0;padding:0;background:transparent}
+      .help-body{max-height:none;overflow:visible}
+      .help-body h3{break-after:avoid}
+      .help-body li{break-inside:avoid}
       body{background:#fff;color:#000}
     }
   </style>
