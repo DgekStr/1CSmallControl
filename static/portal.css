@@ -460,3 +460,11 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .settings-modal input{padding:10px 12px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2,#0f172a);color:inherit}
 .settings-modal .qr-image{display:block;margin:6px auto;border-radius:12px;background:#fff;padding:8px}
 .settings-modal .settings-item svg:last-child{margin-left:auto;opacity:.5}
+
+/* ===== инструкция в модалке кластера ===== */
+.help-body{max-height:64vh;overflow:auto;font-size:calc(12px*var(--fs));line-height:1.6}
+.help-body h3{margin:14px 0 6px;font-size:calc(13px*var(--fs))}
+.help-body pre{background:rgba(148,163,184,.12);padding:8px 10px;border-radius:8px;overflow:auto;
+               font-size:calc(10.5px*var(--fs));line-height:1.45;margin:6px 0}
+.help-body code{background:rgba(148,163,184,.14);padding:1px 5px;border-radius:5px}
+.help-body ol,.help-body ul{margin:6px 0 6px 18px;padding:0}

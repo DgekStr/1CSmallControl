@@ -73,8 +73,9 @@ case "$mode" in
 
     echo "  [1/5] база PostgreSQL $NEW"
     cleanup_failed "$NEW" "$ROLE"
-    # S-05: роль без SUPERUSER — восстановленной базе не нужны права на кластер
-    su -s /bin/bash postgres -c "psql -c \"set password_encryption='md5'; create role $ROLE login createdb password '$PWD'\"" >/dev/null 2>&1 \
+    # 1С при создании инфобазы требует у роли права администратора БД,
+    # поэтому роль копии создаём с superuser (пароль случайный, живёт до удаления копии)
+    su -s /bin/bash postgres -c "psql -c \"set password_encryption='md5'; create role $ROLE login createdb superuser password '$PWD'\"" >/dev/null 2>&1 \
       || { echo "не удалось создать роль $ROLE"; exit 4; }
     su -s /bin/bash postgres -c "psql -c \"create database $NEW owner $ROLE\"" >/dev/null 2>&1 \
       || { echo "не удалось создать базу $NEW"; cleanup_failed "$NEW" "$ROLE"; exit 4; }
@@ -91,6 +92,12 @@ case "$mode" in
       exit 5
     fi
     echo "        таблиц в копии: ${TABLES:-0}, предупреждений: $(grep -ci 'warning' /tmp/sandbox-restore.log 2>/dev/null || echo 0)"
+    # объекты после pg_restore принадлежат postgres: передаём их роли песочницы,
+    # иначе 1С (роль без SUPERUSER) не сможет работать с базой
+    su -s /bin/bash postgres -c "psql -d $NEW -c \"REASSIGN OWNED BY postgres TO $ROLE\"" >/dev/null 2>&1
+    su -s /bin/bash postgres -c "psql -d $NEW -c \"GRANT ALL ON SCHEMA public TO $ROLE\"" >/dev/null 2>&1
+    su -s /bin/bash postgres -c "psql -d $NEW -c \"ALTER DATABASE $NEW OWNER TO $ROLE\"" >/dev/null 2>&1
+    echo "        права на объекты переданы роли $ROLE"
 
     # пользователи 1С берутся из текущей базы: в старых дампах их набор может не иметь прав
     HAS_SRC=$(su -s /bin/bash postgres -c "psql -d $SRC -Atc \"select count(*) from pg_tables where schemaname='public' and tablename='v8users'\"" 2>/dev/null)

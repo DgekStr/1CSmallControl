@@ -35,7 +35,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.2')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.3')
 
 app = Flask(__name__)
 # S-09: ограничение размера запроса
@@ -2060,23 +2060,17 @@ def admin_stats_kick():
     """Отключает всех пользователей 1С от всех опубликованных баз."""
     check_csrf()
     bases = db().execute("SELECT slug FROM bases WHERE is_active = 1").fetchall()
-    done = []
-    for row in bases:
-        try:
-            proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-kick-sessions', row['slug']],
-                                  capture_output=True, text=True, timeout=120)
-            out = (proc.stdout or proc.stderr or '').strip().splitlines()
-            if out:
-                done.append('%s: %s' % (row['slug'], out[-1]))
-        except Exception as exc:  # noqa: BLE001
-            done.append('%s: ошибка %s' % (row['slug'], exc))
-    for line in done:
-        flash(line)
-    if not done:
+    if not bases:
         flash('Нет активных баз для отключения')
-    _cache.clear()
-    audit('stats_kick', 'отключены все пользователи')
-    return redirect(url_for('admin_stats'))
+        return redirect(url_for('admin_stats'))
+    # отключение идёт в фоне: rac по каждой базе — это десятки секунд
+    script = 'for b in %s; do echo "== $b"; /usr/local/bin/1c-kick-sessions "$b"; done' % ' '.join(
+        b['slug'] for b in bases)
+    jid, _ = _job_start('kick-all', 'Отключение всех пользователей 1С', ['bash', '-lc', script],
+                        session.get('uid'))
+    audit('stats_kick', 'запущено в фоне: задание %s' % jid)
+    flash('Отключение запущено в фоне (задание №%s). Прогресс — в «Заданиях».' % jid)
+    return redirect(url_for('admin_jobs'))
 
 
 
@@ -2114,6 +2108,9 @@ DEFAULT_SETTINGS = {
     'sandbox_allow_transfer': '1',
     'sandbox_allow_extend': '1',
     'trusted_days': '30',
+    'cluster_user': 'arshin',
+    'cluster_pwd': '',
+    'cluster_uuid': 'e3220a07-7374-4fc0-b4fb-25ace3789930',
 }
 
 
@@ -3116,6 +3113,126 @@ def admin_user_2fa_reset(uid):
     audit('2fa_reset_by_admin', row['username'])
     flash('2FA у клиента %s сброшен' % row['username'])
     return redirect(url_for('admin', tab='users'))
+
+
+
+# ===== управление кластером 1С =====
+
+RAC_BIN = '/opt/1cv8/x86_64/8.3.27.2342/rac'
+
+
+def _rac(args, timeout=60):
+    """Вызов rac с правами администратора кластера из настроек."""
+    login = _setting_get('cluster_user') or 'arshin'
+    pwd = _setting_get('cluster_pwd') or ''
+    cluster = _setting_get('cluster_uuid') or 'e3220a07-7374-4fc0-b4fb-25ace3789930'
+    cmd = [RAC_BIN, '127.0.0.1:1545'] + list(args) + [
+        '--cluster=%s' % cluster, '--cluster-user=%s' % login, '--cluster-pwd=%s' % pwd]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return proc.returncode, (proc.stdout or '') + (proc.stderr or '')
+    except Exception as exc:  # noqa: BLE001
+        return 1, str(exc)
+
+
+def _rac_infobases():
+    """Список инфобаз кластера: uuid, name, descr, db-name."""
+    rc, out = _rac(['infobase', 'summary', 'list'])
+    items = []
+    cur = {}
+    for line in (out or '').splitlines():
+        if ':' not in line:
+            continue
+        key, val = line.split(':', 1)
+        key, val = key.strip(), val.strip().strip('"')
+        if key == 'infobase':
+            if cur.get('uuid'):
+                items.append(cur)
+            cur = {'uuid': val}
+        elif key == 'name':
+            cur['name'] = val
+        elif key == 'descr':
+            cur['descr'] = val
+    if cur.get('uuid'):
+        items.append(cur)
+    return items
+
+
+@app.route('/admin/cluster')
+@admin_required
+def admin_cluster():
+    rc, raw = _rac(['infobase', 'summary', 'list'])
+    return render_template('cluster.html', items=_rac_infobases(), raw=(raw or '')[:2000],
+                           rc=rc, cluster_user=(_setting_get('cluster_user') or ''))
+
+
+@app.route('/admin/cluster/create', methods=['POST'])
+@admin_required
+def admin_cluster_create():
+    check_csrf()
+    name = (request.form.get('name') or '').strip()
+    db_name = (request.form.get('db_name') or name).strip()
+    db_user = (request.form.get('db_user') or '').strip()
+    db_pwd = request.form.get('db_pwd') or ''
+    if not name or not db_user or not db_pwd:
+        flash('Заполните имя инфобазы, пользователя и пароль PostgreSQL')
+        return redirect(url_for('admin_cluster'))
+    rc, out = _rac(['infobase', 'create', '--name=%s' % name, '--dbms=PostgreSQL',
+                    '--db-server=127.0.0.1', '--db-name=%s' % db_name,
+                    '--db-user=%s' % db_user, '--db-pwd=%s' % db_pwd,
+                    '--locale=ru_RU', '--license-distribution=allow'], timeout=120)
+    audit('cluster_create', '%s → %s' % (name, 'ok' if rc == 0 else out.strip()[:120]))
+    flash('Инфобаза %s создана' % name if rc == 0 else 'Не удалось создать: %s' % out.strip()[:200])
+    return redirect(url_for('admin_cluster'))
+
+
+@app.route('/admin/cluster/<uuid>/drop', methods=['POST'])
+@admin_required
+def admin_cluster_drop(uuid):
+    check_csrf()
+    rc, out = _rac(['infobase', 'drop', '--infobase=%s' % uuid])
+    audit('cluster_drop', '%s → %s' % (uuid, 'ok' if rc == 0 else out.strip()[:120]))
+    flash('Инфобаза удалена' if rc == 0 else 'Не удалось удалить: %s' % out.strip()[:200])
+    return redirect(url_for('admin_cluster'))
+
+
+@app.route('/admin/cluster/<uuid>/rename', methods=['POST'])
+@admin_required
+def admin_cluster_rename(uuid):
+    check_csrf()
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        flash('Укажите новое имя')
+        return redirect(url_for('admin_cluster'))
+    rc, out = _rac(['infobase', 'update', '--infobase=%s' % uuid, '--name=%s' % name])
+    audit('cluster_rename', '%s → %s (%s)' % (uuid, name, 'ok' if rc == 0 else out.strip()[:120]))
+    flash('Инфобаза переименована в %s' % name if rc == 0 else 'Не удалось переименовать: %s' % out.strip()[:200])
+    return redirect(url_for('admin_cluster'))
+
+
+@app.route('/admin/cluster/<uuid>/sessions', methods=['POST'])
+@admin_required
+def admin_cluster_sessions(uuid):
+    check_csrf()
+    deny = request.form.get('deny') == '1'
+    rc, out = _rac(['infobase', 'update', '--infobase=%s' % uuid,
+                    '--sessions-deny=%s' % ('true' if deny else 'false')])
+    audit('cluster_sessions', '%s deny=%s' % (uuid, deny))
+    flash('Сеансы %s' % ('запрещены' if deny else 'разрешены') if rc == 0 else 'Ошибка: %s' % out.strip()[:200])
+    return redirect(url_for('admin_cluster'))
+
+
+@app.route('/admin/cluster/settings', methods=['POST'])
+@admin_required
+def admin_cluster_settings():
+    check_csrf()
+    for key in ('cluster_user', 'cluster_pwd', 'cluster_uuid'):
+        val = (request.form.get(key) or '').strip()
+        if val:
+            _setting_set(key, val)
+    audit('cluster_settings', 'обновлены параметры доступа к кластеру')
+    flash('Параметры кластера сохранены')
+    return redirect(url_for('admin_cluster'))
 
 
 @app.route('/admin/settings/sandbox', methods=['POST'])

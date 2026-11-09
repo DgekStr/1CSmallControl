@@ -40,7 +40,8 @@
         <a class="tab {% if tab == 'bases' %}active{% endif %}" href="{{ url_for('admin', tab='bases') }}"><i data-lucide="database"></i>Базы</a>
         <a class="tab {% if tab == 'access' %}active{% endif %}" href="{{ url_for('admin', tab='access') }}"><i data-lucide="key-round"></i>Доступы</a>
         <a class="tab {% if tab == 'stats' %}active{% endif %}" href="{{ url_for('admin_stats') }}"><i data-lucide="chart-column"></i>Статистика</a>
-        <a class="tab {% if tab == 'settings' %}active{% endif %}" href="{{ url_for('admin_settings') }}"><i data-lucide="settings"></i>Настройка</a>
+        <a class="tab" href="{{ url_for('admin_cluster') }}"><i data-lucide="server"></i>Кластер</a>
+      <a class="tab {% if tab == 'settings' %}active{% endif %}" href="{{ url_for('admin_settings') }}"><i data-lucide="settings"></i>Настройка</a>
       </nav>
       <div class="topbar-right">
         <div class="theme-switch" role="group" aria-label="Тема оформления">

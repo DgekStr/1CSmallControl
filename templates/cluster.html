@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Кластер 1С | Портал</title>
+  <link rel="icon" href="{{ asset('brand.png') }}">
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('portal.css') }}">
+  <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
+  <script src="{{ asset('theme.js') }}" defer></script>
+  <script src="{{ asset('vendor/lucide.js') }}" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand topbar-brand"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></div>
+    <div class="topbar-right">
+      <div class="theme-switch" role="group" aria-label="Тема оформления">
+        <button type="button" data-theme-set="light" aria-label="Светлая"><i data-lucide="sun"></i></button>
+        <button type="button" data-theme-set="dark" aria-label="Тёмная"><i data-lucide="moon"></i></button>
+        <button type="button" data-theme-set="auto" aria-label="Системная"><i data-lucide="monitor"></i></button>
+      </div>
+      <span class="account-name">{{ session.name }}</span>
+      <span class="avatar">{{ (session.name or 'U')[0]|upper }}</span>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div>
+        <h1>Кластер 1С</h1>
+        <p class="muted">Информационные базы: создание, удаление, переименование, блокировка сеансов.</p>
+      </div>
+      <div class="page-actions">
+        <button type="button" class="button" data-open="dlg-cluster-help"><i data-lucide="book-open"></i>Инструкция</button>
+        <a class="button" href="{{ url_for('admin') }}"><i data-lucide="arrow-left"></i>В админку</a>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}<div class="flash-wrap">{% for m in messages %}<div class="operation-result success">{{ m }}</div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+
+    <section class="panel">
+      <h2 class="panel-title"><i data-lucide="database"></i>Информационные базы ({{ items|length }})</h2>
+      <table class="table">
+        <thead><tr><th>Имя</th><th>UUID</th><th class="ta-right">Действия</th></tr></thead>
+        <tbody>
+          {% for b in items %}
+          <tr>
+            <td><strong>{{ b.name or '—' }}</strong></td>
+            <td class="mono small muted">{{ b.uuid }}</td>
+            <td class="ta-right">
+              <div class="row-actions">
+                <form method="post" action="{{ url_for('admin_cluster_rename', uuid=b.uuid) }}" class="inline-form">
+                  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                  <input class="input-compact" name="name" value="{{ b.name or '' }}" placeholder="имя">
+                  <button class="button small" type="submit"><i data-lucide="pencil"></i>Имя</button>
+                </form>
+                <form method="post" action="{{ url_for('admin_cluster_sessions', uuid=b.uuid) }}" class="inline-form">
+                  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                  <input type="hidden" name="deny" value="1">
+                  <button class="button small" type="submit"><i data-lucide="lock"></i>Запретить</button>
+                </form>
+                <form method="post" action="{{ url_for('admin_cluster_drop', uuid=b.uuid) }}" class="inline-form"
+                      data-confirm="Удалить инфобазу {{ b.name }}? База PostgreSQL не удаляется.">
+                  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                  <button class="button small danger" type="submit"><i data-lucide="trash-2"></i>Удалить</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if rc != 0 %}<pre class="log-box">{{ raw }}</pre>{% endif %}
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><i data-lucide="plus"></i>Создать инфобазу</h2>
+      <form method="post" action="{{ url_for('admin_cluster_create') }}" class="form-grid">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <label>Имя инфобазы<input name="name" placeholder="buh2" required></label>
+        <label>База PostgreSQL<input name="db_name" placeholder="по умолчанию = имя"></label>
+        <label>Пользователь БД<input name="db_user" placeholder="usr_buh2" required></label>
+        <label>Пароль БД<input name="db_pwd" type="password" required></label>
+        <div class="form-actions"><button class="button primary" type="submit"><i data-lucide="database-zap"></i>Создать</button></div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title"><i data-lucide="key-round"></i>Доступ к кластеру</h2>
+      <form method="post" action="{{ url_for('admin_cluster_settings') }}" class="form-grid">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <label>Администратор<input name="cluster_user" value="{{ cluster_user }}" placeholder="arshin"></label>
+        <label>Пароль<input name="cluster_pwd" type="password" placeholder="оставьте пустым, чтобы не менять"></label>
+        <label>UUID кластера<input name="cluster_uuid" placeholder="e3220a07-…"></label>
+        <div class="form-actions"><button class="button" type="submit"><i data-lucide="save"></i>Сохранить</button></div>
+      </form>
+    </section>
+  </main>
+
+
+  <dialog class="modal conn-modal" id="dlg-cluster-help">
+    <div class="modal-heading">
+      <h2><span class="settings-emoji">📘</span> Кластер: как работать с базами</h2>
+      <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+    </div>
+    <div class="help-body">
+      <h3>1. Создать базу</h3>
+      <ol>
+        <li>Создайте роль и пустую БД в PostgreSQL:
+          <pre>sudo -u postgres psql -c "set password_encryption='md5'; create role usr_buh2 login createdb password 'СЛОЖНЫЙ_ПАРОЛЬ'"
+sudo -u postgres psql -c "create database buh2 owner usr_buh2"</pre>
+        </li>
+        <li>В разделе «Кластер» заполните форму «Создать инфобазу»: имя, БД, пользователь, пароль.</li>
+        <li>Опубликуйте базу на веб-сервере:
+          <pre>sudo 1c-republish-base buh2 buh2</pre>
+        </li>
+        <li>Добавьте базу в портал (Админка → Базы) и выдайте доступ клиентам.</li>
+      </ol>
+
+      <h3>2. Перенести данные в базу</h3>
+      <ul>
+        <li><strong>Штатно</strong> — через 1С: Конфигуратор → Администрирование → Восстановить из <code>.dt</code>. 1С сама пересоздаст служебные таблицы.</li>
+        <li><strong>Через дамп PostgreSQL</strong>: создайте <em>пустую</em> базу, затем <code>pg_restore</code> в неё, и обязательно передайте права:
+          <pre>sudo -u postgres psql -d buh2 -c "REASSIGN OWNED BY postgres TO usr_buh2"
+sudo -u postgres psql -d buh2 -c "GRANT ALL ON SCHEMA public TO usr_buh2"
+sudo -u postgres psql -d buh2 -c "ALTER DATABASE buh2 OWNER TO usr_buh2"</pre>
+        </li>
+        <li>После импорта откройте базу и проверьте вход. Если 1С пишет «Не найдена лицензия» — инфобаза повреждена: пересоздайте её (п. 3) на той же БД, данные сохранятся.</li>
+      </ul>
+
+      <h3>3. Пересоздать инфобазу без потери данных</h3>
+      <ol>
+        <li>Снимите сеансы: Админка → Статистика → «Отключить всех».</li>
+        <li>В «Кластере» удалите инфобазу (база PostgreSQL останется).</li>
+        <li>Создайте инфобазу с тем же именем и той же БД и пользователем.</li>
+        <li>Опубликуйте: <code>sudo 1c-republish-base имя имя</code>.</li>
+      </ol>
+
+      <h3>4. Удалить базу</h3>
+      <ol>
+        <li>Снимите сеансы и удалите инфобазу в «Кластере».</li>
+        <li>Удалите БД и роль:
+          <pre>sudo -u postgres psql -c "select pg_terminate_backend(pid) from pg_stat_activity where datname='buh2'"
+sudo -u postgres psql -c "drop database buh2 with (force)"
+sudo -u postgres psql -c "drop role usr_buh2"</pre>
+        </li>
+        <li>Удалите публикацию: <code>sudo rm -rf /var/www/1c/buh2</code> и перезагрузите Apache.</li>
+        <li>В портале: Админка → Базы → удалить запись и доступы.</li>
+      </ol>
+
+      <h3>5. Права, без которых ничего не получится</h3>
+      <ul>
+        <li>Удаление и переименование инфобазы выполняет только пользователь, который является
+            <strong>администратором кластера И администратором этой инфобазы</strong>.</li>
+        <li>Добавить администратора в ИБ можно только из консоли администрирования серверов 1С:
+            <em>Информационные базы → свойства → Администраторы</em>.</li>
+        <li><code>rac</code> не принимает логин/пароль пользователя базы, а <code>ibcmd</code> не меняет регистрацию в кластере.</li>
+      </ul>
+
+      <h3>6. Песочницы</h3>
+      <ul>
+        <li>Копия создаётся из свежего дампа: <code>1c-sandbox create &lt;база&gt; &lt;имя&gt; &lt;дамп&gt;</code>.</li>
+        <li>Скрипт сам создаёт роль, БД, инфобазу и публикацию, копирует пользователей 1С.</li>
+        <li>Одна копия на клиента; новая заменяет старую, продлевается и удаляется из админки.</li>
+      </ul>
+    </div>
+  </dialog>
+
+  <script>
+  (function () {
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-open="dlg-cluster-help"]');
+      if (btn) { var d = document.getElementById('dlg-cluster-help'); if (d) { d.showModal(); if (window.lucide) lucide.createIcons(); } }
+    });
+  })();
+  </script>
+
+  <script>document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });</script>
+</body>
+</html>

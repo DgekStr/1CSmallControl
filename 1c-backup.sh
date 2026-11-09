@@ -92,11 +92,20 @@ except Exception:
     print('')
 PY
 )
+# список исключений: сломанные/устаревшие инфобазы (ждут удаления в 1С)
+SKIP_FILE=/etc/1c-portal/backup-skip.txt
+if [ -f "$SKIP_FILE" ]; then
+  SKIP="$SKIP $(grep -vE '^\s*#|^\s*$' "$SKIP_FILE" | tr '\n' ' ')"
+fi
 for NAME in $LIST; do
   case " $SKIP " in *" $NAME "*) log "$NAME пропущена (песочница)"; continue;; esac
   DB=$($RAC "$RAS" infobase info --cluster="$CLUSTER" --name="$NAME" \
          --cluster-user="${IC_CLUSTER_USER:-}" --cluster-pwd="${IC_CLUSTER_PWD:-}" 2>/dev/null \
        | awk -F' *: *' '/^db-name/{print $2; exit}')
+  # если прав на infobase info нет — берём соответствие из карты портала
+  if [ -z "$DB" ] && [ -f /etc/1c-portal/backup-map.txt ]; then
+    DB=$(awk -F= -v n="$NAME" '$1==n {print $2; exit}' /etc/1c-portal/backup-map.txt)
+  fi
   [ -n "$DB" ] || DB="$NAME"
   OUT="$TARGET/$NAME-$STAMP.dump"
   ionice -c3 nice -n 10 su -s /bin/bash postgres -c "pg_dump -Fc -d '$DB' -f '$OUT'" >>"$LOG" 2>&1
