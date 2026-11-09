@@ -879,5 +879,22 @@
   })();
   </script>
 
+
+  <script>
+  /* страховка: показываем полосу сразу при отправке формы с data-job,
+     даже если отправку перехватывает другой скрипт */
+  (function () {
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      var label = form && form.getAttribute && form.getAttribute('data-job');
+      if (!label) return;
+      var band = document.getElementById('job-band');
+      var title = document.getElementById('job-band-title');
+      if (band) { band.hidden = false; band.classList.add('guard-band'); }
+      if (title) title.textContent = label;
+    }, true);
+  })();
+  </script>
+
 </body>
 </html>
