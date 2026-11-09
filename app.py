@@ -770,7 +770,11 @@ def _sb_sizes(slugs):
                                   capture_output=True, text=True, timeout=15)
             val = (proc.stdout or '').strip().splitlines()
             if val:
-                out[slug] = val[-1].strip()
+                line = val[-1].strip()
+                # формат «<slug> <размер>» — оставляем только размер
+                if line.startswith(slug):
+                    line = line[len(slug):].strip()
+                out[slug] = line
         except Exception:  # noqa: BLE001
             continue
     return out
