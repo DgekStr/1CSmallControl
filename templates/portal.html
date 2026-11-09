@@ -859,5 +859,25 @@
 })();
 </script>
 
+
+  <script>
+  /* обновляем кабинет, когда копия создана: статус «создаётся» → «готова» */
+  (function () {
+    var had = false, timer = null;
+    function check() {
+      fetch('/jobs/active', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var active = !!(d && d.jobs && d.jobs.length);
+          if (had && !active) { location.reload(); return; }
+          had = active;
+          setTimeout(check, 5000);
+        })
+        .catch(function () { setTimeout(check, 8000); });
+    }
+    if (document.body.innerText.indexOf('создаётся') !== -1) check();
+  })();
+  </script>
+
 </body>
 </html>
