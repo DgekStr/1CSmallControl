@@ -57,78 +57,113 @@
     </header>
 
     <main class="main-content">
-    <div class="page-heading">
-      <div>
-        <div class="eyebrow">АДМИНИСТРИРОВАНИЕ</div>
-        <h1>Кластер 1С</h1>
-        <p class="muted">Информационные базы: создание, удаление, переименование, блокировка сеансов.</p>
-      </div>
-      <div class="page-actions">
-        <button type="button" class="button" data-open="dlg-cluster-help"><i data-lucide="book-open"></i>Инструкция по базам</button>
-      </div>
-
     {% with messages = get_flashed_messages() %}
       {% if messages %}<div class="flash-wrap">{% for m in messages %}<div class="operation-result success">{{ m }}</div>{% endfor %}</div>{% endif %}
     {% endwith %}
 
-    <section class="panel">
-      <h2 class="panel-title"><i data-lucide="database"></i>Информационные базы ({{ items|length }})</h2>
-      <table class="table">
-        <thead><tr><th>Имя</th><th>UUID</th><th class="ta-right">Действия</th></tr></thead>
-        <tbody>
-          {% for b in items %}
-          <tr>
-            <td><strong>{{ b.name or '—' }}</strong></td>
-            <td class="mono small muted">{{ b.uuid }}</td>
-            <td class="ta-right">
-              <div class="row-actions">
-                <form method="post" action="{{ url_for('admin_cluster_rename', uuid=b.uuid) }}" class="inline-form">
-                  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-                  <input class="input-compact" name="name" value="{{ b.name or '' }}" placeholder="имя">
-                  <button class="button small" type="submit"><i data-lucide="pencil"></i>Имя</button>
-                </form>
-                <form method="post" action="{{ url_for('admin_cluster_sessions', uuid=b.uuid) }}" class="inline-form">
-                  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-                  <input type="hidden" name="deny" value="1">
-                  <button class="button small" type="submit"><i data-lucide="lock"></i>Запретить</button>
-                </form>
-                <form method="post" action="{{ url_for('admin_cluster_drop', uuid=b.uuid) }}" class="inline-form"
-                      data-confirm="Удалить инфобазу {{ b.name }}? База PostgreSQL не удаляется.">
-                  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-                  <button class="button small danger" type="submit"><i data-lucide="trash-2"></i>Удалить</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Администрирование</p>
+        <h1>Кластер 1С</h1>
+        <p class="muted">Информационные базы кластера: создание, удаление, переименование, блокировка сеансов</p>
+      </div>
+      <div class="heading-actions">
+        <button type="button" class="button" data-open="dlg-cluster-help"><i data-lucide="book-open"></i>Инструкция по базам</button>
+      </div>
+    </div>
+
+    <div class="settings-grid">
+      <form class="card settings-card" method="post" action="{{ url_for('admin_cluster_settings') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <h2>Доступ к кластеру</h2>
+        <p class="muted">Учётная запись администратора кластера. Пароль хранится в базе портала.</p>
+
+        <label class="field">Администратор
+          <input name="cluster_user" value="{{ cluster_user }}" placeholder="arshin">
+        </label>
+
+        <label class="field">Пароль
+          <input name="cluster_pwd" type="password" placeholder="оставьте пустым, чтобы не менять">
+        </label>
+
+        <label class="field">UUID кластера
+          <input name="cluster_uuid" placeholder="e3220a07-…">
+        </label>
+
+        <div class="field-row">
+          <button class="button primary" type="submit"><i data-lucide="save"></i>Сохранить</button>
+        </div>
+      </form>
+
+      <form class="card settings-card" method="post" action="{{ url_for('admin_cluster_create') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <h2>Создать инфобазу</h2>
+        <p class="muted">Имя инфобазы, база PostgreSQL и пользователь с паролем. Публикация создаётся отдельно.</p>
+
+        <label class="field">Имя инфобазы
+          <input name="name" placeholder="buh2" required>
+        </label>
+
+        <label class="field">База PostgreSQL
+          <input name="db_name" placeholder="по умолчанию = имя">
+        </label>
+
+        <div class="field-row">
+          <label class="field">Пользователь БД
+            <input name="db_user" placeholder="usr_buh2" required>
+          </label>
+          <label class="field">Пароль БД
+            <input name="db_pwd" type="password" required>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <button class="button primary" type="submit"><i data-lucide="database-zap"></i>Создать</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card settings-card" style="margin-top:16px">
+      <h2>Информационные базы <span class="badge neutral">{{ items|length }}</span></h2>
+      <p class="muted">Все инфобазы кластера. Удаление и переименование требуют прав администратора информационной базы.</p>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr><th>Имя</th><th>UUID</th><th class="ta-right">Действия</th></tr>
+          </thead>
+          <tbody>
+            {% for b in items %}
+            <tr>
+              <td><strong>{{ b.name or '—' }}</strong></td>
+              <td class="mono small muted">{{ b.uuid }}</td>
+              <td class="ta-right">
+                <div class="row-actions">
+                  <form method="post" action="{{ url_for('admin_cluster_rename', uuid=b.uuid) }}" class="inline-form">
+                    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                    <input class="input-compact" name="name" value="{{ b.name or '' }}" placeholder="имя">
+                    <button class="button small-btn" type="submit"><i data-lucide="pencil"></i>Имя</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin_cluster_sessions', uuid=b.uuid) }}" class="inline-form">
+                    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                    <input type="hidden" name="deny" value="1">
+                    <button class="button small-btn" type="submit"><i data-lucide="lock"></i>Запретить</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin_cluster_drop', uuid=b.uuid) }}" class="inline-form"
+                        data-confirm="Удалить инфобазу {{ b.name }}? База PostgreSQL не удаляется.">
+                    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+                    <button class="button small-btn danger" type="submit"><i data-lucide="trash-2"></i>Удалить</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
       {% if rc != 0 %}<pre class="log-box">{{ raw }}</pre>{% endif %}
-    </section>
+    </div>
 
-    <section class="panel">
-      <h2 class="panel-title"><i data-lucide="plus"></i>Создать инфобазу</h2>
-      <form method="post" action="{{ url_for('admin_cluster_create') }}" class="form-grid">
-        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-        <label>Имя инфобазы<input name="name" placeholder="buh2" required></label>
-        <label>База PostgreSQL<input name="db_name" placeholder="по умолчанию = имя"></label>
-        <label>Пользователь БД<input name="db_user" placeholder="usr_buh2" required></label>
-        <label>Пароль БД<input name="db_pwd" type="password" required></label>
-        <div class="form-actions"><button class="button primary" type="submit"><i data-lucide="database-zap"></i>Создать</button></div>
-      </form>
-    </section>
-
-    <section class="panel">
-      <h2 class="panel-title"><i data-lucide="key-round"></i>Доступ к кластеру</h2>
-      <form method="post" action="{{ url_for('admin_cluster_settings') }}" class="form-grid">
-        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-        <label>Администратор<input name="cluster_user" value="{{ cluster_user }}" placeholder="arshin"></label>
-        <label>Пароль<input name="cluster_pwd" type="password" placeholder="оставьте пустым, чтобы не менять"></label>
-        <label>UUID кластера<input name="cluster_uuid" placeholder="e3220a07-…"></label>
-        <div class="form-actions"><button class="button" type="submit"><i data-lucide="save"></i>Сохранить</button></div>
-      </form>
-    </section>
-  
     <dialog class="modal conn-modal" id="dlg-cluster-help">
       <div class="modal-heading">
         <h2><span class="settings-emoji">📘</span> Кластер: как работать с базами</h2>
@@ -194,10 +229,9 @@ sudo -u postgres psql -c "drop role usr_buh2"</pre>
         </ul>
       </div>
     </dialog>
-    </main>
+  </main>
 
-<script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
-<script>
+  <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script><script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script><script>
   (function () {
     function wire() {
       document.querySelectorAll('dialog').forEach(function (d) {
@@ -218,8 +252,6 @@ sudo -u postgres psql -c "drop role usr_buh2"</pre>
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
   })();
-  </script>
-<script>document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });</script>
-  <script>document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });</script>
+  </script><script>document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });</script><script>document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });</script>
 </body>
 </html>
