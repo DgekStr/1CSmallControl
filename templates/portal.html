@@ -918,7 +918,7 @@
   <dialog class="modal conn-modal" id="dlg-help">
     <div class="modal-heading">
       <h2><span class="settings-emoji">📘</span> Инструкция сервиса</h2>
-      <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <button type="button" class="icon-button" onclick="document.getElementById('dlg-help').close()" aria-label="Закрыть"><i data-lucide="x"></i></button>
     </div>
     <div class="help-scroll">
 <h3>1. Что умеет сервис</h3>
@@ -991,7 +991,7 @@
 
           </div>
     <div class="help-actions">
-      <button type="button" class="button" data-close>Закрыть</button>
+      <button type="button" class="button" onclick="document.getElementById('dlg-help').close()">Закрыть</button>
       <button type="button" class="button" id="help-pdf"><i data-lucide="file-down"></i>Сохранить в PDF</button>
       <button type="button" class="button primary" id="help-print"><i data-lucide="printer"></i>Печать</button>
     </div>
