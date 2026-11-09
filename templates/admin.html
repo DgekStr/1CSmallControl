@@ -44,15 +44,16 @@
       <a class="tab {% if tab == 'settings' %}active{% endif %}" href="{{ url_for('admin_settings') }}"><i data-lucide="settings"></i>Настройка</a>
       </nav>
       <div class="topbar-right">
+        <span class="account-name">{{ session.name }}</span>
+        <span class="avatar">{{ (session.name or 'A')[0]|upper }}</span>
+        <div class="header-tools">
         <div class="theme-switch" role="group" aria-label="Тема оформления">
           <button type="button" data-theme-set="light" title="Светлая тема" aria-label="Светлая тема"><i data-lucide="sun"></i></button>
           <button type="button" data-theme-set="dark" title="Тёмная тема" aria-label="Тёмная тема"><i data-lucide="moon"></i></button>
           <button type="button" data-theme-set="auto" title="Как в системе" aria-label="Как в системе"><i data-lucide="monitor"></i></button>
         </div>
-        
-        <span class="account-name">{{ session.name }}</span>
-        <span class="avatar">{{ (session.name or 'A')[0]|upper }}</span>
         <form action="{{ url_for('logout') }}" method="post"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="icon-button" title="Выйти" aria-label="Выйти"><i data-lucide="log-out"></i></button></form>
+        </div>
       </div>
     </header>
 

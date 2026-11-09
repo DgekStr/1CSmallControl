@@ -489,3 +489,10 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .log-box{margin-top:10px;max-height:220px;overflow:auto;padding:10px;border-radius:10px;
          background:rgba(148,163,184,.12);font-size:calc(10.5px*var(--fs))}
 .ta-right{text-align:right}
+
+/* ===== группа кнопок в шапке: тема + шестерёнка + выход ===== */
+.header-tools{display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--border);
+              border-radius:12px;background:rgba(148,163,184,.06)}
+.header-tools .theme-switch{border:0;background:transparent;padding:0}
+.header-tools .icon-button{width:30px;height:30px;border-radius:9px}
+.header-tools form{margin:0;display:flex}
