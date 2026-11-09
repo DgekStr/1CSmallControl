@@ -513,3 +513,9 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 #dlg-settings .settings-view{flex:1;display:flex;flex-direction:column;justify-content:flex-start;gap:10px}
 #dlg-settings .settings-menu{gap:10px}
 #dlg-settings .settings-item{min-height:46px}
+
+/* модалка настроек: кнопки растянуты и заполняют квадрат */
+#dlg-settings .settings-menu{display:flex;flex-direction:column;gap:12px;flex:1}
+#dlg-settings .settings-menu form{display:flex;flex:1;margin:0}
+#dlg-settings .settings-item{flex:1;min-height:64px;font-size:calc(13px*var(--fs))}
+#dlg-settings .settings-item svg{width:18px;height:18px}
