@@ -172,10 +172,24 @@ sudo -u postgres psql -c "drop role usr_buh2"</pre>
 
   <script>
   (function () {
-    document.addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-open="dlg-cluster-help"]');
-      if (btn) { var d = document.getElementById('dlg-cluster-help'); if (d) { d.showModal(); if (window.lucide) lucide.createIcons(); } }
-    });
+    function wire() {
+      document.querySelectorAll('dialog').forEach(function (d) {
+        d.addEventListener('click', function (e) {
+          if (e.target.closest('[data-close]')) { d.close(); return; }
+          var r = d.getBoundingClientRect();
+          var inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+          if (!inside) d.close();
+        });
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') document.querySelectorAll('dialog[open]').forEach(function (d) { d.close(); });
+      });
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-open="dlg-cluster-help"]');
+        if (btn) { var d = document.getElementById('dlg-cluster-help'); if (d) { d.showModal(); if (window.lucide) lucide.createIcons(); } }
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
   })();
   </script>
 

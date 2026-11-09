@@ -468,3 +468,24 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
                font-size:calc(10.5px*var(--fs));line-height:1.45;margin:6px 0}
 .help-body code{background:rgba(148,163,184,.14);padding:1px 5px;border-radius:5px}
 .help-body ol,.help-body ul{margin:6px 0 6px 18px;padding:0}
+
+/* ===== страница «Кластер»: единый стиль блоков ===== */
+.main-content > .panel{margin-bottom:14px}
+.panel{padding:16px 18px;border:1px solid var(--border);border-radius:14px;background:var(--surface,rgba(148,163,184,.06))}
+.panel-title{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:calc(13px*var(--fs));font-weight:600}
+.panel-title svg{width:15px;height:15px;opacity:.85}
+.panel .table{width:100%;border-collapse:collapse;font-size:calc(11.5px*var(--fs))}
+.panel .table th{text-align:left;font-weight:600;color:var(--muted,#94a3b8);padding:8px 10px;border-bottom:1px solid var(--border)}
+.panel .table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.panel .table tr:last-child td{border-bottom:0}
+.row-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.inline-form{display:inline-flex;gap:6px;align-items:center;margin:0}
+.input-compact{width:120px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);
+               background:rgba(15,23,42,.5);color:inherit;font-size:calc(11px*var(--fs))}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px;align-items:end}
+.form-grid label{display:flex;flex-direction:column;gap:5px;font-size:calc(11.5px*var(--fs))}
+.form-grid input{padding:9px 11px;border-radius:9px;border:1px solid var(--border);background:rgba(15,23,42,.5);color:inherit}
+.form-actions{display:flex;justify-content:flex-end;grid-column:1/-1}
+.log-box{margin-top:10px;max-height:220px;overflow:auto;padding:10px;border-radius:10px;
+         background:rgba(148,163,184,.12);font-size:calc(10.5px*var(--fs))}
+.ta-right{text-align:right}
