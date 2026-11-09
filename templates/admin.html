@@ -1365,8 +1365,30 @@
     if (btn) {
       var list = [];
       try { list = JSON.parse(btn.dataset.sandbox || '[]'); } catch (err) { list = []; }
-      var sb = list[0];
-      if (!sb) return;
+      if (!list.length) return;
+      var listBox = document.getElementById('sb-list');
+      if (listBox && list.length > 1) {
+        listBox.innerHTML = list.map(function (x, i) {
+          return '<button type="button" class="sb-pick' + (i === 0 ? ' active' : '') + '" data-i="' + i + '">' +
+            '<span class="mono">' + x.slug + '</span>' +
+            '<span class="muted small">' + (x.owner || '?') + ' · ' + x.created_at + ' · до ' + x.expires_at + '</span></button>';
+        }).join('');
+        listBox.classList.add('visible');
+        listBox.querySelectorAll('.sb-pick').forEach(function (el) {
+          el.addEventListener('click', function () {
+            listBox.querySelectorAll('.sb-pick').forEach(function (x) { x.classList.remove('active'); });
+            el.classList.add('active');
+            fill(list[Number(el.dataset.i)]);
+          });
+        });
+      } else if (listBox) {
+        listBox.classList.remove('visible');
+        listBox.innerHTML = '';
+      }
+      fill(list[0]);
+    }
+
+    function fill(sb) {
       var rows = [
         ['База', sb.source],
         ['Кто создал', sb.owner + ' (' + sb.owner_login + ')'],
