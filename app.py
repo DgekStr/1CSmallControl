@@ -3012,6 +3012,12 @@ def _sandbox_run_job(sandbox_id, source_db, new_slug, dump_path):
                       ref=str(sandbox_id), on_done=done)
 
 
+@app.route('/help')
+@login_required
+def help_page():
+    return render_template('help.html')
+
+
 @app.route('/sandbox/pending')
 @login_required
 def sandbox_pending():

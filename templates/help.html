@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Инструкция сервиса | Портал 1С</title>
+  <link rel="icon" href="{{ asset('brand.png') }}">
+  <link rel="stylesheet" href="{{ asset('app.css') }}">
+  <link rel="stylesheet" href="{{ asset('portal.css') }}">
+  <script>try{var m=localStorage.getItem('portal-theme')||'auto';document.documentElement.dataset.theme=(m==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m);}catch(e){}</script>
+  <script src="{{ asset('theme.js') }}" defer></script>
+  <script src="{{ asset('vendor/lucide.js') }}" defer></script>
+  <style>
+    .help-page{width:min(1080px,calc(100% - 40px));margin:0 auto;padding:18px 0 40px}
+    .help-card{border:1px solid var(--border);border-radius:14px;padding:22px 24px;background:rgba(148,163,184,.05)}
+    .help-body{font-size:calc(12.5px*var(--fs));line-height:1.65}
+    .help-body h3{margin:16px 0 6px;font-size:calc(14px*var(--fs))}
+    .help-body ul,.help-body ol{margin:6px 0 6px 20px;padding:0}
+    .help-body li{margin:4px 0}
+    .help-body code{background:rgba(148,163,184,.14);padding:1px 5px;border-radius:5px}
+    .help-bar{display:flex;gap:10px;margin-top:16px}
+    .help-bar .button{min-height:42px;justify-content:center}
+    @media print{
+      .topbar,.help-bar{display:none!important}
+      .help-page{width:100%;padding:0}
+      .help-card{border:0;padding:0}
+      body{background:#fff;color:#000}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand topbar-brand"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></div>
+  </header>
+
+  <main class="help-page">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Документация</p>
+        <h1>Инструкция сервиса</h1>
+        <p class="muted">Возможности, подключение, доступы, VPN, ККТ и ЭЦП, копии баз</p>
+      </div>
+      <div class="heading-actions">
+        <button type="button" class="button" onclick="window.close()"><i data-lucide="x"></i>Закрыть</button>
+        <button type="button" class="button" onclick="window.print()"><i data-lucide="file-down"></i>Сохранить в PDF</button>
+        <button type="button" class="button primary" onclick="window.print()"><i data-lucide="printer"></i>Печать</button>
+      </div>
+    </div>
+
+    <div class="help-card">
+      <div class="help-body">
+{% include "_help_body.html" %}
+      </div>
+    </div>
+  </main>
+  <script>document.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });</script>
+</body>
+</html>

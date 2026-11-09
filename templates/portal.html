@@ -168,8 +168,7 @@
               <i data-lucide="key-round"></i><span>Изменить пароль</span><i data-lucide="chevron-right"></i></button>
             <button type="button" class="settings-item" data-settings-go="2fa">
               <i data-lucide="shield-check"></i><span>Двухфакторный вход</span><i data-lucide="chevron-right"></i></button>
-                        <button type="button" class="settings-item" data-open="dlg-help">
-              <i data-lucide="book-open"></i><span>Инструкция сервиса</span><i data-lucide="chevron-right"></i></button>
+                        <a class="settings-item" href="{{ url_for('help_page') }}" target="_blank" rel="noopener"><i data-lucide="book-open"></i><span>Инструкция сервиса</span><i data-lucide="external-link"></i></a>
 <form method="post" action="{{ url_for('logout') }}">
               <input type="hidden" name="csrf" value="{{ csrf_token() }}">
               <button type="submit" class="settings-item"><i data-lucide="log-out"></i><span>Выйти из Сервиса</span></button>
@@ -911,107 +910,6 @@
       if (band) { band.hidden = false; band.classList.add('guard-band'); }
       if (title) title.textContent = label;
     }, true);
-  })();
-  </script>
-
-
-  <dialog class="modal conn-modal" id="dlg-help">
-    <div class="modal-heading">
-      <h2><span class="settings-emoji">📘</span> Инструкция сервиса</h2>
-      <button type="button" class="icon-button" onclick="document.getElementById('dlg-help').close()" aria-label="Закрыть"><i data-lucide="x"></i></button>
-    </div>
-    <div class="help-scroll">
-<h3>1. Что умеет сервис</h3>
-<ul>
-  <li><b>Личный кабинет</b> — все ваши базы 1С в одном окне, вход в веб-клиент одним нажатием.</li>
-  <li><b>Доступ к базам</b> — веб-клиент (браузер), тонкий и толстый клиент (программа на компьютере).</li>
-  <li><b>Копии баз (песочницы)</b> — безопасная копия рабочей базы для экспериментов и обучения.</li>
-  <li><b>VPN</b> — защищённый канал для доступа к 1С, ККТ и внутренним ресурсам.</li>
-  <li><b>ККТ и ЭЦП</b> — помощь в настройке кассового оборудования и электронной подписи.</li>
-  <li><b>Настройки</b> — смена пароля, двухфакторный вход, тема оформления.</li>
-</ul>
-
-<h3>2. Как добавить базу</h3>
-<ol>
-  <li>Базы создаёт и подключает <b>администратор сервиса</b> — сами вы их не добавляете.</li>
-  <li>Напишите администратору: название базы, конфигурацию (например, «Бухгалтерия»), кто из сотрудников должен иметь доступ.</li>
-  <li>Администратор создаёт базу, публикует её и выдаёт доступ вашему логину.</li>
-  <li>После этого база появится в вашем кабинете — обновите страницу.</li>
-  <li>Количество баз и сотрудников регулируется вашим тарифом.</li>
-</ol>
-
-<h3>3. Как открыть базу</h3>
-<ul>
-  <li><b>Веб-клиент</b> — нажмите «Открыть» напротив базы. Работает в браузере, ничего устанавливать не нужно.</li>
-  <li><b>Тонкий клиент</b> — установите 1С:Предприятие на компьютер, в списке баз укажите адрес вида <code>https://1c.dgek.ru/имя_базы</code>, логин и пароль выдаёт администратор.</li>
-  <li><b>Толстый клиент</b> — устанавливается на компьютер, подключается тем же адресом. Нужен для конфигуратора и тяжёлых операций.</li>
-</ul>
-
-<h3>4. Настройки доступа</h3>
-<ul>
-  <li><b>Пароль</b> — шестерёнка → «Изменить пароль». Минимум 8 символов, буквы и цифры. После смены остальные устройства потребуют вход заново.</li>
-  <li><b>Двухфакторный вход</b> — шестерёнка → «Двухфакторный вход», отсканируйте QR приложением (Google Authenticator, Яндекс Ключ). Сохраните коды восстановления.</li>
-  <li><b>Доступ сотрудников</b> — выдаёт администратор: он указывает, кто и к какой базе допущен.</li>
-  <li>Если сотрудник уволен — сообщите администратору, доступ будет закрыт.</li>
-</ul>
-
-<h3>5. VPN</h3>
-<ul>
-  <li>Нужен для доступа к базе с ноутбука вне офиса, а также к ККТ и внутренним сервисам.</li>
-  <li>Конфигурацию выдаёт администратор; установка — приложение WireGuard.</li>
-  <li>После подключения адрес сервиса не меняется — просто работаете как обычно.</li>
-  <li>Не передавайте конфигурацию третьим лицам: это ключ доступа к вашей сети.</li>
-</ul>
-
-<h3>6. ККТ и ЭЦП</h3>
-<ul>
-  <li><b>ККТ</b> (касса): настройка драйвера, подключение к 1С, проверка обмена с ОФД — через администратора сервиса.</li>
-  <li><b>ЭЦП</b>: установка сертификата, CryptoPro, настройка подписи в 1С — через администратора.</li>
-  <li>Сообщите администратору модель оборудования, версию 1С и задачу — он подготовит доступ.</li>
-</ul>
-
-<h3>7. Песочницы (копии баз)</h3>
-<ul>
-  <li>Это <b>отдельная копия</b> вашей базы на определённую дату — рабочая база не затрагивается.</li>
-  <li>Создаётся из резервной копии: «Копии базы» → выбрать дату → «Создать копию».</li>
-  <li>Хранится несколько дней (обычно 3), затем удаляется автоматически.</li>
-  <li>В копии можно смело экспериментировать: обновлять конфигурацию, обучать сотрудников, проверять отчёты.</li>
-  <li>Одна копия на клиента; при создании новой предыдущая заменяется.</li>
-</ul>
-
-<h3>8. Частые вопросы</h3>
-<ul>
-  <li><b>Забыл пароль</b> — обратитесь к администратору сервиса.</li>
-  <li><b>База не открывается</b> — проверьте интернет, обновите страницу (Ctrl+F5), при ошибке 1С сообщите администратору текст.</li>
-  <li><b>Медленно работает</b> — закройте лишние вкладки, проверьте скорость интернета; в веб-клиенте помогает перезапуск страницы.</li>
-  <li><b>Нужен доступ новому сотруднику</b> — заявка администратору с указанием ФИО и базы.</li>
-</ul>
-
-<p class="muted small">Поддержка: администратор сервиса. Телефон и почта — в договоре.</p>
-
-          </div>
-    <div class="help-actions">
-      <button type="button" class="button" onclick="document.getElementById('dlg-help').close()">Закрыть</button>
-      <button type="button" class="button" id="help-pdf"><i data-lucide="file-down"></i>Сохранить в PDF</button>
-      <button type="button" class="button primary" id="help-print"><i data-lucide="printer"></i>Печать</button>
-    </div>
-  </dialog>
-
-  <script>
-  (function () {
-    var d = document.getElementById('dlg-help');
-    var pr = document.getElementById('help-print'), pf = document.getElementById('help-pdf');
-    if (pr) pr.addEventListener('click', function () { window.print(); });
-    if (pf) pf.addEventListener('click', function () { window.print(); });
-    document.addEventListener('click', function (e) {
-      if (e.target.closest('[data-open="dlg-help"]')) {
-        var s2 = document.getElementById('dlg-settings');
-        if (s2 && s2.open) s2.close();
-        d.showModal();
-        if (window.lucide) lucide.createIcons();
-      }
-      else if (d && d.open && (e.target.closest('#dlg-help [data-close]') || e.target === d)) d.close();
-    });
   })();
   </script>
 
