@@ -35,7 +35,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.5')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.6')
 
 app = Flask(__name__)
 # S-09: ограничение размера запроса
@@ -2016,6 +2016,15 @@ def admin_stats():
             FROM audit WHERE action = 'open_base' GROUP BY actor"""):
         opens[r['actor']] = {'n': r['n'], 'bases': r['bases']}
 
+    user_bases = {}
+    user_last_base = {}
+    for r in db().execute("""
+        SELECT actor, details, COUNT(*) AS n, MAX(ts) AS last_ts
+        FROM audit WHERE action = 'open_base'
+        GROUP BY actor, details ORDER BY last_ts DESC"""):
+        label = '%s (%s)' % (r['details'], (r['last_ts'] or '')[:16])
+        user_bases.setdefault(r['actor'], []).append(label)
+        user_last_base.setdefault(r['actor'], r['details'])
     opens_by_base = db().execute("""
         SELECT details AS slug, COUNT(*) AS n, COUNT(DISTINCT actor) AS people
         FROM audit WHERE action = 'open_base' GROUP BY details ORDER BY n DESC""").fetchall()
@@ -2033,7 +2042,7 @@ def admin_stats():
 
     return render_template('admin.html', users=[], bases=[], links=set(), tab='stats',
                            sessions={},
-                           stats_users=users, stats_opens=opens, stats_bases=opens_by_base,
+                           stats_users=users, stats_opens=opens, stats_bases=opens_by_base, stats_user_bases=user_bases, stats_user_last_base=user_last_base,
                            stats_events=events, stats_visits=visits,
                            stats_total=total_seconds,
                            stats_live=live_sessions, stats_clients=client_history, srv=srv, lic=lic,
@@ -2054,8 +2063,14 @@ def _sessions_snapshot():
         parts = line.split('|')
         if len(parts) < 6:
             continue
-        rows.append({'sid': parts[0], 'user': parts[1], 'app': parts[2],
-                     'host': parts[3], 'started': parts[4], 'last': parts[5]})
+        user, app = (parts[1] or '').strip(), (parts[2] or '').strip()
+        # служебные сеансы: RAS — запросы портала к кластеру, BackgroundJob —
+        # регламентные задания, DefUser — сеанс без авторизованного пользователя
+        if app in ('RAS', 'BackgroundJob') or user in ('', 'DefUser'):
+            continue
+        rows.append({'sid': parts[0], 'user': user, 'app': app,
+                     'host': parts[3], 'started': parts[4], 'last': parts[5],
+                     'base': parts[6].strip() if len(parts) > 6 else ''})
     cleared = _setting_get('stats_cleared_at')
     try:
         for r in rows:
@@ -2064,8 +2079,8 @@ def _sessions_snapshot():
             if cleared and started and started < cleared:
                 continue
             db().execute("""
-                INSERT INTO client_sessions(sid, username, app, host, started_at, last_seen)
-                VALUES(?,?,?,?,?,datetime('now','localtime'))
+                INSERT INTO client_sessions(sid, username, app, host, base, started_at, last_seen)
+                VALUES(?,?,?,?,?,?,datetime('now','localtime'))
                 ON CONFLICT(sid) DO UPDATE SET
                     username = excluded.username, app = excluded.app, host = excluded.host,
                     started_at = excluded.started_at, last_seen = datetime('now','localtime')""",

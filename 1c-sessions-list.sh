@@ -24,11 +24,19 @@ if [ -z "$CLUSTER" ]; then
 fi
 [ -n "$CLUSTER" ] || exit 2
 
-$RAC "$RAS" session list --cluster="$CLUSTER" "${AUTH[@]}" 2>/dev/null | awk -F' +: +' '
+# карта uuid инфобазы → имя (для колонки «База»)
+BASE_MAP=$($RAC "$RAS" infobase summary list --cluster="$CLUSTER" "${AUTH[@]}" 2>/dev/null | awk -F' *: *' '
+  /^infobase /{u=$2} /^name /{if (u) {print u"|"$2; u=""}}
+')
+
+$RAC "$RAS" session list --cluster="$CLUSTER" "${AUTH[@]}" 2>/dev/null | \
+  awk -F' +: +' -v map="$BASE_MAP" '
+  BEGIN { n=split(map, lines, "\n"); for (i=1; i<=n; i++) { split(lines[i], kv, "|"); if (kv[1] != "") base[kv[1]]=kv[2] } }
   /^session /{sid=$2}
+  /^infobase /{ib=$2}
   /^user-name /{user=$2}
   /^app-id /{app=$2}
   /^host /{host=$2}
   /^started-at /{start=$2}
-  /^last-active-at /{last=$2; print sid "|" user "|" app "|" host "|" start "|" last; user=""; app=""; host=""; start=""; last=""}
+  /^last-active-at /{last=$2; print sid "|" user "|" app "|" host "|" start "|" last "|" (base[ib] != "" ? base[ib] : ib); user=""; app=""; host=""; start=""; last=""; ib=""}
 '
