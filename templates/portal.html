@@ -16,6 +16,7 @@
     <header class="topbar">
       <div class="brand topbar-brand"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></div>
       <div class="topbar-right">
+        <button type="button" class="icon-button" data-open="dlg-feedback" title="Сообщить о проблеме" aria-label="Сообщить о проблеме"><i data-lucide="mail"></i></button>
         <span class="account-name">{{ session.name }}</span>
         <span class="avatar">{{ (session.name or 'U')[0]|upper }}</span>
         <div class="header-tools">
@@ -875,6 +876,94 @@
           .catch(function () {});
       }, 5000);
     }
+  })();
+  </script>
+
+
+  <dialog class="modal conn-modal" id="dlg-feedback">
+    <div class="modal-heading">
+      <h2><span class="settings-emoji">✉️</span> Сообщить о проблеме</h2>
+      <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+    </div>
+    <p class="muted small">Опишите, что произошло. Можно приложить скриншот — файл или вставьте из буфера (Ctrl+V).</p>
+    <form id="feedback-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <textarea name="text" rows="4" placeholder="Что случилось, в какой базе, что делали…" required
+                style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,.5);color:inherit;font:inherit"></textarea>
+      <div class="feedback-shot" style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <input type="file" name="shot" accept="image/*" id="feedback-file" style="display:none">
+        <label for="feedback-file" class="button small-btn"><i data-lucide="image-plus"></i>Приложить скриншот</label>
+        <span class="muted small" id="feedback-file-name">файл не выбран</span>
+      </div>
+      <div class="feedback-msg" id="feedback-msg" style="min-height:18px;margin-top:6px"></div>
+      <div class="modal-footer">
+        <button type="button" class="button" data-close>Отмена</button>
+        <button type="submit" class="button primary"><i data-lucide="send"></i>Отправить</button>
+      </div>
+    </form>
+  </dialog>
+  <script>
+  (function () {
+    var dlg = document.getElementById('dlg-feedback');
+    if (!dlg) return;
+    var form = document.getElementById('feedback-form');
+    var file = document.getElementById('feedback-file');
+    var name = document.getElementById('feedback-file-name');
+    var msg = document.getElementById('feedback-msg');
+    function setFile(f) {
+      if (!f) return;
+      var dt = new DataTransfer();
+      dt.items.add(f);
+      file.files = dt.files;
+      name.textContent = f.name || 'вставлено из буфера';
+    }
+    if (file) file.addEventListener('change', function () {
+      name.textContent = (file.files[0] || {}).name || 'файл не выбран';
+    });
+    document.addEventListener('paste', function (e) {
+      if (!dlg.open) return;
+      var items = (e.clipboardData || {}).items || [];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') === 0) {
+          setFile(items[i].getAsFile());
+          e.preventDefault();
+          break;
+        }
+      }
+    });
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('[data-open="dlg-feedback"]')) {
+        if (msg) { msg.textContent = ''; msg.className = 'feedback-msg'; }
+        dlg.showModal();
+        if (window.lucide) lucide.createIcons();
+      }
+      if (dlg.open && (e.target.closest('#dlg-feedback [data-close]') || e.target === dlg)) dlg.close();
+    });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var fd = new FormData(form);
+      fd.append('page', location.pathname);
+      msg.textContent = 'Отправляем…';
+      msg.className = 'feedback-msg muted';
+      fetch('/feedback', { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.ok) {
+            msg.textContent = 'Спасибо! Сообщение отправлено администратору.';
+            msg.className = 'feedback-msg ok';
+            form.reset();
+            name.textContent = 'файл не выбран';
+            setTimeout(function () { dlg.close(); }, 1500);
+          } else {
+            msg.textContent = d.error || 'Не удалось отправить';
+            msg.className = 'feedback-msg err';
+          }
+        })
+        .catch(function () {
+          msg.textContent = 'Нет связи с сервером';
+          msg.className = 'feedback-msg err';
+        });
+    });
   })();
   </script>
 

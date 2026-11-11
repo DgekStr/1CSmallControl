@@ -44,6 +44,7 @@
       <a class="tab {% if tab == 'settings' %}active{% endif %}" href="{{ url_for('admin_settings') }}"><i data-lucide="settings"></i>Настройка</a>
       </nav>
       <div class="topbar-right">
+        <button type="button" class="icon-button" data-open="dlg-feedback" title="Сообщить о проблеме" aria-label="Сообщить о проблеме"><i data-lucide="mail"></i></button>
         <span class="account-name">{{ session.name }}</span>
         <span class="avatar">{{ (session.name or 'A')[0]|upper }}</span>
         <div class="header-tools">
@@ -138,7 +139,7 @@
                 {% elif b.cluster_state == 'failed' %}<span class="badge warning" title="создание не удалось">ошибка</span>
                 {% else %}<span class="badge neutral" title="только запись портала">нет</span>{% endif %}
               </td>
-              <td>{% set st = sessions.get(b.slug) %}{% if not st %}<span class="badge neutral" title="нет данных">—</span>{% elif st.n %}<span class="badge success" title="активных сеансов">{{ st.n }}</span>{% else %}<span class="badge neutral" title="нет активных сеансов">0</span>{% endif %}</td>
+              <td>{% set st = sessions.get(b.ib_name or b.db_name or b.slug) %}{% if not st %}<span class="badge neutral" title="нет данных">—</span>{% elif st.n %}<span class="badge success" title="активных сеансов">{{ st.n }}</span>{% else %}<span class="badge neutral" title="нет активных сеансов">0</span>{% endif %}</td>
               <td>
                 <form method="post" action="{{ url_for('base_jobs', bid=b.id) }}" data-confirm="{{ 'Разблокировать' if st and st.jobs == 'on' else 'Заблокировать' }} регламентные задания базы «{{ b.slug }}»?" data-confirm-title="Регламентные задания" data-confirm-ok="Продолжить" data-confirm-style="primary">
                   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -245,10 +246,11 @@
   <a class="button" href="{{ url_for('admin_jobs') }}"><i data-lucide="list-checks"></i>Журнал заданий сервера</a>
 </div>
 
+
 <div class="settings-grid">
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-          <h2>Подключение к 1С</h2>
+          <h2><span class="settings-emoji">🔌</span> Подключение к 1С</h2>
           <p class="muted">Хост сервера 1С записывается в публикацию и используется клиентами при подключении.</p>
 
           <label class="field">Хост сервера 1С
@@ -290,7 +292,7 @@
 
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings_sandbox') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-          <h2>Песочница восстановления</h2>
+          <h2><span class="settings-emoji">🧪</span> Песочница восстановления</h2>
           <p class="muted">Клиент может поднять копию своей базы и посмотреть данные на дату резервной копии.</p>
 
           <label class="check-label ack" style="margin:4px 0 12px">
@@ -356,7 +358,7 @@
 
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings_monitor') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-          <h2>Мониторинг</h2>
+          <h2><span class="settings-emoji">📊</span> Мониторинг</h2>
           <p class="muted">Проверка портала, свободного места и бэкапов каждые 10 минут. При двух сбоях подряд — сообщение в Mattermost.</p>
 
           <label class="check-label ack" style="margin:4px 0 12px">
@@ -424,7 +426,7 @@
         </form>
 
         <div class="card settings-card">
-          <h2>Двухфакторный вход</h2>
+          <h2><span class="settings-emoji">🔐</span> Двухфакторный вход</h2>
           <p class="muted">Дополнительный код из приложения-аутентификатора при входе в админку.</p>
 
           {% if twofa_enabled %}
@@ -445,7 +447,7 @@
 
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings_vpn') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-          <h2>VPN и адреса</h2>
+          <h2><span class="settings-emoji">🌐</span> VPN и адреса</h2>
           <p class="muted">Что подставляется в конфигурации WireGuard и файлы подключения.</p>
 
           <div class="field-row">
@@ -480,7 +482,7 @@
 
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings_backup') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-          <h2>Архивация баз</h2>
+          <h2><span class="settings-emoji">💾</span> Архивация баз</h2>
           <p class="muted">Полные копии каждой базы по расписанию: PostgreSQL → дамп → каталог хранения.</p>
 
           <label class="check-label ack" style="margin:6px 0 12px">
@@ -534,7 +536,7 @@
 
         <form class="card settings-card" method="post" action="{{ url_for('admin_settings_mm') }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-          <h2>Уведомления в Mattermost</h2>
+          <h2><span class="settings-emoji">💬</span> Уведомления в Mattermost</h2>
           <p class="muted">Портал отправляет в канал сообщения о событиях безопасности.</p>
 
           <label class="field">Адрес входящего хука
@@ -556,7 +558,7 @@
         </form>
 
         <div class="card settings-card">
-          <h2>Обслуживание</h2>
+          <h2><span class="settings-emoji">🛠️</span> Обслуживание</h2>
 
           <form method="post" action="{{ url_for('admin_settings_schedule') }}">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -613,6 +615,20 @@
             <button class="button danger" type="submit"><i data-lucide="power"></i>Перезагрузить сервер</button>
           </form>
         </div>
+<form class="card settings-card" method="post" action="{{ url_for('admin_settings_night') }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <h2><span class="settings-emoji">🌙</span> Ночная чистка</h2>
+  <p class="muted">Перезапуск сервера 1С по расписанию: сбрасывает зависшие сеансы и освобождает память.</p>
+  <label class="field" style="display:flex;align-items:center;gap:10px">
+    <input type="checkbox" name="night_clean_enabled" value="1" {% if settings.night_clean_enabled == '1' %}checked{% endif %} style="width:18px;height:18px;flex:0 0 auto">
+    <span>Включить ночной перезапуск 1С</span>
+  </label>
+  <label class="field">Время перезапуска (ЧЧ:ММ)
+    <input name="night_clean_time" value="{{ settings.night_clean_time or '04:00' }}" placeholder="04:00" pattern="[0-2][0-9]:[0-5][0-9]">
+  </label>
+  <p class="muted small">Сейчас: {% if settings.night_clean_enabled == '1' %}<b>включено</b> в <b>{{ settings.night_clean_time or '04:00' }}</b>{% else %}<b>выключено</b>{% endif %}. Пользователи будут отключены на 20–40 секунд.</p>
+  <button class="button primary" type="submit"><i data-lucide="moon"></i>Сохранить</button>
+</form>
       </div>
       {% endif %}
 
@@ -735,7 +751,7 @@
               <td class="muted">{{ u.last_seen }}</td>
               <td class="mono muted">{{ u.last_ip or '—' }}{% if u.ips > 1 %} <span class="badge neutral" title="разных адресов">{{ u.ips }}</span>{% endif %}</td>
               <td>{{ stats_opens.get(u.username, {}).get('n', 0) }}</td>
-              <td><span class="badge neutral" title="{{ (stats_user_bases.get(u.username, [])|join(' · ')) or 'нет данных' }}">{{ stats_opens.get(u.username, {}).get('bases', 0) }}</span></td>
+              <td><span class="badge neutral" title="{{ (stats_user_bases.get(u.username, [])|join('&#10;')|safe) or 'нет данных' }}">{{ stats_opens.get(u.username, {}).get('bases', 0) }}</span></td>
               <td>{% if u.online %}<span class="badge success">в системе</span>{% else %}<span class="badge neutral">нет</span>{% endif %}</td>
             </tr>
           {% else %}
@@ -1521,6 +1537,94 @@
         .catch(function () { setTimeout(check, 8000); });
     }
     check();
+  })();
+  </script>
+
+
+  <dialog class="modal conn-modal" id="dlg-feedback">
+    <div class="modal-heading">
+      <h2><span class="settings-emoji">✉️</span> Сообщить о проблеме</h2>
+      <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
+    </div>
+    <p class="muted small">Опишите, что произошло. Можно приложить скриншот — файл или вставьте из буфера (Ctrl+V).</p>
+    <form id="feedback-form">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <textarea name="text" rows="4" placeholder="Что случилось, в какой базе, что делали…" required
+                style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(15,23,42,.5);color:inherit;font:inherit"></textarea>
+      <div class="feedback-shot" style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <input type="file" name="shot" accept="image/*" id="feedback-file" style="display:none">
+        <label for="feedback-file" class="button small-btn"><i data-lucide="image-plus"></i>Приложить скриншот</label>
+        <span class="muted small" id="feedback-file-name">файл не выбран</span>
+      </div>
+      <div class="feedback-msg" id="feedback-msg" style="min-height:18px;margin-top:6px"></div>
+      <div class="modal-footer">
+        <button type="button" class="button" data-close>Отмена</button>
+        <button type="submit" class="button primary"><i data-lucide="send"></i>Отправить</button>
+      </div>
+    </form>
+  </dialog>
+  <script>
+  (function () {
+    var dlg = document.getElementById('dlg-feedback');
+    if (!dlg) return;
+    var form = document.getElementById('feedback-form');
+    var file = document.getElementById('feedback-file');
+    var name = document.getElementById('feedback-file-name');
+    var msg = document.getElementById('feedback-msg');
+    function setFile(f) {
+      if (!f) return;
+      var dt = new DataTransfer();
+      dt.items.add(f);
+      file.files = dt.files;
+      name.textContent = f.name || 'вставлено из буфера';
+    }
+    if (file) file.addEventListener('change', function () {
+      name.textContent = (file.files[0] || {}).name || 'файл не выбран';
+    });
+    document.addEventListener('paste', function (e) {
+      if (!dlg.open) return;
+      var items = (e.clipboardData || {}).items || [];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') === 0) {
+          setFile(items[i].getAsFile());
+          e.preventDefault();
+          break;
+        }
+      }
+    });
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('[data-open="dlg-feedback"]')) {
+        if (msg) { msg.textContent = ''; msg.className = 'feedback-msg'; }
+        dlg.showModal();
+        if (window.lucide) lucide.createIcons();
+      }
+      if (dlg.open && (e.target.closest('#dlg-feedback [data-close]') || e.target === dlg)) dlg.close();
+    });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var fd = new FormData(form);
+      fd.append('page', location.pathname);
+      msg.textContent = 'Отправляем…';
+      msg.className = 'feedback-msg muted';
+      fetch('/feedback', { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.ok) {
+            msg.textContent = 'Спасибо! Сообщение отправлено администратору.';
+            msg.className = 'feedback-msg ok';
+            form.reset();
+            name.textContent = 'файл не выбран';
+            setTimeout(function () { dlg.close(); }, 1500);
+          } else {
+            msg.textContent = d.error || 'Не удалось отправить';
+            msg.className = 'feedback-msg err';
+          }
+        })
+        .catch(function () {
+          msg.textContent = 'Нет связи с сервером';
+          msg.className = 'feedback-msg err';
+        });
+    });
   })();
   </script>
 

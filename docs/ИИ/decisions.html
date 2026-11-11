@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Решения · ИИ-модуль 1C Small Control</title><style>
+:root{--bg:#0b1220;--panel:#111b2e;--line:#1f2d47;--text:#e6edf7;--muted:#93a4bf;--acc:#4f9cf9;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 22px 80px}
+header.top{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:26px}
+header.top h1{margin:0 0 6px;font-size:26px}
+header.top .sub{color:var(--muted);font-size:13px}
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 26px}
+nav.tabs a{color:var(--text);text-decoration:none;border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:10px;font-size:13px}
+nav.tabs a.active{border-color:var(--acc);color:#fff;background:#163055}
+h1,h2,h3{line-height:1.25}
+h2{margin:34px 0 12px;font-size:21px;border-bottom:1px solid var(--line);padding-bottom:8px}
+h3{margin:24px 0 8px;font-size:17px;color:#cfe0ff}
+p{margin:10px 0}
+a{color:var(--acc)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#16233a;font-weight:600}
+tr:nth-child(even) td{background:#0f1828}
+code{background:#0a1220;border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:13px}
+pre{background:#0a1220;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-size:13px}
+pre code{border:0;background:none;padding:0}
+blockquote{margin:14px 0;padding:10px 16px;border-left:3px solid var(--acc);background:#0f1a2c;color:var(--muted)}
+ul,ol{margin:10px 0 10px 22px}
+li{margin:4px 0}
+hr{border:0;border-top:1px solid var(--line);margin:28px 0}
+footer{margin-top:48px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style></head><body><div class="wrap"><header class="top"><h1>ИИ-модуль портала 1C Small Control</h1><div class="sub">Правила работы · дорожная карта · задания для MCP · раздел ТЗ · v1.0 · 11.11.2026</div></header><nav class="tabs"><a href="index.html" class="">Правила</a><a href="roadmap.html" class="">Дорожная карта</a><a href="prompts-mcp.html" class="">Задания для MCP</a><a href="tz-section.html" class="">Раздел ТЗ</a><a href="detectors.html" class="">Детекторы</a><a href="decisions.html" class="active">Решения</a></nav><h1>Решения по ИИ-модулю (утверждено 11–12.11.2026)</h1>
+<p>Документ фиксирует ответы пользователя на вопросы ревью. При конфликте с <code>README.md</code> — приоритет здесь.</p>
+<h2>1. Утверждённые решения</h2>
+<table><thead><tr><th>№</th><th>Вопрос</th><th>Решение</th></tr></thead><tbody>
+<tr><td>1</td><td>Где работает LLM</td><td><strong>Пока только облако с маскированием ПДн</strong> (локальная модель — позже)</td></tr>
+<tr><td>2</td><td>Как ИИ читает данные</td><td><strong>Гибрид</strong>: SQL по копии для структуры + <strong>HTTP-сервис 1С</strong> для учётных данных</td></tr>
+<tr><td>3</td><td>Свежесть песочницы</td><td><strong>Кнопка «Песочница ИИ»</strong> у пользователя: живой срез базы, <strong>не чаще 1 раза в сутки</strong>; работа по срезу</td></tr>
+<tr><td>4</td><td>Кому доступен ИИ</td><td>Любой пользователь с флагом ИИ <strong>при наличии доступа к базе</strong> (проверка обязательна)</td></tr>
+<tr><td>5</td><td>Формат отчётов</td><td><strong>HTML в портале + PDF</strong>, PDF формируется <strong>на сервере (LibreOffice)</strong></td></tr>
+<tr><td>6</td><td>Лимиты</td><td><strong>5 задач в день</strong> на пользователя, <strong>задача до 30 минут</strong></td></tr>
+<tr><td>7</td><td>Ответственность</td><td><strong>Бухгалтер подтверждает/отклоняет каждую находку</strong></td></tr>
+<tr><td>8</td><td>Детекторы</td><td>8 проверок по <a href="detectors.md">detectors.md</a>: БП (6), НДС (1), ЗУП (1)</td></tr>
+<tr><td>8a</td><td>Сценарии для промтов</td><td>закрытие периода, сверка взаиморасчётов, НДС, зарплата (ЗУП) — к текущим четырём</td></tr>
+<tr><td>9</td><td>Владелец детекторов</td><td><strong>Администратор портала</strong> (текущий исполнитель)</td></tr>
+<tr><td>10</td><td>«Тестирование и исправление»</td><td>ИИ <strong>только находит и показывает</strong>; исправляет человек в песочнице</td></tr>
+<tr><td>11</td><td>Хранение отчётов</td><td><strong>30 дней</strong>, затем автоудаление</td></tr>
+</tbody></table>
+<h2>2. Механика «Песочница ИИ»</h2>
+<pre><code>Кабинет → [🤖 ИИ] → кнопка «Песочница ИИ»
+        │
+        ▼
+Живой срез базы (копия ~1,8 ГБ, создание 5–15 мин)
+        │  не чаще 1 раза в сутки
+        ▼
+Работа ИИ строго по срезу; на отчёте — дата и время среза
+        │
+        ▼
+Блокировка на 3 часа; второй пользователь получает
+«Песочница сейчас занята, попробуйте через 3 часа»</code></pre>
+<table><thead><tr><th>Правило</th><th>Поведение</th></tr></thead><tbody>
+<tr><td>Срез чаще 1 раза в сутки</td><td>отказ «сегодняшний срез уже создан в HH:MM, используем его»</td></tr>
+<tr><td>Нет доступа к базе</td><td>отказ «нет доступа к базе» (флаг ИИ не помогает)</td></tr>
+<tr><td>Песочница занята</td><td>отказ с именем пользователя и временем до освобождения</td></tr>
+<tr><td>Завершил задачу</td><td>блокировка снимается кнопкой «Завершить»</td></tr>
+<tr><td>Прошло 3 часа</td><td>блокировка снимается таймером</td></tr>
+</tbody></table>
+<h2>3. Что проверяет ИИ и что делает человек</h2>
+<table><thead><tr><th>Этап</th><th>Кто</th></tr></thead><tbody>
+<tr><td>Создание среза</td><td>кнопка пользователя, контролирует портал</td></tr>
+<tr><td>Проверки, поиск ошибок, сверки</td><td><strong>ИИ</strong> (только чтение)</td></tr>
+<tr><td>Подтверждение находки «верно / ложное»</td><td><strong>бухгалтер</strong></td></tr>
+<tr><td>Исправление данных</td><td><strong>человек в песочнице или в 1С</strong></td></tr>
+<tr><td>«Тестирование и исправление»</td><td>только человек, ИИ лишь показывает результат</td></tr>
+<tr><td>Подготовка отчёта PDF</td><td>портал (LibreOffice)</td></tr>
+</tbody></table>
+<h2>4. Лимиты инфраструктуры</h2>
+<table><thead><tr><th>Ресурс</th><th>Значение</th></tr></thead><tbody>
+<tr><td>Срезов в сутки на пользователя</td><td>1</td></tr>
+<tr><td>Песочниц одновременно</td><td>1</td></tr>
+<tr><td>Удержание блокировки</td><td>3 часа</td></tr>
+<tr><td>Задач в день на пользователя</td><td>5</td></tr>
+<tr><td>Длительность одной задачи</td><td>до 30 минут</td></tr>
+<tr><td>Срок жизни отчёта</td><td>30 дней</td></tr>
+<tr><td>Размер песочницы</td><td>до 20 ГБ</td></tr>
+</tbody></table>
+<p>Свободно на момент утверждения: 26 ГБ (<code>/var/lib/pgpro</code>), 6,3 ГБ (<code>/</code>). Поэтому лимит срезов — 1 в сутки, старые песочницы удаляются перед созданием новой.</p>
+<h2>5. Что осталось решить позже (не блокирует проектирование)</h2>
+<table><thead><tr><th>Вопрос</th><th>Когда решать</th></tr></thead><tbody>
+<tr><td>Железо под локальную LLM (GPU-сервер)</td><td>после пилота, если облако не устроит по качеству</td></tr>
+<tr><td>Круг пользователей для пилота (поимённо)</td><td>к этапу 7</td></tr>
+<tr><td>Подключение ЗУП (есть ли такая база)</td><td>перед разработкой детекторов зарплаты</td></tr>
+<tr><td>Политика обновления детекторов после релизов 1С</td><td>к этапу 2</td></tr>
+<tr><td>Стоимость токенов и бюджет LLM в месяц</td><td>перед пилотом</td></tr>
+</tbody></table>
+<h2>6. Итоговая оценка</h2>
+<table><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody>
+<tr><td>Срок</td><td>7–9 недель</td></tr>
+<tr><td>Первый этап</td><td>правила + роль БД + место под песочницы</td></tr>
+<tr><td>Первый видимый результат</td><td>«Проверить базу» на <code>dgek-db</code> с отчётом HTML/PDF</td></tr>
+<tr><td>Главный риск</td><td>качество детекторов и ожидания бухгалтеров</td></tr>
+<tr><td>Критерий остановки</td><td>полезность ответов &lt; 60% на 20 вопросах пилота</td></tr>
+</tbody></table><footer>Только песочницы · read-only · один ИИ-сеанс одновременно · версия портала 2.0.8</footer></div></body></html>

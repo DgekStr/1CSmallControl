@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Правила · ИИ-модуль 1C Small Control</title><style>
+:root{--bg:#0b1220;--panel:#111b2e;--line:#1f2d47;--text:#e6edf7;--muted:#93a4bf;--acc:#4f9cf9;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 22px 80px}
+header.top{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:26px}
+header.top h1{margin:0 0 6px;font-size:26px}
+header.top .sub{color:var(--muted);font-size:13px}
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 26px}
+nav.tabs a{color:var(--text);text-decoration:none;border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:10px;font-size:13px}
+nav.tabs a.active{border-color:var(--acc);color:#fff;background:#163055}
+h1,h2,h3{line-height:1.25}
+h2{margin:34px 0 12px;font-size:21px;border-bottom:1px solid var(--line);padding-bottom:8px}
+h3{margin:24px 0 8px;font-size:17px;color:#cfe0ff}
+p{margin:10px 0}
+a{color:var(--acc)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#16233a;font-weight:600}
+tr:nth-child(even) td{background:#0f1828}
+code{background:#0a1220;border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:13px}
+pre{background:#0a1220;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-size:13px}
+pre code{border:0;background:none;padding:0}
+blockquote{margin:14px 0;padding:10px 16px;border-left:3px solid var(--acc);background:#0f1a2c;color:var(--muted)}
+ul,ol{margin:10px 0 10px 22px}
+li{margin:4px 0}
+hr{border:0;border-top:1px solid var(--line);margin:28px 0}
+footer{margin-top:48px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style></head><body><div class="wrap"><header class="top"><h1>ИИ-модуль портала 1C Small Control</h1><div class="sub">Правила работы · дорожная карта · задания для MCP · раздел ТЗ · v1.0 · 11.11.2026</div></header><nav class="tabs"><a href="index.html" class="active">Правила</a><a href="roadmap.html" class="">Дорожная карта</a><a href="prompts-mcp.html" class="">Задания для MCP</a><a href="tz-section.html" class="">Раздел ТЗ</a><a href="detectors.html" class="">Детекторы</a><a href="decisions.html" class="">Решения</a></nav><h1>ИИ-модуль портала 1C Small Control — правила работы</h1>
+<blockquote><strong>Документ обновлён 12.11.2026 (v1.1).</strong> Актуальные решения — в <a href="decisions.md">decisions.md</a>:</blockquote>
+<blockquote>только облако с маскированием ПДн · 1 срез в сутки · PDF на сервере · 5 задач/день ·</blockquote>
+<blockquote>отчёты 30 дней · проверка доступа к базе обязательна · детекторы — <a href="detectors.md">detectors.md</a>.</blockquote>
+<p>Версия документа: <strong>1.1</strong> · Дата: 12.11.2026 · Статус: проект (реализация не начата)</p>
+<h2>1. Назначение</h2>
+<p>ИИ-модуль — встроенный в портал помощник для бухгалтеров и администраторов, который выполняет</p>
+<p>проверки баз 1С, ищет ошибки в данных, потерянные документы и типовые ошибки учёта.</p>
+<p><strong>Главный принцип: ИИ никогда не работает с живой базой. Только с песочницей — её копией.</strong></p>
+<h2>2. Железные правила (не нарушаются ни при каких условиях)</h2>
+<table><thead><tr><th>№</th><th>Правило</th><th>Следствие</th></tr></thead><tbody>
+<tr><td>1</td><td>ИИ работает <strong>только в песочнице</strong></td><td>живая база не доступна ИИ ни на чтение, ни на запись</td></tr>
+<tr><td>2</td><td>Песочница — <strong>копия одной базы</strong>, созданная штатным <code>1c-sandbox</code></td><td>в песочницу попадают только данные этой базы</td></tr>
+<tr><td>3</td><td>ИИ работает <strong>только с одной песочницей одновременно</strong></td><td>вторая сессия получает ответ «песочница занята»</td></tr>
+<tr><td>4</td><td>В песочнице разрешено <strong>только чтение</strong> (роль <code>SELECT</code>)</td><td>никакие изменения данных невозможны</td></tr>
+<tr><td>5</td><td>Каждый ответ ИИ <strong>помечен датой среза</strong> данных</td><td>«данные на 11.11.2026 03:00, песочница sb_…»</td></tr>
+<tr><td>6</td><td>Все вызовы ИИ попадают в <strong>аудит портала</strong></td><td>кто, когда, какая база, какой запрос, что вернулось</td></tr>
+<tr><td>7</td><td>Песочница живёт <strong>не дольше 7 дней</strong></td><td>автоудаление, освобождение места</td></tr>
+<tr><td>8</td><td>Персональные данные <strong>маскируются</strong> перед отправкой в модель</td><td>ФИО, ИНН, СНИЛС заменяются метками; суммы сохраняются (без них отчёт бесполезен)</td></tr>
+</tbody></table>
+<h2>3. Эксклюзивность песочницы</h2>
+<p>Одновременно с ИИ может работать <strong>только одна песочница и один пользователь</strong>.</p>
+<pre><code>Пользователь А запускает задачу ИИ
+        │
+        ▼
+Песочница sb_dgekdb_11110300 закреплена за А (status = busy, ttl = 3 часа)
+        │
+Пользователь Б пытается запустить ИИ
+        ▼
+Ответ: «Песочница сейчас занята пользователем А (задача «поиск ошибок»,
+       начата 11.11.2026 10:30). Попробуйте через 3 часа.»</code></pre>
+<p>Правила блокировки:</p>
+<table><thead><tr><th>Ситуация</th><th>Поведение</th></tr></thead><tbody>
+<tr><td>Песочница свободна</td><td>создаётся/берётся свободная, ИИ запускается</td></tr>
+<tr><td>Песочница занята другим пользователем</td><td>отказ с текстом «занята, попробуйте через 3 часа»</td></tr>
+<tr><td>Песочница занята текущим пользователем</td><td>продолжается его диалог</td></tr>
+<tr><td>Истекли 3 часа</td><td>блокировка снимается автоматически, песочница помечается <code>stale</code></td></tr>
+<tr><td>Пользователь нажал «Завершить»</td><td>блокировка снимается сразу</td></tr>
+</tbody></table>
+<h2>3.1. Обязательное условие запуска — доступ к базе</h2>
+<p>Флаг ИИ сам по себе <strong>не даёт права</strong> проверить базу. Срез создаётся только по базе,</p>
+<p>где у пользователя есть строка в <code>access</code>. Иначе — отказ «нет доступа к базе».</p>
+<table><thead><tr><th>Ситуация</th><th>Поведение</th></tr></thead><tbody>
+<tr><td>Флаг ИИ есть, доступ к базе есть</td><td>срез создаётся, задача выполняется</td></tr>
+<tr><td>Флаг ИИ есть, доступа к базе нет</td><td>отказ, запись в аудит</td></tr>
+<tr><td>Флага нет</td><td>кнопка ИИ в кабинете не отображается</td></tr>
+</tbody></table>
+<h2>3.2. Срез данных — «Песочница ИИ»</h2>
+<table><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody>
+<tr><td>Кнопка</td><td>«Песочница ИИ» в кабинете (шапка, кнопка 🤖)</td></tr>
+<tr><td>Частота</td><td><strong>не чаще 1 раза в сутки</strong> на пользователя</td></tr>
+<tr><td>Повторный запуск</td><td>«сегодняшний срез создан в HH:MM, используем его»</td></tr>
+<tr><td>Время создания</td><td>5–15 минут (копия ~1,8 ГБ)</td></tr>
+<tr><td>Удержание</td><td>блокировка 3 часа, затем освобождается</td></tr>
+<tr><td>Хранение песочницы</td><td>автоудаление, чтобы не забить диск</td></tr>
+</tbody></table>
+<h2>4. Включение функции</h2>
+<h3>4.1. Админка → Пользователи</h3>
+<p>Функция включается <strong>только администратором</strong>, для конкретного пользователя:</p>
+<pre><code>Админка → Пользователи → [пользователь] → Настройки → «ИИ-помощник»: вкл/выкл</code></pre>
+<p>В <strong>списке клиентов</strong> рядом с именем пользователя отображается <strong>значок ИИ</strong>:</p>
+<table><thead><tr><th>Отображение</th><th>Значение</th></tr></thead><tbody>
+<tr><td>🟢 значок ИИ</td><td>функция включена и доступна</td></tr>
+<tr><td>⚪ значок перечёркнут</td><td>функция выключена</td></tr>
+<tr><td>🟡 значок с точкой</td><td>песочница занята / задача выполняется</td></tr>
+</tbody></table>
+<h3>4.2. Кабинет клиента</h3>
+<p>У пользователя с включённым ИИ <strong>после создания песочницы</strong> в кабинете появляется</p>
+<p><strong>кнопка-иконка ИИ</strong> (в стиле остальных кнопок шапки, рядом с конвертом обратной связи).</p>
+<pre><code>Кабинет → шапка → [✉ обратная связь] [🤖 ИИ] [⚙ настройки] [⎋ выход]
+                     │
+                     ▼
+        Диалог ИИ: поле задачи, список заданий, отчёты</code></pre>
+<table><thead><tr><th>Элемент</th><th>Что делает</th></tr></thead><tbody>
+<tr><td>Поле задачи</td><td>свободный текст: «найди ошибки в реализации», «почему не закрывается месяц»</td></tr>
+<tr><td>Список заданий</td><td>готовые сценарии: проверка базы, поиск ошибок, потерянные документы, ошибки бухгалтера</td></tr>
+<tr><td>Отчёт</td><td>результат с таблицей, ссылкой на песочницу и датой среза</td></tr>
+<tr><td>Карточка занятости</td><td>кто занимает песочницу и до какого времени</td></tr>
+<tr><td>Кнопка «Завершить»</td><td>снимает блокировку, освобождает песочницу</td></tr>
+</tbody></table>
+<p>Если песочницы нет — кнопка ИИ <strong>неактивна</strong> с подсказкой «Сначала создайте песочницу».</p>
+<h2>5. Что ИИ делает и чего не делает</h2>
+<table><thead><tr><th>Делает</th><th>Не делает</th></tr></thead><tbody>
+<tr><td>Проверяет структуру и данные копии</td><td>не меняет данные в живой базе</td></tr>
+<tr><td>Ищет дубли, пустые реквизиты, расхождения</td><td>не проводит документы и не исправляет проводки</td></tr>
+<tr><td>Находит документы без движений и движения без документов</td><td>не удаляет документы</td></tr>
+<tr><td>Объясняет ошибку бухгалтера и показывает первичные данные</td><td>не принимает решений за бухгалтера</td></tr>
+<tr><td>Запускает «Тестирование и исправление» <strong>в копии</strong></td><td>не запускает проверки на проде</td></tr>
+<tr><td>Формирует отчёт с указанием источника</td><td>не выдаёт цифры без ссылки на запрос</td></tr>
+<tr><td>Показывает находки для проверки бухгалтеру</td><td>не исправляет данные и не проводит документы</td></tr>
+<tr><td>Запускает «Тестирование и исправление»</td><td>—</td></tr>
+</tbody></table>
+<h2>6. Техническая схема</h2>
+<pre><code>Живая база dgek-db
+      │  ночью / по запросу (1c-sandbox create)
+      ▼
+Песочница sb_dgekdb_MMDDHHMM   →  PostgreSQL (роль SELECT)
+      │
+      ▼
+MCP-сервер (Python, отдельный сервис)
+      │  инструменты: check_structure, find_errors, find_missing_docs, explain_ledger
+      ▼
+LLM (локальная модель или шлюз с маскированием ПДн)
+      │
+      ▼
+Кабинет портала: диалог + отчёт + аудит</code></pre>
+<h2>7. Ограничения ресурсов</h2>
+<table><thead><tr><th>Ресурс</th><th>Лимит</th></tr></thead><tbody>
+<tr><td>Песочниц одновременно</td><td>1</td></tr>
+<tr><td>Время удержания песочницы</td><td>3 часа после запуска задачи, максимум 7 дней жизни</td></tr>
+<tr><td>Размер песочницы</td><td>до 20 ГБ (иначе создание отклоняется)</td></tr>
+<tr><td><code>statement_timeout</code> для ИИ-запросов</td><td>30 секунд</td></tr>
+<tr><td>Строк в одном ответе</td><td>10 000</td></tr>
+<tr><td>Задач в день на пользователя</td><td><strong>5</strong></td></tr>
+<tr><td>Длительность одной задачи</td><td><strong>до 30 минут</strong></td></tr>
+<tr><td>Формат отчёта</td><td>HTML в портале + <strong>PDF на сервере (LibreOffice)</strong></td></tr>
+<tr><td>Хранение отчётов</td><td><strong>30 дней</strong>, затем автоудаление</td></tr>
+</tbody></table>
+<h2>8. Аудит</h2>
+<p>Каждое действие пишется в <code>audit</code>:</p>
+<pre><code>action = &#x27;ai_task&#x27;
+actor  = логин пользователя
+details = &quot;&lt;тип задачи&gt; | песочница &lt;имя&gt; | база &lt;slug&gt; | строк &lt;n&gt; | &lt;результат&gt;&quot;</code></pre>
+<p>Администратор видит журнал: <strong>Админка → Журнал заданий сервера → ИИ-задачи</strong>.</p>
+<h2>9. Дорожная карта</h2>
+<p>Подробно: <a href="roadmap.md">roadmap.md</a> · Задания для MCP: <a href="prompts-mcp.md">prompts-mcp.md</a> ·</p>
+<p>ТЗ-раздел: <a href="tz-section.md">tz-section.md</a></p>
+<h2>10. Что нужно от бизнеса перед стартом</h2>
+<table><thead><tr><th>Вопрос</th><th>Почему важно</th></tr></thead><tbody>
+<tr><td>Какие базы подключать первыми</td><td>определяет объём детекторов</td></tr>
+<tr><td>Где хранить LLM (локально / облако)</td><td>152-ФЗ и ПДн</td></tr>
+<tr><td>Кто из бухгалтеров получает доступ</td><td>тестирование на реальных вопросах</td></tr>
+<tr><td>Кто отвечает за отчёты ИИ</td><td>ответственный за проверку результатов</td></tr>
+</tbody></table><footer>Только песочницы · read-only · один ИИ-сеанс одновременно · версия портала 2.0.8</footer></div></body></html>

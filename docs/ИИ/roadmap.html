@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Дорожная карта · ИИ-модуль 1C Small Control</title><style>
+:root{--bg:#0b1220;--panel:#111b2e;--line:#1f2d47;--text:#e6edf7;--muted:#93a4bf;--acc:#4f9cf9;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 22px 80px}
+header.top{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:26px}
+header.top h1{margin:0 0 6px;font-size:26px}
+header.top .sub{color:var(--muted);font-size:13px}
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 26px}
+nav.tabs a{color:var(--text);text-decoration:none;border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:10px;font-size:13px}
+nav.tabs a.active{border-color:var(--acc);color:#fff;background:#163055}
+h1,h2,h3{line-height:1.25}
+h2{margin:34px 0 12px;font-size:21px;border-bottom:1px solid var(--line);padding-bottom:8px}
+h3{margin:24px 0 8px;font-size:17px;color:#cfe0ff}
+p{margin:10px 0}
+a{color:var(--acc)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#16233a;font-weight:600}
+tr:nth-child(even) td{background:#0f1828}
+code{background:#0a1220;border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:13px}
+pre{background:#0a1220;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-size:13px}
+pre code{border:0;background:none;padding:0}
+blockquote{margin:14px 0;padding:10px 16px;border-left:3px solid var(--acc);background:#0f1a2c;color:var(--muted)}
+ul,ol{margin:10px 0 10px 22px}
+li{margin:4px 0}
+hr{border:0;border-top:1px solid var(--line);margin:28px 0}
+footer{margin-top:48px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style></head><body><div class="wrap"><header class="top"><h1>ИИ-модуль портала 1C Small Control</h1><div class="sub">Правила работы · дорожная карта · задания для MCP · раздел ТЗ · v1.0 · 11.11.2026</div></header><nav class="tabs"><a href="index.html" class="">Правила</a><a href="roadmap.html" class="active">Дорожная карта</a><a href="prompts-mcp.html" class="">Задания для MCP</a><a href="tz-section.html" class="">Раздел ТЗ</a><a href="detectors.html" class="">Детекторы</a><a href="decisions.html" class="">Решения</a></nav><h1>Дорожная карта ИИ-модуля (MCP-помощник для бухгалтеров)</h1>
+<blockquote><strong>Документ обновлён 12.11.2026 (v1.1).</strong> Актуальные решения — в <a href="decisions.md">decisions.md</a>:</blockquote>
+<blockquote>только облако с маскированием ПДн · 1 срез в сутки · PDF на сервере · 5 задач/день ·</blockquote>
+<blockquote>отчёты 30 дней · проверка доступа к базе обязательна · детекторы — <a href="detectors.md">detectors.md</a>.</blockquote>
+<p>Версия: <strong>1.1</strong> · Дата: 12.11.2026 · Горизонт: 7–9 недель</p>
+<h2>Сводка этапов</h2>
+<table><thead><tr><th>Этап</th><th>Название</th><th>Срок</th><th>Результат</th></tr></thead><tbody>
+<tr><td>0</td><td>Подготовка и правила</td><td>3–4 дня</td><td>согласованы правила, схема, места хранения</td></tr>
+<tr><td>1</td><td>MCP-сервер + песочницы</td><td>1 неделя</td><td>сервер инструментов, эксклюзивная песочница, блокировки</td></tr>
+<tr><td>2</td><td>Детекторы ошибок</td><td>1,5–2 недели</td><td>8 проверок: структура, дубли, движения, суммы</td></tr>
+<tr><td>3</td><td>Поиск потерянных документов</td><td>1 неделя</td><td>4 сценария сверки документов и регистров</td></tr>
+<tr><td>4</td><td>Диалог и отчёты в кабинете</td><td>1,5 недели</td><td>кнопка ИИ, диалог, готовые задания, отчёты</td></tr>
+<tr><td>5</td><td>Управление из админки</td><td>3–4 дня</td><td>включение функции, значок ИИ в списке клиентов</td></tr>
+<tr><td>6</td><td>Аудит, лимиты, ПДн</td><td>1 неделя</td><td>журнал, маскирование, ограничения</td></tr>
+<tr><td>7</td><td>Пилот на одной базе</td><td>1 неделя</td><td>проверка на реальных вопросах бухгалтеров</td></tr>
+</tbody></table>
+<p>Итого: <strong>7–9 недель</strong> (60% времени — детекторы и запросы под конфигурации, не MCP).</p>
+<hr>
+<h2>Этап 0. Подготовка и правила</h2>
+<table><thead><tr><th>Задача</th><th>Результат</th></tr></thead><tbody>
+<tr><td>Согласовать правила из <code>README.md</code></td><td>подтверждение «только песочницы» — <strong>согласовано</strong></td></tr>
+<tr><td>Определить LLM</td><td><strong>только облако с маскированием</strong> (локальная модель — после пилота)</td></tr>
+<tr><td>Выбрать базы для пилота</td><td>первая: <code>dgek-db</code> (БП)</td></tr>
+<tr><td>Определить размещение LLM</td><td>локально или шлюз с маскированием</td></tr>
+<tr><td>Выделить место под песочницы</td><td>+20–30 ГБ или отдельный диск</td></tr>
+<tr><td>Создать роль БД <code>usr_ai_read</code></td><td>только <code>SELECT</code></td></tr>
+<tr><td>Зафиксировать шаблон отчёта</td><td>таблица + дата среза + песочница</td></tr>
+</tbody></table>
+<p><strong>Критерий готовности:</strong> правила подписаны, место выделено, роль создана.</p>
+<hr>
+<h2>Этап 1. MCP-сервер и эксклюзивная песочница</h2>
+<table><thead><tr><th>Задача</th><th>Детали</th></tr></thead><tbody>
+<tr><td>MCP-сервер на Python</td><td>отдельный systemd-сервис <code>1c-ai-mcp</code>, порт только localhost</td></tr>
+<tr><td>Список инструментов</td><td><code>list_sandboxes</code>, <code>use_sandbox</code>, <code>release_sandbox</code>, <code>run_query</code> (read-only)</td></tr>
+<tr><td>Блокировка песочницы</td><td><code>sandbox_lock</code> таблица: sandbox_id, user_id, task, started_at, expires_at (3 часа)</td></tr>
+<tr><td>Ответ при занятости</td><td>«Песочница сейчас занята — попробуйте через 3 часа» + кто и до когда</td></tr>
+<tr><td>Автоосвобождение</td><td>таймер каждые 5 минут: просроченные блокировки снимаются</td></tr>
+<tr><td>Создание песочницы по требованию</td><td>вызов <code>1c-sandbox create &lt;base&gt;</code>, ожидание готовности</td></tr>
+</tbody></table>
+<p><strong>Критерий готовности:</strong> два пользователя одновременно не могут получить одну песочницу; второй видит корректный отказ.</p>
+<hr>
+<h2>Этап 2. Детекторы ошибок (основа ценности)</h2>
+<p>Состав детекторов и формулировки проверок на языке 1С — в <a href="detectors.md">detectors.md</a>.</p>
+<p>Владелец детекторов: <strong>администратор портала</strong>; после каждого обновления конфигурации — перепроверка всех 8.</p>
+<table><thead><tr><th>№</th><th>Детектор</th><th>Что находит</th></tr></thead><tbody>
+<tr><td>1</td><td>Структура и битые ссылки</td><td>ссылки на удалённые объекты, несоответствия версии конфигурации</td></tr>
+<tr><td>2</td><td>Дубли</td><td>контрагенты, номенклатура, документы по номеру+дате</td></tr>
+<tr><td>3</td><td>Пустые обязательные реквизиты</td><td>контрагент без ИНН, документ без организации</td></tr>
+<tr><td>4</td><td>Документы без движений</td><td>проведён, но нет проводок/движений по регистрам</td></tr>
+<tr><td>5</td><td>Движения без документов</td><td>«сиротские» движения регистров</td></tr>
+<tr><td>6</td><td>Отрицательные остатки</td><td>по счетам, складам, по количеству</td></tr>
+<tr><td>7</td><td>Расхождение БУ и НУ</td><td>суммы бухгалтерского и налогового учёта</td></tr>
+<tr><td>8</td><td>Незакрытые периоды</td><td>отсутствие закрытия месяца, последовательность</td></tr>
+</tbody></table>
+<p><strong>Критерий готовности:</strong> на эталонной копии каждый детектор даёт отчёт с числом находок и примерами строк.</p>
+<hr>
+<h2>Этап 3. Поиск потерянных документов</h2>
+<table><thead><tr><th>Сценарий</th><th>Логика</th></tr></thead><tbody>
+<tr><td>Документ есть, но не влияет на учёт</td><td>проверка проведения и регистров</td></tr>
+<tr><td>Сумма не сходится с первичкой</td><td>сверка итогов документов и регистров</td></tr>
+<tr><td>Запись есть в одном регистре, нет в другом</td><td>перекрёстная сверка регистров</td></tr>
+<tr><td>Документ удалён, но следы остались</td><td>поиск «висячих» движений и ссылок</td></tr>
+</tbody></table>
+<p><strong>Критерий готовности:</strong> каждый сценарий воспроизводится на тестовом примере с заранее известным ответом.</p>
+<hr>
+<h2>Этап 4. Диалог и отчёты в кабинете</h2>
+<table><thead><tr><th>Задача</th><th>Детали</th></tr></thead><tbody>
+<tr><td>Кнопка ИИ в шапке</td><td>появляется только при включённой функции</td></tr>
+<tr><td>Кнопка «Песочница ИИ»</td><td>живой срез базы, <strong>не чаще 1 раза в сутки</strong>, создание 5–15 мин</td></tr>
+<tr><td>PDF</td><td>отчёт формируется <strong>на сервере (LibreOffice)</strong></td></tr>
+<tr><td>Модалка диалога</td><td>поле задачи, список готовых заданий, история</td></tr>
+<tr><td>Готовые задания</td><td>«Проверить базу», «Найти ошибки», «Найти потерянные документы», «Почему не закрывается месяц»</td></tr>
+<tr><td>Отчёт</td><td>таблица находок + дата среза + имя песочницы + <strong>PDF</strong></td></tr>
+<tr><td>Подтверждение находок</td><td>бухгалтер отмечает «верно / ложное» по каждой находке</td></tr>
+<tr><td>Карточка занятости</td><td>кто держит песочницу, до какого времени</td></tr>
+<tr><td>Кнопка «Завершить»</td><td>снимает блокировку</td></tr>
+</tbody></table>
+<p><strong>Критерий готовности:</strong> бухгалтер без инструкции запускает проверку и понимает отчёт.</p>
+<hr>
+<h2>Этап 5. Управление из админки</h2>
+<table><thead><tr><th>Задача</th><th>Детали</th></tr></thead><tbody>
+<tr><td>Настройка в карточке пользователя</td><td>«ИИ-помощник: вкл/выкл»</td></tr>
+<tr><td>Значок в списке клиентов</td><td>рядом с именем: 🟢 вкл / ⚪ выкл / 🟡 занят</td></tr>
+<tr><td>Журнал ИИ-заданий</td><td>в «Журнале заданий сервера»</td></tr>
+<tr><td>Права</td><td>включать может только администратор</td></tr>
+</tbody></table>
+<p><strong>Критерий готовности:</strong> включение в админке сразу даёт пользователю кнопку ИИ в кабинете.</p>
+<hr>
+<h2>Этап 6. Аудит, лимиты, персональные данные</h2>
+<table><thead><tr><th>Задача</th><th>Детали</th></tr></thead><tbody>
+<tr><td>Аудит</td><td><code>action=&#x27;ai_task&#x27;</code> со всеми параметрами</td></tr>
+<tr><td>Маскирование</td><td>ФИО/ИНН/СНИЛС → метки перед отправкой в LLM; суммы сохраняются</td></tr>
+<tr><td>Лимиты</td><td>30 с на запрос, 10 000 строк, 5 задач/день, задача до 30 мин</td></tr>
+<tr><td>Срок жизни песочницы</td><td>7 дней, автоудаление</td></tr>
+<tr><td>Политика хранения отчётов</td><td><strong>30 дней</strong></td></tr>
+</tbody></table>
+<p><strong>Критерий готовности:</strong> отчёт аудита показывает полную цепочку «пользователь → песочница → запрос → результат».</p>
+<hr>
+<h2>Этап 7. Пилот</h2>
+<table><thead><tr><th>Задача</th><th>Детали</th></tr></thead><tbody>
+<tr><td>Круг участников</td><td>1–2 бухгалтера на <code>dgek-db</code></td></tr>
+<tr><td>Сбор вопросов</td><td>20 реальных вопросов от бухгалтеров</td></tr>
+<tr><td>Метрика</td><td>доля ответов, признанных полезными (цель ≥ 60%)</td></tr>
+<tr><td>Решение</td><td>продолжать / дорабатывать детекторы / остановить</td></tr>
+</tbody></table>
+<p><strong>Критерий готовности:</strong> есть метрика полезности и решение по развитию.</p>
+<hr>
+<h2>Риски и ответы</h2>
+<table><thead><tr><th>Риск</th><th>Мера</th></tr></thead><tbody>
+<tr><td>Песочницы съедят диск</td><td>одна песочница, 7 дней, автоудаление</td></tr>
+<tr><td>LLM придумает цифру</td><td>каждый ответ со ссылкой на запрос и датой среза</td></tr>
+<tr><td>Детекторы сломаются после обновления конфигурации</td><td>версионирование запросов, тесты на эталонной копии</td></tr>
+<tr><td>ПДн уйдут в облако</td><td>локальная модель или маскирование</td></tr>
+<tr><td>Нет спроса у бухгалтеров</td><td>пилот на 20 вопросах до полноценной разработки</td></tr>
+</tbody></table>
+<h2>Что нельзя делать на любом этапе</h2>
+<ol>
+<li>Подключать ИИ к живой базе.</li>
+<li>Разрешать два параллельных ИИ-сеанса.</li>
+<li>Выполнять запись в песочницу через ИИ.</li>
+<li>Отдавать ответ без указания даты среза и песочницы.</li>
+</ol><footer>Только песочницы · read-only · один ИИ-сеанс одновременно · версия портала 2.0.8</footer></div></body></html>

@@ -186,6 +186,13 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .button svg{width:calc(16px*var(--fs));height:calc(16px*var(--fs))}
 /* ===== настройки ===== */
 .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;align-items:start}
+/* широкие экраны (1920×1080): ровно 3 блока в ряд, каждый — вертикальный столбец */
+@media (min-width:1680px){.settings-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1280px) and (max-width:1679px){.settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1279px){.settings-grid{grid-template-columns:minmax(0,1fr)}}
+.settings-card{min-height:100%}
+.settings-card .field,.settings-card .field-row{width:100%}
+.settings-card .button{width:100%}
 .settings-card{display:flex;flex-direction:column}
 .settings-card h2{font-size:calc(15px*var(--fs));margin:0 0 6px}
 .settings-card p{margin:0 0 12px}
@@ -449,7 +456,7 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .settings-view{display:flex;flex-direction:column;gap:8px}
 .settings-view[hidden]{display:none}
 .settings-modal .settings-menu{gap:6px}
-.settings-emoji{font-size:calc(15px*var(--fs));line-height:1;margin-right:6px;vertical-align:-1px}
+.settings-emoji{font-size:calc(23.4px*var(--fs));line-height:1;margin-right:6px;vertical-align:-1px}
 .settings-back{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--muted,#94a3b8);
                cursor:pointer;font-size:calc(11px*var(--fs));padding:4px 0}
 .settings-back:hover{color:inherit}
@@ -537,3 +544,12 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 #dlg-help .help-scroll{flex:1;overflow-y:auto;padding-right:6px}
 #dlg-help .help-actions{display:flex;gap:10px;margin-top:12px}
 #dlg-help .help-actions .button{flex:1;justify-content:center;min-height:44px}
+
+/* ===== обратная связь ===== */
+.feedback-msg{font-size:calc(11.5px*var(--fs))}
+.feedback-msg.ok{color:#22c55e}
+.feedback-msg.err{color:#ef4444}
+#dlg-feedback textarea{resize:vertical;min-height:96px}
+
+/* эмодзи в окне обратной связи +25% */
+#dlg-feedback .settings-emoji{font-size:calc(23.4px*var(--fs));margin-right:8px}

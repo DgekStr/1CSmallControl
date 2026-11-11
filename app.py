@@ -35,7 +35,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.6')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.8')
 
 app = Flask(__name__)
 # S-09: ограничение размера запроса
@@ -239,6 +239,8 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN update_mode TEXT")
     if 'db_name' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN db_name TEXT")
+    if 'ib_name' not in base_cols:
+        conn.execute("ALTER TABLE bases ADD COLUMN ib_name TEXT")
     if 'cluster_state' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN cluster_state TEXT")
     if 'auto_user' not in base_cols:
@@ -560,7 +562,7 @@ def index():
         slugs = tuple(b['slug'] for b in rows)
         # счётчики сеансов через rac могут отвечать секундами — не блокируем страницу
         info = _cached_swr('counts:' + ','.join(slugs), 60, 3600,
-                           lambda: _session_counts(list(slugs)), wait=False) or {}
+                           lambda: _ib_session_counts(), wait=False) or {}
         jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
     pg_mode = _pg_mode_state()
     sizes = _base_sizes(rows) if rows else {}
@@ -1171,6 +1173,54 @@ def open_base(slug):
 
 # ---------------- админка ----------------
 
+
+def _ib_session_counts():
+    """Живые сеансы по имени инфобазы: {name: n}. Считаем напрямую через rac,
+    без промежуточного скрипта — чтобы не путать базы портала и инфобазы."""
+    rc, out = _rac(['infobase', 'summary', 'list'])
+    names = {}
+    cur = None
+    for line in (out or '').splitlines():
+        if ':' not in line:
+            continue
+        k, v = line.split(':', 1)
+        k, v = k.strip(), v.strip().strip('"')
+        if k == 'infobase':
+            cur = v
+        elif k == 'name' and cur:
+            names[cur] = v
+            cur = None
+
+    rc, out = _rac(['session', 'list'])
+    counts = {}
+    sid = hib = ib = ''
+    user = app_ = ''
+
+    def flush():
+        if sid and hib != 'yes' and app_ not in ('RAS', 'BackgroundJob') and user not in ('', 'DefUser'):
+            nm = names.get(ib, ib)
+            counts[nm] = counts.get(nm, 0) + 1
+
+    for line in (out or '').splitlines():
+        if ':' not in line:
+            continue
+        k, v = line.split(':', 1)
+        k, v = k.strip(), v.strip()
+        if k == 'session':
+            flush()
+            sid, hib, ib, user, app_ = v, '', '', '', ''
+        elif k == 'infobase':
+            ib = v
+        elif k == 'user-name':
+            user = v
+        elif k == 'app-id':
+            app_ = v
+        elif k == 'hibernate':
+            hib = v
+    flush()
+    return counts
+
+
 def _session_counts(slugs):
     """Сколько активных сеансов 1С у каждой базы (через rac)."""
     if not slugs:
@@ -1262,7 +1312,7 @@ def _warm_once():
     finally:
         conn.close()
     if slugs:
-        _cache['counts:' + ','.join(slugs)] = (time.time(), _session_counts(list(slugs)))
+        _cache['counts:' + ','.join(slugs)] = (time.time(), _ib_session_counts())
     _cache['live'] = (time.time(), _sessions_snapshot())
 
 
@@ -1311,7 +1361,7 @@ def admin():
         _sync_cluster_state(bases)
         slugs = tuple(b['slug'] for b in bases)
         counts = _cached_swr('counts:' + ','.join(slugs), 120, 3600,
-                             lambda: _session_counts(list(slugs)), wait=False)
+                             lambda: _ib_session_counts(), wait=False)
     pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
     sandboxes_all = _sandbox_active()
     _sizes_sb = _sb_sizes([s['slug'] for s in _sandbox_active()])
@@ -1701,7 +1751,7 @@ def _size_human(value):
 
 def _base_sizes_fetch(bases):
     """Запрашивает размеры баз в PostgreSQL (медленно во время импорта)."""
-    names = sorted({(b['db_name'] or b['slug']) for b in bases})
+    names = sorted({(b['ib_name'] or b['db_name'] or b['slug']) for b in bases})
     if not names:
         return {}
     sizes = {}
@@ -1723,7 +1773,7 @@ def _base_sizes_fetch(bases):
 
 def _base_sizes(bases):
     """Размеры баз из кэша. Никогда не тормозит страницу: обновление идёт в фоне."""
-    names = sorted({(b['db_name'] or b['slug']) for b in bases})
+    names = sorted({(b['ib_name'] or b['db_name'] or b['slug']) for b in bases})
     if not names:
         return {}
     key = 'basesize:' + ','.join(names)
@@ -1739,7 +1789,7 @@ def warm_sizes():
         return
     try:
         sizes = _base_sizes_fetch(rows)
-        names = sorted({(b['db_name'] or b['slug']) for b in rows})
+        names = sorted({(b['ib_name'] or b['db_name'] or b['slug']) for b in rows})
         if sizes:
             _cache['basesize:' + ','.join(names)] = (time.time(), sizes)
     except Exception:  # noqa: BLE001
@@ -1773,7 +1823,7 @@ def warm_counts():
 
 def _sync_cluster_state(bases):
     """Сверяет записи портала с кластером 1С и обновляет колонку «БД в кластере»."""
-    names = [b['slug'] for b in bases]
+    names = [(b['ib_name'] or b['db_name'] or b['slug']) for b in bases]
     if not names:
         return
 
@@ -1796,7 +1846,7 @@ def _sync_cluster_state(bases):
     conn = db()
     changed = False
     for base in bases:
-        exists = actual.get(base['slug'])
+        exists = actual.get(base['ib_name'] or base['db_name'] or base['slug'])
         if exists is None:
             continue
         new_state = 'created' if exists else None
@@ -2128,22 +2178,25 @@ def admin_stats_clear():
 def admin_stats_kick():
     """Отключает всех пользователей 1С от всех опубликованных баз."""
     check_csrf()
-    bases = db().execute("SELECT slug FROM bases WHERE is_active = 1").fetchall()
+    bases = db().execute("SELECT slug, db_name, ib_name FROM bases WHERE is_active = 1").fetchall()
     if not bases:
         flash('Нет активных баз для отключения')
         return redirect(url_for('admin_stats'))
-    # отключение идёт в фоне: rac по каждой базе — это десятки секунд
-    script = 'for b in %s; do echo "== $b"; /usr/local/bin/1c-kick-sessions "$b"; done' % ' '.join(
-        b['slug'] for b in bases)
+    # имя инфобазы важнее slug: slug портала может отличаться (dgek-db → dgek_db)
+    names = [(b['ib_name'] or b['db_name'] or b['slug']) for b in bases]
+    script = 'for b in %s; do echo "== $b"; /usr/local/bin/1c-kick-sessions "$b"; done' % ' '.join(names)
     jid, _ = _job_start('kick-all', 'Отключение всех пользователей 1С', ['bash', '-lc', script],
                         session.get('uid'))
     audit('stats_kick', 'запущено в фоне: задание %s' % jid)
+    _cache.clear()  # сбрасываем кэш сеансов, чтобы страница статистики не показывала старые данные
     flash('Отключение запущено в фоне (задание №%s). Прогресс — в «Заданиях».' % jid)
     return redirect(url_for('admin_jobs'))
 
 
 
 DEFAULT_SETTINGS = {
+    'night_clean_enabled': '0',
+    'night_clean_time': '04:00',
     'ic_host': os.environ.get('PORTAL_IC_HOST', '1c.dgek.ru'),
     'portal_server_name': os.environ.get('PORTAL_SERVER_NAME', '1c.dgek.ru'),
     'db_host': '127.0.0.1',
@@ -2275,6 +2328,30 @@ def _monitor_status():
             return json.load(fh)
     except Exception:  # noqa: BLE001
         return {}
+
+
+
+@app.route('/admin/settings/night-clean', methods=['POST'])
+@admin_required
+def admin_settings_night():
+    """Ночная чистка: включение и время перезапуска сервера 1С."""
+    check_csrf()
+    enabled = '1' if (request.form.get('night_clean_enabled') or '') in ('1', 'on', 'true') else '0'
+    when = (request.form.get('night_clean_time') or '04:00').strip()
+    import re as _re
+    if not _re.match(r'^([01]\d|2[0-3]):[0-5]\d$', when):
+        flash('Некорректное время — нужно ЧЧ:ММ, например 04:00')
+        return redirect(url_for('admin_settings'))
+    _setting_set('night_clean_enabled', enabled)
+    _setting_set('night_clean_time', when)
+    code, out = _run_root(['/usr/local/bin/1c-night-clean', enabled, when], timeout=60)
+    for line in (out or [])[-3:]:
+        flash(line)
+    if code != 0:
+        flash('Настройки сохранены, но таймер применить не удалось')
+    audit('settings_save', 'ночная чистка: %s в %s' % ('вкл' if enabled == '1' else 'выкл', when))
+    _cache.clear()
+    return redirect(url_for('admin_settings'))
 
 
 @app.route('/admin/settings/monitor', methods=['POST'])
@@ -3671,6 +3748,74 @@ def job_active():
     return {'active': data['status'] == 'running', 'id': data['id'], 'title': data['title'],
             'percent': data['percent'], 'done': data['done'], 'total': data['total'],
             'admin': session.get('role') == 'admin'}
+
+
+
+@app.route('/feedback', methods=['POST'])
+@login_required
+def feedback_send():
+    """Обратная связь: текст + скриншот уходят в Mattermost."""
+    check_csrf()
+    text = (request.form.get('text') or '').strip()
+    if not text:
+        return {'ok': False, 'error': 'Опишите проблему'}, 400
+    row = db().execute("SELECT username, full_name, organization, role FROM users WHERE id = ?",
+                       (session['uid'],)).fetchone()
+    who = (row['full_name'] or row['username']) if row else session.get('user', '?')
+    login = row['username'] if row else '?'
+    org = (row['organization'] or '—') if row else '—'
+    site = request.form.get('page') or request.headers.get('Referer') or '/'
+    msg = ('#### 🆘 Сообщение о проблеме\n\n'
+           '| Что | Значение |\n|---|---|\n'
+           '| Пользователь | %s (%s) |\n'
+           '| Организация | %s |\n'
+           '| Роль | %s |\n'
+           '| Когда | %s |\n'
+           '| Страница | %s |\n\n'
+           '**Текст:**\n%s' % (who, login, org, (row['role'] if row else '?'),
+                                time.strftime('%d.%m.%Y %H:%M'), site[:200], text[:3000]))
+    ok = _mm_notify_attachment(msg, request.files.get('shot'))
+    audit('feedback', 'отправлено' if ok else 'ошибка')
+    return {'ok': bool(ok), 'error': '' if ok else 'Не удалось отправить'}
+
+
+def _mm_notify_attachment(text, file_storage=None):
+    """Сообщение в MM; при наличии файла — multipart с вложением."""
+    url = ''
+    try:
+        url = (_settings_all().get('mm_hook') or '').strip()
+    except Exception:  # noqa: BLE001
+        url = ''
+    if not url:
+        url = os.environ.get('PORTAL_MM_LOGIN_HOOK', '')
+    if not url:
+        return False
+    try:
+        if not file_storage:
+            payload = json.dumps({'text': text}, ensure_ascii=False).encode('utf-8')
+            req = urllib.request.Request(url, data=payload,
+                                         headers={'Content-Type': 'application/json; charset=utf-8'})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                resp.read()
+            return 200 <= resp.status < 300
+        boundary = '----portal' + secrets.token_hex(8)
+        name = getattr(file_storage, 'filename', 'screenshot.png') or 'screenshot.png'
+        data = file_storage.read() or b''
+        parts = []
+        for field, value in (('text', text),):
+            parts.append(('--%s\r\nContent-Disposition: form-data; name="%s"\r\n\r\n%s\r\n'
+                          % (boundary, field, value)).encode('utf-8'))
+        parts.append(('--%s\r\nContent-Disposition: form-data; name="files"; filename="%s"\r\n'
+                      'Content-Type: image/png\r\n\r\n' % (boundary, name)).encode('utf-8') + data + b'\r\n')
+        parts.append(('--%s--\r\n' % boundary).encode('utf-8'))
+        body = b''.join(parts)
+        req = urllib.request.Request(url, data=body, headers={
+            'Content-Type': 'multipart/form-data; boundary=%s' % boundary})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            resp.read()
+        return 200 <= resp.status < 300
+    except Exception:  # noqa: BLE001
+        return False
 
 
 @app.route('/admin/jobs')
