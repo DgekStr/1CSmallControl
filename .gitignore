@@ -53,3 +53,4 @@ soft/*.exe
 soft/*.dmg
 _db/
 *.dt
+soft/

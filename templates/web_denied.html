@@ -28,7 +28,40 @@
       {% if slug %}<p class="denied-base">База: <code class="mono">{{ slug }}</code></p>{% endif %}
       <p class="muted small">{{ hint }}</p>
 
-      <div class="denied-actions">
+      
+{% if icon == 'plug-zap' %}
+<div class="boot-overlay" id="boot-overlay">
+  <div class="boot-box">
+    <div class="boot-spinner"></div>
+    <div class="boot-title">Система запускается…</div>
+    <div class="boot-sub">Подключение к серверу 1С восстанавливается</div>
+    <div class="boot-pct" id="boot-pct">0%</div>
+  </div>
+</div>
+<script>
+(function () {
+  var pct = 0, el = document.getElementById('boot-pct');
+  function step() {
+    pct = Math.min(95, pct + Math.floor(Math.random() * 6) + 2);
+    if (el) el.textContent = pct + '%';
+  }
+  step();
+  var iv = setInterval(step, 700);
+  function poll() {
+    fetch('/healthz', { cache: 'no-store' }).then(function (r) {
+      if (r.ok) {
+        clearInterval(iv);
+        if (el) el.textContent = '100%';
+        setTimeout(function () { location.reload(); }, 600);
+      } else { setTimeout(poll, 2000); }
+    }).catch(function () { setTimeout(poll, 2000); });
+  }
+  setTimeout(poll, 2000);
+})();
+</script>
+{% endif %}
+
+<div class="denied-actions">
         <a class="button primary" href="/"><i data-lucide="layout-dashboard"></i>Перейти в кабинет</a>
         <button class="button" type="button" id="close-window"><i data-lucide="x"></i>Закрыть окно</button>
       </div>

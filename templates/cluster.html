@@ -68,7 +68,7 @@
         <p class="muted">Информационные базы кластера: создание, удаление, переименование, блокировка сеансов</p>
       </div>
       <div class="heading-actions">
-        <button type="button" class="button" data-open="dlg-cluster-help"><i data-lucide="book-open"></i>Инструкция по базам</button>
+        <button type="button" class="button" data-open="dlg-cluster-help"><i data-lucide="book-open"></i>Инструкция по базам по базам</button>
       </div>
     </div>
 
@@ -170,6 +170,22 @@
         <button type="button" class="icon-button" data-close aria-label="Закрыть"><i data-lucide="x"></i></button>
       </div>
       <div class="help-body">
+<h3>0. Быстрый порядок для новой базы</h3>
+<ol>
+  <li><strong>Создать пустую БД</strong> в PostgreSQL (роль + база, пароль — из настроек кластера).</li>
+  <li><strong>«Кластер» → «Создать инфобазу»</strong>: имя, пользователь PostgreSQL и его пароль.</li>
+  <li><strong>Опубликовать</strong>: <code>sudo 1c-republish-base &lt;имя&gt; &lt;имя_БД&gt;</code>.</li>
+  <li><strong>Админка → Базы</strong>: добавить запись, указать URL публикации, выдать доступ клиентам.</li>
+  <li><strong>Загрузить данные (толстый клиент)</strong>: Конфигуратор → «Администрирование» →
+      «Загрузить информационную базу» → выбрать файл <code>.dt</code>.</li>
+  <li><strong>Применить эталонных пользователей</strong>:
+      <code>sudo /usr/local/bin/1c-apply-template-users &lt;имя_БД&gt;</code></li>
+  <li><strong>Вход по умолчанию</strong>: <code>Бухгалтер</code> / <code>000</code>
+      (или <code>dgek</code> с паролем кластера). Пароль лучше сменить сразу после первого входа.</li>
+</ol>
+<p class="muted small">Если база импортируется из <code>.dt</code>, эталонных пользователей нужно
+применять <strong>после</strong> загрузки: 1С перезаписывает таблицу пользователей.</p>
+
         <h3>1. Создать базу</h3>
         <ol>
           <li>Создайте роль и пустую БД в PostgreSQL:

@@ -35,7 +35,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '2.0.8')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.1.0')
 
 app = Flask(__name__)
 # S-09: ограничение размера запроса
@@ -657,7 +657,9 @@ def web_gate(slug, rest=''):
     if not safe_rest.startswith(slug):
         audit('web_traversal', '%s / %s' % (slug, rest))
         return _web_denied(slug, 'not-found', 404)
-    base = db().execute("SELECT * FROM bases WHERE slug = ? AND is_active = 1", (slug,)).fetchone()
+    # база может быть доступна по slug портала, имени инфобазы или имени БД
+    base = db().execute("SELECT * FROM bases WHERE is_active = 1 AND (slug = ? OR ib_name = ? OR db_name = ?)",
+                        (slug, slug, slug)).fetchone()
     if not base:
         return _web_denied(slug, 'not-found', 404)
     if session.get('role') != 'admin':
@@ -1129,6 +1131,25 @@ def trusted_login():
     return _finish_login(user)
 
 
+
+@app.route('/sessions/kick-mine', methods=['POST'])
+@login_required
+def sessions_kick_mine():
+    """Завершает сеансы 1С текущего пользователя во всех базах."""
+    check_csrf()
+    login = session.get('user') or ''
+    # завершение может занимать секунды — запускаем в фоне, страница не «висит»
+    jid, _ = _job_start('kick-user', 'Завершение сеансов 1С (%s)' % login,
+                        ['/usr/local/bin/1c-kick-user', login], session.get('uid'))
+    audit('sessions_kick_mine', '%s: задание %s' % (login, jid))
+    wants_json = ('application/json' in (request.headers.get('Accept') or '')
+                  or request.headers.get('X-Requested-With') == 'XMLHttpRequest')
+    if wants_json:
+        return {'ok': True, 'job': jid, 'message': 'Завершение сеансов запущено в фоне'}
+    flash('Завершение сеансов 1С запущено в фоне')
+    return redirect(url_for('portal'))
+
+
 @app.route('/logout', methods=['POST'])
 def logout():
     audit('logout', session.get('user', ''))
@@ -1137,7 +1158,13 @@ def logout():
                      (session['visit'],))
         db().commit()
     session.clear()
-    return redirect(url_for('login'))
+    resp = redirect(url_for('login'))
+    # принудительно чистим все cookie сессии портала
+    for cname in list(request.cookies.keys()):
+        resp.delete_cookie(cname, path='/')
+    resp.delete_cookie('session', path='/')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 
@@ -1228,7 +1255,7 @@ def _session_counts(slugs):
     try:
         proc = subprocess.run(
             ['sudo', '-n', '/usr/local/bin/1c-sessions-count'] + list(slugs),
-            capture_output=True, text=True, timeout=40)
+            capture_output=True, text=True, timeout=10)
         counts = {}
         for line in (proc.stdout or '').splitlines():
             parts = line.split()
@@ -1728,7 +1755,7 @@ def _toggle_jobs(slug):
     """Переключает блокировку регламентных заданий и чистит кэш."""
     try:
         proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-jobs-deny', slug, 'toggle'],
-                              capture_output=True, text=True, timeout=60)
+                              capture_output=True, text=True, timeout=10)
         msg = (proc.stdout or proc.stderr or '').strip().splitlines()
         flash(msg[-1] if msg else ('Код возврата: %s' % proc.returncode))
     except Exception as exc:  # noqa: BLE001
@@ -1751,7 +1778,8 @@ def _size_human(value):
 
 def _base_sizes_fetch(bases):
     """Запрашивает размеры баз в PostgreSQL (медленно во время импорта)."""
-    names = sorted({(b['ib_name'] or b['db_name'] or b['slug']) for b in bases})
+    # размер берётся из PostgreSQL по имени БД (db_name) — шаблоны ищут по b.db_name
+    names = sorted({(b['db_name'] or b['slug']) for b in bases})
     if not names:
         return {}
     sizes = {}
@@ -1808,7 +1836,7 @@ def warm_counts():
     def fetch_state():
         try:
             proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-base-state'] + names,
-                                  capture_output=True, text=True, timeout=90)
+                                  capture_output=True, text=True, timeout=10)
             out = {}
             for line in (proc.stdout or '').splitlines():
                 parts = line.split()
@@ -1830,7 +1858,7 @@ def _sync_cluster_state(bases):
     def fetch():
         try:
             proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-base-state'] + names,
-                                  capture_output=True, text=True, timeout=60)
+                                  capture_output=True, text=True, timeout=10)
             result = {}
             for line in (proc.stdout or '').splitlines():
                 parts = line.split()
@@ -2184,7 +2212,7 @@ def admin_stats_kick():
         return redirect(url_for('admin_stats'))
     # имя инфобазы важнее slug: slug портала может отличаться (dgek-db → dgek_db)
     names = [(b['ib_name'] or b['db_name'] or b['slug']) for b in bases]
-    script = 'for b in %s; do echo "== $b"; /usr/local/bin/1c-kick-sessions "$b"; done' % ' '.join(names)
+    script = 'for b in %s; do echo "== $b"; sudo -n /usr/local/bin/1c-kick-sessions "$b"; done' % ' '.join(names)
     jid, _ = _job_start('kick-all', 'Отключение всех пользователей 1С', ['bash', '-lc', script],
                         session.get('uid'))
     audit('stats_kick', 'запущено в фоне: задание %s' % jid)
@@ -2311,7 +2339,7 @@ def _backup_info():
     def fetch():
         try:
             proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-backup-info'],
-                                  capture_output=True, text=True, timeout=40)
+                                  capture_output=True, text=True, timeout=10)
             return json.loads(proc.stdout or '{}')
         except Exception:  # noqa: BLE001
             return {}
@@ -2771,7 +2799,8 @@ def base_v8i(bid):
             abort(403)
     # в файле .v8i не должно быть внутреннего IP: клиент ходит на имя сервера через VPN
     host = _setting_get('ic_server_name') or 'srv.1c.dgek.ru'
-    ref = row['db_name'] or row['slug']
+    # в .v8i нужен Ref ИМЕННО инфобазы кластера, а не имя БД PostgreSQL
+    ref = row['ib_name'] or row['db_name'] or row['slug']
     text = ('[Соединение с сервером 1С:Предприятие]\r\n'
             'Connect=Srvr="%s";Ref="%s";\r\n' % (host, ref))
     data = text.encode('cp1251', 'replace')
@@ -3298,7 +3327,7 @@ def admin_user_2fa_reset(uid):
 RAC_BIN = '/opt/1cv8/x86_64/8.3.27.2342/rac'
 
 
-def _rac(args, timeout=60):
+def _rac(args, timeout=5):
     """Вызов rac с правами администратора кластера из настроек."""
     login = _setting_get('cluster_user') or 'arshin'
     pwd = _setting_get('cluster_pwd') or ''
@@ -3690,6 +3719,10 @@ def _job_read(jid, tail=40):
     except OSError:
         pass
     percent, done, total = _job_progress(row['kind'], lines)
+    # завершённое задание не может показывать частичный прогресс
+    if row['status'] in ('done', 'failed') and (done or total):
+        percent = 100
+        done = total
     return {'id': row['id'], 'slug': row['slug'], 'kind': row['kind'], 'title': row['title'],
             'status': row['status'], 'created_at': row['created_at'],
             'finished_at': row['finished_at'], 'log': lines, 'log_size': size,
@@ -3698,18 +3731,29 @@ def _job_read(jid, tail=40):
 
 
 def _job_progress(kind, lines):
-    """Простой прогресс: этапы «1/5» или число готовых баз."""
+    """Прогресс: явные этапы «[i/N]» либо подсчёт результатов по базам.
+
+    Важно: строку «done: ok 0, failed 0» нельзя считать за обработанную базу —
+    из-за неё прогресс «залипал» на 1/5 (20%)."""
     import re as _re
     total, done = 0, 0
     for line in lines:
         m = _re.search(r'\[(\d+)/(\d+)\]', line)
         if m:
             done, total = int(m.group(1)), int(m.group(2))
-        elif ' ok ' in line or 'FAILED' in line or 'пропущена' in line:
+            continue
+        if line.strip().startswith('done:'):
+            continue
+        # результат по конкретной базе: «<база> (<бд>) ok 1,2G» / «FAILED» / «пропущена»
+        if (' ok ' in line or 'FAILED' in line or 'пропущена' in line) and ('(' in line or '|' in line):
             done += 1
             total = max(total, done)
     if kind == 'backup':
-        total = max(total, 5)
+        try:
+            n = db().execute("SELECT COUNT(*) FROM bases WHERE is_active = 1").fetchone()[0]
+        except Exception:  # noqa: BLE001
+            n = 0
+        total = max(total, done, n or 0)
     if total:
         return int(done * 100 / total), done, total
     return 0, 0, 0

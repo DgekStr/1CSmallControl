@@ -16,7 +16,10 @@
     <header class="topbar">
       <div class="brand topbar-brand"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></div>
       <div class="topbar-right">
-        <button type="button" class="icon-button" data-open="dlg-feedback" title="Сообщить о проблеме" aria-label="Сообщить о проблеме"><i data-lucide="mail"></i></button>
+        <form method="post" id="kick-mine-form" action="{{ url_for('sessions_kick_mine') }}" data-confirm="Завершить все ваши сеансы 1С? Открытые базы закроются." data-confirm-title="Завершить сеансы 1С?" data-confirm-ok="Завершить" style="display:inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button class="icon-button" type="submit" title="Завершить мои сеансы 1С" aria-label="Завершить мои сеансы 1С"><span class="kick-emoji">♻️</span></button>
+    </form>
         <span class="account-name">{{ session.name }}</span>
         <span class="avatar">{{ (session.name or 'U')[0]|upper }}</span>
         <div class="header-tools">
@@ -25,6 +28,7 @@
           <button type="button" data-theme-set="dark" title="Тёмная тема" aria-label="Тёмная тема"><i data-lucide="moon"></i></button>
           <button type="button" data-theme-set="auto" title="Как в системе" aria-label="Как в системе"><i data-lucide="monitor"></i></button>
         </div>
+        <button type="button" class="icon-button" data-open="dlg-feedback" title="Сообщить о проблеме" aria-label="Сообщить о проблеме"><i data-lucide="mail"></i></button>
         <button type="button" class="icon-button" data-open="dlg-settings" title="Настройки" aria-label="Настройки"><i data-lucide="settings"></i></button>
         <form action="{{ url_for('logout') }}" method="post"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="icon-button" title="Выйти" aria-label="Выйти"><i data-lucide="log-out"></i></button></form>
         </div>
@@ -63,6 +67,7 @@
       <div class="base-grid">
         {% for b in bases %}
         <article class="base-card">
+          <img class="base-logo" src="{{ asset('1c-logo.png') }}" alt="" aria-hidden="true">
           <div class="base-card-icon"><i data-lucide="database"></i></div>
           <div class="base-card-body">
             {% set org = b.organization or b.description or '' %}
@@ -70,8 +75,8 @@
             <h2>{{ b.title }}</h2>
             <div class="base-meta">
               <span class="base-path mono">{{ b.url_path }}</span>
-              {% set size = sizes.get(b.db_name or b.slug) if sizes else none %}
-              {% if size %}<span class="base-size" title="Размер базы в PostgreSQL"><i data-lucide="hard-drive"></i>{{ size }}</span>{% endif %}
+              
+              
             </div>
           </div>
           <div class="base-actions base-actions-row">
@@ -967,5 +972,32 @@
   })();
   </script>
 
+
+<script>
+(function () {
+  var form = document.getElementById('kick-mine-form');
+  if (!form) return;
+  form.addEventListener('submit', function (e) {
+    // первый submit перехватывает фирменное окно подтверждения (data-confirm);
+    // наш fetch запускаем только после подтверждения
+    if (form.dataset.confirmed !== '1') return;
+    e.preventDefault();
+    if (form.dataset.busy) return;
+    form.dataset.busy = '1';
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    }).then(function (r) { return r.json(); })
+      .then(function (d) {
+        alert(d && d.ok ? 'Завершение сеансов 1С запущено. Через несколько секунд обновите страницу базы.'
+                        : 'Не удалось запустить завершение сеансов');
+      })
+      .catch(function () { alert('Нет связи с сервером'); })
+      .then(function () { form.dataset.busy = ''; });
+  });
+})();
+</script>
 </body>
 </html>

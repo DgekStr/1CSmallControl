@@ -553,3 +553,24 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 
 /* эмодзи в окне обратной связи +25% */
 #dlg-feedback .settings-emoji{font-size:calc(23.4px*var(--fs));margin-right:8px}
+
+/* ===== оверлей «система запускается» ===== */
+.boot-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,10,20,.82);backdrop-filter:blur(4px)}
+.boot-box{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 34px;border-radius:16px;
+  border:1px solid var(--border,#243049);background:var(--panel,#111b2e);box-shadow:0 18px 60px rgba(0,0,0,.55);min-width:280px}
+.boot-spinner{width:46px;height:46px;border-radius:50%;border:3px solid rgba(124,92,255,.25);
+  border-top-color:#7c5cff;animation:boot-spin 1s linear infinite}
+@keyframes boot-spin{to{transform:rotate(360deg)}}
+.boot-title{font-size:calc(15px*var(--fs));font-weight:600;color:var(--text,#e6edf7)}
+.boot-sub{font-size:calc(12px*var(--fs));color:var(--muted,#93a4bf);text-align:center}
+.boot-pct{font-size:calc(22px*var(--fs));font-weight:700;color:#7c5cff;font-variant-numeric:tabular-nums}
+
+.kick-emoji{font-size:calc(15px*var(--fs));line-height:1;display:inline-flex;align-items:center;justify-content:center}
+
+/* ===== логотип 1С в карточках баз (водяной знак, правый верхний угол) ===== */
+.base-card{position:relative;overflow:hidden}
+.base-logo{position:absolute;top:12px;right:14px;width:140px;height:140px;max-width:38%;max-height:140px;
+  object-fit:contain;pointer-events:none;user-select:none;opacity:.25;z-index:0}
+.base-card > *:not(.base-logo){position:relative;z-index:1}
+@media (max-width:900px){.base-logo{width:98px;height:98px;opacity:.25}}
