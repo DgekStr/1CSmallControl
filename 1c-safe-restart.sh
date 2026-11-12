@@ -9,6 +9,7 @@ set -uo pipefail
 
 RAC=${IC_RAC:-/opt/1cv8/x86_64/8.3.27.2342/rac}
 RAS=${IC_RAS:-127.0.0.1:1545}
+RESTART_LOCK=${IC_RESTART_LOCK:-/var/run/1c-restart.lock}
 CLUSTER_DEFAULT=e3220a07-7374-4fc0-b4fb-25ace3789930
 MODE=${1:-check}
 
@@ -54,6 +55,15 @@ case "$MODE" in
     check_state
     ;;
   apply)
+    if ! { exec 9>"$RESTART_LOCK"; } 2>/dev/null; then
+      echo "не удалось открыть lock-файл перезапуска"
+      exit 1
+    fi
+    if ! flock -n 9; then
+      echo "кластер уже обслуживается или перезапускается"
+      exit 75
+    fi
+
     echo "== до перезапуска =="
     check_state
 
