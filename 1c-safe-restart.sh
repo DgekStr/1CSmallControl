@@ -13,7 +13,15 @@ RESTART_LOCK=${IC_RESTART_LOCK:-/var/run/1c-restart.lock}
 CLUSTER_DEFAULT=e3220a07-7374-4fc0-b4fb-25ace3789930
 MODE=${1:-check}
 
+CONF=${IC_SAFE_RESTART_CONF:-/etc/1c-portal/1c-session-admin.conf}
+[ -r "$CONF" ] && . "$CONF"
+
 cluster_uuid() {
+  # UUID кластера из конфига надёжнее, чем `rac cluster list` (в 2342 бывает нестабильной)
+  if [ -n "${IC_CLUSTER:-}" ]; then
+    printf '%s\n' "$IC_CLUSTER"
+    return 0
+  fi
   "$RAC" "$RAS" cluster list 2>/dev/null | awk '/^cluster/{print $3; exit}'
 }
 
