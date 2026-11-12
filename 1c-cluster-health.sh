@@ -50,6 +50,7 @@ fi
 
 if healthy; then
   log "ВОССТАНОВЛЕНО"
+  /usr/local/bin/1c-heal-bases >> "$LOG" 2>&1 || log "1c-heal-bases: есть ошибки"
   msg="#### ⚠️ 1C Small Control · кластер перезапущен автоматически\n\nСбой кластера 1С обнаружен и устранён: восстановлены порт 1541, rmngr, RAS.\nПроверьте базы в кабинете."
   body=$(printf '{"text":"%s"}' "$msg")
   [ -n "$HOOK" ] && curl -s -o /dev/null -H 'Content-Type: application/json' -d "$body" "$HOOK" 2>/dev/null
