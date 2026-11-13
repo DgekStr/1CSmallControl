@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сервер 1С — конфигурация, закупка и прирост скорости (светлая версия)</title>
+<style>
+  :root{
+    --bg:#f5f7fb; --panel:#ffffff; --panel2:#eef2f8; --border:#d7deea;
+    --text:#1b2436; --muted:#5f6d85; --accent:#5b3fd1; --ok:#1f9d5a; --warn:#b7791f; --bad:#c0392b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+  .wrap{max-width:1060px;margin:0 auto;padding:32px 20px 60px}
+  h1{font-size:26px;margin:0 0 6px}
+  h2{font-size:19px;margin:34px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  h3{font-size:15px;margin:18px 0 8px}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:14px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 2px rgba(27,36,54,.05)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
+  .tag.ok{background:rgba(31,157,90,.12);color:var(--ok)}
+  .tag.warn{background:rgba(183,121,31,.14);color:var(--warn)}
+  .tag.accent{background:rgba(91,63,209,.12);color:var(--accent)}
+  .big{font-size:20px;font-weight:700}
+  .gain{color:var(--ok)}
+  .old{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .tile{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .tile .n{font-size:22px;font-weight:700;color:var(--accent)}
+  .tile .l{color:var(--muted);font-size:12px}
+  .note{background:rgba(91,63,209,.07);border-left:3px solid var(--accent);padding:12px 14px;border-radius:8px;font-size:13px;color:#2f2550}
+  ul{margin:6px 0;padding-left:20px}
+  li{margin:4px 0}
+  .compare td:first-child{width:30%;color:var(--muted)}
+  .plus{color:var(--ok);font-weight:600}
+  /* графики до/после */
+  .chart{margin:10px 0 18px}
+  .chart .row{display:flex;align-items:center;gap:12px;margin:7px 0}
+  .chart .lab{width:200px;font-size:13px;color:var(--muted);flex-shrink:0}
+  .chart .barwrap{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:6px;height:22px;position:relative;overflow:hidden}
+  .chart .bar{height:100%;border-radius:5px;display:flex;align-items:center;padding-left:8px;font-size:11px;color:#fff;font-weight:600;white-space:nowrap}
+  .bar.before{background:linear-gradient(90deg,#8d99ad,#6c7a91)}
+  .bar.after{background:linear-gradient(90deg,#1f9d5a,#57c98a)}
+  .chart .cap{font-size:11px;color:var(--muted);margin-top:-10px;margin-bottom:14px;padding-left:212px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Сервер 1С — конфигурация, закупка и прирост скорости</h1>
+  <p class="sub">Сравнение текущего сервера (файловые базы 1С через RDP) и целевой конфигурации после закупки и переезда на PostgreSQL + Proxmox.</p>
+
+  <div class="note">
+    Эталон (текущее состояние): сервер с 1С на <b>файловых базах</b>, доступ пользователей через <b>RDP</b>,
+    32 ГБ ОЗУ, Kingston SSD, HDD 1 ТБ под копии баз, NVMe M.2 под систему Windows Server 2019.
+  </div>
+
+  <h2>1. Текущее состояние (эталон)</h2>
+  <div class="card">
+    <table>
+      <tr><th>Компонент</th><th>Сейчас</th><th>Ограничение</th></tr>
+      <tr><td>Платформа</td><td>Intel i7-10700K (8/16, LGA1200)</td><td>—</td></tr>
+      <tr><td>Память</td><td>32 ГБ DDR4</td><td>мало кэша для БД + ВМ</td></tr>
+      <tr><td>Диск системы</td><td>NVMe M.2 (Windows Server 2019)</td><td>система отдельно</td></tr>
+      <tr><td>Диск баз 1С</td><td>Kingston SSD (SATA)</td><td>файловые базы, низкий IOPS</td></tr>
+      <tr><td>После переезда (итог)</td><td><span class="tag ok">NVMe 1 ТБ в M.2</span> = базы PostgreSQL; NVMe 240 (PA19) = ZFS-резерв; система на SATA</td><td>базы на штатном NVMe, быстрый резерв, система отдельно</td></tr>
+      <tr><td>Архив/копии</td><td>HDD 1 ТБ</td><td>медленный, только архив</td></tr>
+      <tr><td>Режим 1С</td><td><span class="tag warn">Файловые базы</span> + RDP</td><td>1 файл = 1 база, блокировки, очереди</td></tr>
+    </table>
+  </div>
+
+  <h2>2. Что приобретаем</h2>
+  <div class="card">
+    <table>
+      <tr><th>Позиция</th><th>Модель / объём</th><th>Зачем</th><th>Приоритет</th></tr>
+      <tr><td>Память</td><td><b>2×32 ГБ DDR4-3200 CL16</b> (Kingston Fury / Patriot)</td><td>64 ГБ: кэш PostgreSQL + ZFS + ВМ</td><td><span class="tag ok">обязательно</span></td></tr>
+      <tr><td>NVMe под базы</td><td><b>Samsung 970 EVO Plus 1 ТБ</b> — в слот M.2 на плате</td><td>PostgreSQL на NVMe (IOPS ×5–10), нативная линия</td><td><span class="tag ok">обязательно</span></td></tr>
+      <tr><td>Адаптер</td><td><b>GLOTRENDS PA19</b> (M.2 NVMe → PCIe x4)</td><td>под NVMe 240 ГБ (ZFS-резерв) в слот x16</td><td><span class="tag ok">обязательно</span></td></tr>
+      <tr><td>Процессор</td><td><b>i9-10850K / i9-10900K</b> (10/20)</td><td>+2 ядра для многопользовательской 1С</td><td><span class="tag accent">опционально</span></td></tr>
+      <tr><td>ОС</td><td><b>Proxmox VE 8.4</b> (ВМ 1С)</td><td>вместо Windows Server 2019</td><td><span class="tag ok">по плану</span></td></tr>
+    </table>
+  </div>
+
+  <h2>3. Что получаем (плюсы)</h2>
+  <div class="grid">
+    <div class="tile"><div class="n">PostgreSQL</div><div class="l">вместо файловых баз: транзакции, целостность, параллельный доступ</div></div>
+    <div class="tile"><div class="n">64 ГБ</div><div class="l">вдвое больше памяти под кэш базы — горячие данные в RAM</div></div>
+    <div class="tile"><div class="n">NVMe</div><div class="l">в 5–10 раз больше IOPS, чем SATA Kingston</div></div>
+    <div class="tile"><div class="n">Веб/тонкий клиент</div><div class="l">вместо RDP — меньше трафик, нет «рабочего стола»</div></div>
+    <div class="tile"><div class="n">ZFS-резерв</div><div class="l">быстрые локальные дампы/снапшоты баз на NVMe 240</div></div>
+    <div class="tile"><div class="n">Кластер Proxmox</div><div class="l">миграции ВМ, снапшоты, централизованные бэкапы</div></div>
+  </div>
+
+  <h2>4. Прирост скорости</h2>
+  <div class="card">
+    <table class="compare">
+      <tr><th>Операция</th><th>Сейчас (файловые + RDP)</th><th>После (PostgreSQL + NVMe)</th><th>Прирост</th></tr>
+      <tr><td>Обновление конфигурации</td><td class="old">~6 часов</td><td><span class="big">~2 часа</span></td><td class="gain">×3</td></tr>
+      <tr><td>Открытие форм / интерфейс</td><td class="old">2–4 с</td><td><span class="big">0,7–1,5 с</span></td><td class="gain">×2–3</td></tr>
+      <tr><td>Одновременные пользователи</td><td class="old">3–5 с очередями</td><td><span class="big">3–5 без задержек</span></td><td class="gain">без очередей</td></tr>
+      <tr><td>Операции с БД (отчёты, поиск)</td><td class="old">SATA SSD, файловый доступ</td><td><span class="big">NVMe + PostgreSQL</span></td><td class="gain">×5–10 IOPS</td></tr>
+    </table>
+  </div>
+
+  <h2>4.1. Графики «до / после»</h2>
+  <div class="card">
+    <div class="chart">
+      <div class="row"><div class="lab">Обновление конфигурации</div><div class="barwrap"><div class="bar before" style="width:100%">6 ч</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar after" style="width:33%">2 ч</div></div></div>
+      <div class="cap">↓ быстрее в 3 раза</div>
+
+      <div class="row"><div class="lab">Открытие форм / интерфейс</div><div class="barwrap"><div class="bar before" style="width:100%">2–4 с</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar after" style="width:40%">0,7–1,5 с</div></div></div>
+      <div class="cap">↓ быстрее в 2–3 раза</div>
+
+      <div class="row"><div class="lab">Скорость дисковых операций (IOPS)</div><div class="barwrap"><div class="bar before" style="width:15%">SATA</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar after" style="width:100%">NVMe</div></div></div>
+      <div class="cap">↑ в 5–10 раз больше операций в секунду</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Откуда прирост (коротко)</h3>
+    <ul>
+      <li><b>Файловые → PostgreSQL:</b> данные не «гоняются» по сети целым файлом, работают индексы и транзакции БД.</li>
+      <li><b>SATA → NVMe:</b> чтение/запись случайных блоков в разы быстрее — критично для 1С.</li>
+      <li><b>32 → 64 ГБ:</b> вся «горячая» часть базы помещается в кэш, дисковых обращений меньше.</li>
+      <li><b>RDP → веб/тонкий клиент:</b> нет оверхеда графического рабочего стола на каждого пользователя.</li>
+      <li><b>i7 → i9 (опц.):</b> +2 ядра на параллельную работу пользователей.</li>
+    </ul>
+  </div>
+
+  <h2>5. Итог</h2>
+  <div class="card">
+    <table>
+      <tr><td>Минимальный набор (обязательно)</td><td class="plus">64 ГБ RAM · NVMe 1 ТБ · адаптер PA19 · Proxmox 8.4</td></tr>
+      <tr><td>Усиленный набор</td><td class="plus">+ i9-10850K/10900K</td></tr>
+      <tr><td>Главный выигрыш</td><td>обновление конфигурации ×3, интерфейс ×2–3, без очередей пользователей</td></tr>
+    </table>
+  </div>
+
+  <h2>6. Эпилог — что докупаем и средние цены</h2>
+  <div class="card">
+    <table>
+      <tr><th>Позиция</th><th>Модель</th><th>Средняя цена</th><th>Статус</th></tr>
+      <tr><td>NVMe 1 ТБ (SQL)</td><td>Samsung 970 EVO Plus 1 ТБ (M.2, PCIe 3.0)</td><td>~13 000 ₽</td><td><span class="tag ok">обязательно</span></td></tr>
+      <tr><td>Адаптер</td><td>GLOTRENDS PA19 (M.2 NVMe → PCIe x4)</td><td>~2 500 ₽</td><td><span class="tag ok">обязательно</span></td></tr>
+      <tr><td>Память 64 ГБ</td><td>2×32 ГБ DDR4-3200 CL16 (Kingston Fury / Patriot)</td><td>~22 000–25 000 ₽</td><td><span class="tag ok">обязательно</span></td></tr>
+      <tr><td>Процессор (опц.)</td><td>Intel i9-10850K / i9-10900K (10/20)</td><td>~15 000–20 000 ₽</td><td><span class="tag accent">опционально</span></td></tr>
+    </table>
+    <h3>Ориентировочный бюджет</h3>
+    <table>
+      <tr><td>Обязательный минимум</td><td class="plus">≈ 37 500–40 500 ₽</td></tr>
+      <tr><td>С процессором i9</td><td class="plus">≈ 52 500–60 500 ₽</td></tr>
+    </table>
+    <p class="sub" style="margin:12px 0 0">Цены ориентировочные (рынок РФ, ноябрь 2026), зависят от «новое/б/у» и продавца.</p>
+  </div>
+
+  <p class="sub" style="margin-top:24px">Дата подготовки: 13.11.2026 · Связанный план: docs/Server/new-server-plan.md</p>
+
+</div>
+</body>
+</html>
