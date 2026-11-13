@@ -61,7 +61,9 @@ li{margin:4px 0}
 <tr><td>GigaChat (<code>api.giga.chat</code>)</td><td>gigachat (OAuth)</td><td>при требовании «данные в РФ»</td></tr>
 </tbody></table>
 <p>Требования:</p>
-<ol><li>Единый интерфейс <code>chat(messages, tools, json_schema)</code> и <code>embed(texts)</code>.</li><li>Конвертация схем <code>tools</code>/<code>functions</code> под каждого провайдера.</li><li>Fallback при 429/5xx/таймауте.</li><li>Учёт токенов и стоимости на задачу; лимит стоимости.</li><li>Кэш результатов по хэшу (промт + схема + срез данных).</li><li>Перед вызовом модели — обязательное маскирование ПДн.</li></ol>
+<ol><li>Единый интерфейс <code>chat(messages, tools, json_schema)</code> и <code>embed(texts)</code>.</li><li>Конвертация схем <code>tools</code>/<code>functions</code> под каждого провайдера.</li><li><strong>Без автоматического fallback</strong>: при 429/5xx/таймауте задача завершается ошибкой,</li></ol>
+<p>   администратор уведомляется в Mattermost, провайдер меняется вручную.</p>
+<ol><li>Учёт токенов и стоимости на задачу; лимит стоимости.</li><li>Кэш результатов по хэшу (промт + схема + срез данных).</li><li>Перед вызовом модели — обязательное маскирование ПДн.</li></ol>
 <h2>3. Задание 1. Проверка базы</h2>
 <p><strong>Промт:</strong></p>
 <pre><code>
