@@ -581,3 +581,11 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .kick-icon{display:inline-block;width:18px;height:18px;background-color:currentColor;
   -webkit-mask:url('/static/kick-light.png') center/contain no-repeat;
   mask:url('/static/kick-light.png') center/contain no-repeat}
+
+/* ===== проверка SMB-шары в настройках архивации ===== */
+.smb-row{align-items:flex-end}
+.smb-row .smb-field{flex:0 1 190px;max-width:190px;min-width:130px}
+.smb-row .button{height:38px;white-space:nowrap}
+.smb-test-result{font-size:calc(13px*var(--fs));align-self:center;margin-left:4px}
+.smb-test-result.ok{color:var(--ok)}
+.smb-test-result.err{color:var(--bad)}

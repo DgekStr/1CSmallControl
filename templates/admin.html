@@ -504,14 +504,19 @@
           </label>
           <p class="muted small">Сетевая папка — в формате <span class="mono">//сервер/ресурс/путь</span>, монтируется по SMB.</p>
 
-          <div class="field-row">
-            <label class="field">Логин SMB
+          <div class="field-row smb-row">
+            <label class="field smb-field">Логин SMB
               <input name="backup_user" value="{{ settings.backup_user }}" autocomplete="off">
             </label>
-            <label class="field">Пароль SMB
+            <label class="field smb-field">Пароль SMB
               <input name="backup_pass" type="password" autocomplete="new-password"
                      placeholder="{{ 'сохранён — оставьте пустым' if backup_pass_set else 'не задан' }}">
             </label>
+            <button type="button" class="button" id="smb-test-btn"
+                    data-url="{{ url_for('admin_backup_share_test') }}">
+              <i data-lucide="plug"></i>Тест
+            </button>
+            <span class="smb-test-result" id="smb-test-result" role="status" aria-live="polite"></span>
           </div>
 
           {% if backup %}
@@ -1498,7 +1503,7 @@
     var link = document.getElementById('job-band-link');
     function tick() {
       fetch('/jobs/active', { credentials: 'same-origin' })
-        .then(function (r) { return r.json(); })
+        .then(function (r) { return r.text().then(function (b) { try { return JSON.parse(b); } catch (e) { throw new Error('HTTP ' + r.status); } }); })
         .then(function (d) {
           if (d && d.active) {
             band.hidden = false;
@@ -1628,5 +1633,33 @@
   })();
   </script>
 
+
+<script>
+(function () {
+  var btn = document.getElementById('smb-test-btn');
+  if (!btn) return;
+  var out = document.getElementById('smb-test-result');
+  btn.addEventListener('click', function () {
+    var form = btn.closest('form');
+    var q = function (n) { var el = form && form.querySelector('[name="' + n + '"]'); return el ? el.value : ''; };
+    var fd = new FormData();
+    fd.append('csrf', q('csrf'));
+    fd.append('dir', q('backup_dir'));
+    fd.append('user', q('backup_user'));
+    fd.append('pass', q('backup_pass'));
+    var html = btn.innerHTML;
+    btn.disabled = true; btn.textContent = 'Проверка…';
+    out.className = 'smb-test-result'; out.textContent = '';
+    fetch(btn.dataset.url, { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        out.textContent = (d.ok ? '✔ ' : '✖ ') + (d.msg || '');
+        out.className = 'smb-test-result ' + (d.ok ? 'ok' : 'err');
+      })
+      .catch(function (e) { out.textContent = '✖ ' + (e && e.message ? e.message : 'нет связи с порталом'); out.className = 'smb-test-result err'; })
+      .then(function () { btn.disabled = false; btn.innerHTML = html; if (window.lucide) lucide.createIcons(); });
+  });
+})();
+</script>
 </body>
 </html>

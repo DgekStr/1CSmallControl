@@ -49,5 +49,24 @@
       inp.type = inp.type === 'password' ? 'text' : 'password';
     });
   </script>
+
+<script>
+(function () {
+  if (!/[?&]fresh=1/.test(location.search)) return;
+  try {
+    var keepTheme = localStorage.getItem('portal-theme');
+    localStorage.clear();
+    if (keepTheme) localStorage.setItem('portal-theme', keepTheme);
+    sessionStorage.clear();
+  } catch (e) {}
+  if (window.caches && caches.keys) {
+    caches.keys().then(function (keys) { keys.forEach(function (k) { caches.delete(k); }); }).catch(function () {});
+  }
+  try {
+    var clean = location.pathname + (location.search.replace(/[?&]fresh=1/, '').replace(/^&/, '?') || '');
+    history.replaceState(null, '', clean || '/login');
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>

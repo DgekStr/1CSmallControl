@@ -35,7 +35,7 @@ IC_HOST = os.environ.get('PORTAL_IC_HOST', '1c.example.ru')
 SUPPORT_URL = os.environ.get('PORTAL_SUPPORT_URL', 'https://example.ru/contacts.html')
 SUPPORT_NAME = os.environ.get('PORTAL_SUPPORT_NAME', 'example.ru')
 # Версия портала — выводится в шапке и подвале.
-APP_VERSION = os.environ.get('PORTAL_VERSION', '2.1.1')
+APP_VERSION = os.environ.get('PORTAL_VERSION', '2.1.2')
 
 app = Flask(__name__)
 # S-09: ограничение размера запроса
@@ -247,6 +247,12 @@ def init_db():
         conn.execute("ALTER TABLE bases ADD COLUMN auto_user TEXT")
     if 'auto_pwd' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN auto_pwd TEXT")
+    try:
+        cs_cols = {r[1] for r in conn.execute("PRAGMA table_info(client_sessions)")}
+        if cs_cols and 'base' not in cs_cols:
+            conn.execute("ALTER TABLE client_sessions ADD COLUMN base TEXT NOT NULL DEFAULT ''")
+    except Exception:  # noqa: BLE001
+        pass
     if 'is_sandbox' not in base_cols:
         conn.execute("ALTER TABLE bases ADD COLUMN is_sandbox INTEGER DEFAULT 0")
     if 'sandbox_of' not in base_cols:
@@ -1158,7 +1164,8 @@ def logout():
                      (session['visit'],))
         db().commit()
     session.clear()
-    resp = redirect(url_for('login'))
+    # «чистый» сеанс: страница входа удалит localStorage/sessionStorage браузера
+    resp = redirect(url_for('login', fresh=1))
     # принудительно чистим все cookie сессии портала
     for cname in list(request.cookies.keys()):
         resp.delete_cookie(cname, path='/')
@@ -2056,6 +2063,13 @@ def admin_stats():
         ORDER BY last_seen DESC""").fetchall()
 
     live_sessions = _cached_swr('live', 60, 1800, _sessions_snapshot)
+    # обновляем историю клиентов при открытии статистики (не чаще раза в 20 с)
+    try:
+        hit = _cache.get('live')
+        if not hit or time.time() - hit[0] > 20:
+            _cache['live'] = (time.time(), _sessions_snapshot())
+    except Exception:  # noqa: BLE001
+        pass
     client_history = db().execute("""
         SELECT username, app, host, started_at, first_seen, last_seen
         FROM client_sessions ORDER BY last_seen DESC LIMIT 150""").fetchall()
@@ -2144,8 +2158,12 @@ def _sessions_snapshot():
         user, app = (parts[1] or '').strip(), (parts[2] or '').strip()
         # служебные сеансы: RAS — запросы портала к кластеру, BackgroundJob —
         # регламентные задания, DefUser — сеанс без авторизованного пользователя
-        if app in ('RAS', 'BackgroundJob') or user in ('', 'DefUser'):
+        if app in ('RAS', 'BackgroundJob') or user == 'DefUser':
             continue
+        # сеансы веб/тонкого клиента без имени пользователя тоже показываем:
+        # 1С иногда не заполняет user-name, а факт подключения важен
+        if not user:
+            user = '(не авторизован)'
         rows.append({'sid': parts[0], 'user': user, 'app': app,
                      'host': parts[3], 'started': parts[4], 'last': parts[5],
                      'base': parts[6].strip() if len(parts) > 6 else ''})
@@ -2162,10 +2180,14 @@ def _sessions_snapshot():
                 ON CONFLICT(sid) DO UPDATE SET
                     username = excluded.username, app = excluded.app, host = excluded.host,
                     started_at = excluded.started_at, last_seen = datetime('now','localtime')""",
-                         (r['sid'], r['user'], r['app'], r['host'], started))
+                         (r['sid'], r['user'], r['app'], r['host'], r.get('base') or '', started))
         db().commit()
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        try:
+            with open('/tmp/1c-client-sessions.err', 'a', encoding='utf-8') as fh:
+                fh.write('%s %s: %s\n' % (time.strftime('%H:%M:%S'), type(exc).__name__, exc))
+        except Exception:  # noqa: BLE001
+            pass
     rows.sort(key=lambda x: (x.get('started') or ''), reverse=True)
     return rows
 
@@ -2212,9 +2234,10 @@ def admin_stats_kick():
         return redirect(url_for('admin_stats'))
     # имя инфобазы важнее slug: slug портала может отличаться (dgek-db → dgek_db)
     names = [(b['ib_name'] or b['db_name'] or b['slug']) for b in bases]
-    script = 'for b in %s; do echo "== $b"; sudo -n /usr/local/bin/1c-kick-sessions "$b"; done' % ' '.join(names)
-    jid, _ = _job_start('kick-all', 'Отключение всех пользователей 1С', ['bash', '-lc', script],
-                        session.get('uid'))
+    # _job_start сам оборачивает команду в `sudo -n`, поэтому передаём прямой скрипт,
+    # а не `bash -lc` (для bash права в sudoers нет — отсюда «sudo: a password is required»)
+    jid, _ = _job_start('kick-all', 'Отключение всех пользователей 1С',
+                        ['/usr/local/bin/1c-kick-all'] + names, session.get('uid'))
     audit('stats_kick', 'запущено в фоне: задание %s' % jid)
     _cache.clear()  # сбрасываем кэш сеансов, чтобы страница статистики не показывала старые данные
     flash('Отключение запущено в фоне (задание №%s). Прогресс — в «Заданиях».' % jid)
@@ -2522,6 +2545,26 @@ def admin_settings_backup():
     flash('Архивация: %s в %s, хранить %s копий, каталог %s' % (
         'включена' if request.form.get('backup_enabled') else 'выключена', time_val, keep, folder))
     return redirect(url_for('admin_settings'))
+
+
+@app.route('/admin/settings/backup/share-test', methods=['POST'])
+@admin_required
+def admin_backup_share_test():
+    """Проверка доступности SMB-шары из настроек архивации."""
+    check_csrf()
+    data = request.get_json(silent=True) or request.form
+    unc = (data.get('dir') or _setting_get('backup_dir') or '').strip()
+    user = (data.get('user') or _setting_get('backup_user') or '').strip()
+    pwd = (data.get('pass') or '').strip() or (_setting_get('backup_pass') or '')
+    if not unc:
+        return {'ok': False, 'msg': 'Не указана папка хранения'}
+    code, out = _run_root(['/usr/local/bin/1c-share-test', unc, user, pwd], timeout=60)
+    lines = [str(x).strip() for x in (out or []) if str(x).strip()]
+    text = lines[-1] if lines else 'нет ответа'
+    ok = code == 0 and text.startswith('OK')
+    msg = text[3:].strip() if text.startswith('OK') else text[4:].strip() if text.startswith('ERR') else text
+    audit('backup_share_test', '%s: %s' % (unc, 'ok' if ok else msg))
+    return {'ok': ok, 'msg': msg}
 
 
 @app.route('/admin/settings/backup-run', methods=['POST'])
@@ -3412,6 +3455,19 @@ def admin_cluster():
     rc, raw, items = _rac_infobases(force=(request.args.get('refresh') == '1'))
     return render_template('cluster.html', items=items, raw=raw,
                            rc=rc, cluster_user=(_setting_get('cluster_user') or ''))
+
+
+@app.route('/admin/cluster/restart', methods=['POST'])
+@admin_required
+def admin_cluster_restart():
+    """Перезапуск сервера 1С из раздела «Кластер» (в фоне)."""
+    check_csrf()
+    jid, _ = _job_start('cluster-restart', 'Перезапуск кластера 1С',
+                        ['/usr/local/bin/1c-safe-restart', 'apply'], session.get('uid'))
+    audit('cluster_restart', 'задание %s' % jid)
+    _cache.clear()
+    flash('Перезапуск кластера запущен в фоне (задание №%s).' % jid)
+    return redirect(url_for('admin_jobs'))
 
 
 @app.route('/admin/cluster/create', methods=['POST'])
