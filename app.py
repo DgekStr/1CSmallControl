@@ -3007,13 +3007,18 @@ def admin_2fa_disable():
 SANDBOX_DIR = '/mnt/1cbackup'
 
 
-def _sandbox_copies(db_name):
+def _sandbox_copies(*names):
     """Все копии базы из каталога архивации: и ночные, и ручные.
 
-    Сначала смотрим каталог, а если он недоступен процессу портала —
-    берём индекс, который пишет скрипт архивации (/etc/1c-portal/backup-files.json).
+    Имена дампов формируются скриптом архивации по имени инфобазы
+    (например dgek_db-20261113-0430.dump), поэтому принимаем несколько
+    вариантов имени: имя инфобазы, имя БД PostgreSQL и slug портала.
     """
     import glob
+    db_names = [n for n in names if n]
+    if not db_names:
+        return []
+    db_name = db_names[0]
 
     def human(size):
         if not size:
@@ -3021,7 +3026,10 @@ def _sandbox_copies(db_name):
         return '%.1f ГБ' % (size / 1024 ** 3) if size > 1024 ** 3 else '%.0f МБ' % (size / 1024 ** 2)
 
     found = {}
-    for path in glob.glob(os.path.join(SANDBOX_DIR, '%s-*.dump' % db_name)):
+    paths = []
+    for nm in db_names:
+        paths.extend(glob.glob(os.path.join(SANDBOX_DIR, '%s-*.dump' % nm)))
+    for path in sorted(set(paths)):
         name = os.path.basename(path)
         try:
             size = os.path.getsize(path)
@@ -3036,7 +3044,7 @@ def _sandbox_copies(db_name):
             import json
             data = json.load(open('/etc/1c-portal/backup-files.json', encoding='utf-8'))
             for item in data.get('files', []):
-                if item.get('base') == db_name:
+                if item.get('base') in db_names:
                     found[item['name']] = {
                         'path': item['path'], 'name': item['name'], 'when': item.get('when') or item['name'],
                         'size': item.get('size') or 0, 'size_h': human(item.get('size') or 0)}
@@ -3164,7 +3172,7 @@ def base_copies(bid):
         if not allowed:
             abort(403)
     mine = _sandbox_active(session['uid'])
-    return {'base': row['slug'], 'copies': _sandbox_copies(row['db_name'] or row['slug']),
+    return {'base': row['slug'], 'copies': _sandbox_copies(row['ib_name'], row['db_name'], row['slug']),
             'enabled': _setting_get('sandbox_enabled') == '1',
             'keep_days': int(_setting_get('sandbox_keep_days') or 3),
             'existing': ({'slug': mine[0]['slug'], 'expires': _dt_ru(mine[0]['expires_at']),
@@ -3211,9 +3219,11 @@ def base_sandbox_create(bid):
     dump = (request.form.get('dump') or '').strip()
     # S-04: только копии этой базы, строгое имя файла и путь внутри архива
     import re as _re
-    allowed = {c['path'] for c in _sandbox_copies(row['db_name'] or row['slug'])}
+    allowed = {c['path'] for c in _sandbox_copies(row['ib_name'], row['db_name'], row['slug'])}
     dbn = row['db_name'] or row['slug']
-    ok_name = bool(_re.match(r'^%s-\d{8}-\d{4}\.dump$' % _re.escape(dbn), os.path.basename(dump)))
+    aliases = {x for x in (row['ib_name'], row['db_name'], row['slug']) if x}
+    ok_name = any(_re.match(r'^%s-\d{8}-\d{4}\.dump$' % _re.escape(a), os.path.basename(dump))
+                  for a in aliases)
     ok_path = os.path.realpath(dump).startswith(os.path.realpath(SANDBOX_DIR) + os.sep)
     if not (ok_name and ok_path and dump in allowed):
         audit('sandbox_dump_denied', '%s: %s' % (row['slug'], dump[:120]))
