@@ -110,6 +110,7 @@ FILES = [
     ('README.md', 'README.html', '1C-AI-Control v3.0.0 — документация'),
     ('prompt-cluster-service.md', 'prompt-cluster-service.html', 'Промпт: сервис управления кластером 1С'),
     ('prompt-ai-in-1c.md', 'prompt-ai-in-1c.html', 'Промпт: ИИ-модуль в 1С'),
+    ('prompt-mcp.md', 'prompt-mcp.html', 'Промпт: MCP-сервер ИИ-модуля (системный промт и задания)'),
     ('unified-prompt.md', 'unified-prompt.html', '1C-AI-Control v3.0.0 — единый промпт и дорожная карта'),
 ]
 

@@ -1,7 +1,8 @@
 # 1C-AI-Control v3.0.0 — промпт: ИИ-модуль в 1С (проверки баз)
 
 > Рабочее название проекта: **1C-AI-Control v3.0.0**.
-> Источник: `docs/ИИ/` (README, decisions, roadmap, detectors, prompts-mcp, tz-section).
+> Источник: `docs/ИИ/` (README, decisions, roadmap, detectors, tz-section).
+> Основной MCP-промт — `prompt-mcp.md` в этой папке (копия `docs/ИИ/prompts-mcp.md`).
 > Реализация — только по железным правилам, без исключений.
 
 ## 1. Назначение
