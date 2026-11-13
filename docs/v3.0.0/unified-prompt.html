@@ -88,6 +88,42 @@ li{margin:4px 0}
 <tr><td>Логи</td><td>journald + файлы, ротация</td></tr>
 <tr><td>Наблюдаемость</td><td><code>/healthz</code>, <code>/metrics</code> (Prometheus-формат)</td></tr>
 </tbody></table>
+<h2>4.1. Модели ИИ: два провайдера (GigaChat и DeepSeek)</h2>
+<p>Система поддерживает <strong>два подключаемых провайдера</strong> через общий интерфейс. Переключение —</p>
+<p>настройкой в админке, без изменения кода.</p>
+<table><thead><tr><th>Провайдер</th><th>Тип адаптера</th><th>Плюсы</th><th>Минусы</th><th>Когда использовать</th></tr></thead><tbody>
+<tr><td><strong>DeepSeek</strong></td><td><code>openai_compat</code> (api.deepseek.com)</td><td>простая оплата, дешёвые токены, сильный function calling</td><td>данные уходят за пределы РФ</td><td>по умолчанию для внутренних/тестовых задач, при согласии клиента</td></tr>
+<tr><td><strong>GigaChat (Сбер)</strong></td><td><code>gigachat</code> (OAuth, api.giga.chat)</td><td>данные в РФ, договор и рубли, 152-ФЗ</td><td>сложнее интеграция (OAuth, scopes), дороже</td><td>клиенты с требованием «данные в РФ», госсектор</td></tr>
+</tbody></table>
+<pre><code>
+providers:
+  deepseek:
+    type: openai_compat
+    base_url: https://api.deepseek.com/v1
+    model: deepseek-chat          # или deepseek-reasoner
+    price_in: 0.2                 # ₽ за 1K (ориентир)
+    price_out: 0.8
+    caps: [tools, json]
+  gigachat:
+    type: gigachat
+    base_url: https://api.giga.chat
+    model: GigaChat-Pro
+    auth: oauth_client_credentials   # client_id + scope
+    price_in: 1.5
+    price_out: 1.5
+    caps: [tools, json]
+routing:
+  primary: deepseek
+  fallback: [gigachat]
+  max_cost_per_task: 5
+  cache_ttl: 86400
+</code></pre>
+<h3>Правила переключения</h3>
+<ol><li><strong>DeepSeek — рабочий по умолчанию</strong> (быстро, дёшево, простая оплата).</li><li><strong>GigaChat — для клиентов с требованием данных в РФ</strong>; включается в карточке клиента.</li><li>При 429/5xx/таймауте — автоматический fallback на второго провайдера.</li><li>Перед отправкой <strong>ПДн маскируются</strong> (правило 8) — это обязательное условие для обоих.</li><li>В аудите фиксируется: провайдер, модель, токены, стоимость, причина выбора.</li></ol>
+<h3>Юридическая оговорка (важно)</h3>
+<p>DeepSeek передаёт запросы за пределы РФ. Для сервиса, ориентированного на российских клиентов,</p>
+<p>это допустимо <strong>только при обезличивании данных и согласии клиента</strong>. Для госсектора и</p>
+<p>«чувствительных» клиентов по умолчанию выбирается GigaChat (данные в РФ).</p>
 <h2>5. Риски</h2>
 <table><thead><tr><th>Риск</th><th>Смягчение</th></tr></thead><tbody>
 <tr><td>Открытый RAS в сеть</td><td>только IP панели, ufw, токены</td></tr>
