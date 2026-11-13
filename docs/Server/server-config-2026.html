@@ -37,6 +37,15 @@
   li{margin:4px 0}
   .compare td:first-child{width:30%;color:var(--muted)}
   .plus{color:var(--ok);font-weight:600}
+  /* графики до/после */
+  .chart{margin:10px 0 18px}
+  .chart .row{display:flex;align-items:center;gap:12px;margin:7px 0}
+  .chart .lab{width:200px;font-size:13px;color:var(--muted);flex-shrink:0}
+  .chart .barwrap{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:6px;height:22px;position:relative;overflow:hidden}
+  .chart .bar{height:100%;border-radius:5px;display:flex;align-items:center;padding-left:8px;font-size:11px;color:#fff;font-weight:600;white-space:nowrap}
+  .bar.before{background:linear-gradient(90deg,#5b6b86,#7c8aa5)}
+  .bar.after{background:linear-gradient(90deg,#2fbf71,#6bd39a)}
+  .chart .cap{font-size:11px;color:var(--muted);margin-top:-10px;margin-bottom:14px;padding-left:212px}
 </style>
 </head>
 <body>
@@ -58,7 +67,7 @@
       <tr><td>Память</td><td>32 ГБ DDR4</td><td>мало кэша для БД + ВМ</td></tr>
       <tr><td>Диск системы</td><td>NVMe M.2 (Windows Server 2019)</td><td>система отдельно</td></tr>
       <tr><td>Диск баз 1С</td><td>Kingston SSD (SATA)</td><td>файловые базы, низкий IOPS</td></tr>
-      <tr><td>После переезда (схема №1)</td><td><span class="tag ok">NVMe 1 ТБ в M.2</span> = базы PostgreSQL; система на SATA SSD</td><td>базы на штатном NVMe, система отдельно</td></tr>
+      <tr><td>После переезда (итог)</td><td><span class="tag ok">NVMe 1 ТБ в M.2</span> = базы PostgreSQL; NVMe 240 (PA19) = ZFS-резерв; система на SATA</td><td>базы на штатном NVMe, быстрый резерв, система отдельно</td></tr>
       <tr><td>Архив/копии</td><td>HDD 1 ТБ</td><td>медленный, только архив</td></tr>
       <tr><td>Режим 1С</td><td><span class="tag warn">Файловые базы</span> + RDP</td><td>1 файл = 1 база, блокировки, очереди</td></tr>
     </table>
@@ -69,10 +78,9 @@
     <table>
       <tr><th>Позиция</th><th>Модель / объём</th><th>Зачем</th><th>Приоритет</th></tr>
       <tr><td>Память</td><td><b>2×32 ГБ DDR4-3200 CL16</b> (Kingston Fury / Patriot)</td><td>64 ГБ: кэш PostgreSQL + ZFS + ВМ</td><td><span class="tag ok">обязательно</span></td></tr>
-      <tr><td>NVMe под базы</td><td><b>Samsung 970 EVO Plus 1 ТБ</b> — в слот M.2 на плате</td><td>PostgreSQL на NVMe (IOPS ×5–10), нативная линия без адаптера</td><td><span class="tag ok">обязательно</span></td></tr>
-      <tr><td>Второй SSD 512 ГБ</td><td>Kingston (в зеркало)</td><td>ZFS mirror — защита от отказа диска</td><td><span class="tag accent">желательно</span></td></tr>
+      <tr><td>NVMe под базы</td><td><b>Samsung 970 EVO Plus 1 ТБ</b> — в слот M.2 на плате</td><td>PostgreSQL на NVMe (IOPS ×5–10), нативная линия</td><td><span class="tag ok">обязательно</span></td></tr>
+      <tr><td>Адаптер</td><td><b>GLOTRENDS PA19</b> (M.2 NVMe → PCIe x4)</td><td>под NVMe 240 ГБ (ZFS-резерв) в слот x16</td><td><span class="tag ok">обязательно</span></td></tr>
       <tr><td>Процессор</td><td><b>i9-10850K / i9-10900K</b> (10/20)</td><td>+2 ядра для многопользовательской 1С</td><td><span class="tag accent">опционально</span></td></tr>
-      <tr><td>ИБП</td><td>любой 600–1000 ВА</td><td>защита от пропадания питания</td><td><span class="tag ok">обязательно</span></td></tr>
       <tr><td>ОС</td><td><b>Proxmox VE 8.4</b> (ВМ 1С)</td><td>вместо Windows Server 2019</td><td><span class="tag ok">по плану</span></td></tr>
     </table>
   </div>
@@ -83,7 +91,7 @@
     <div class="tile"><div class="n">64 ГБ</div><div class="l">вдвое больше памяти под кэш базы — горячие данные в RAM</div></div>
     <div class="tile"><div class="n">NVMe</div><div class="l">в 5–10 раз больше IOPS, чем SATA Kingston</div></div>
     <div class="tile"><div class="n">Веб/тонкий клиент</div><div class="l">вместо RDP — меньше трафик, нет «рабочего стола»</div></div>
-    <div class="tile"><div class="n">ZFS mirror</div><div class="l">отказ одного SSD без потери данных</div></div>
+    <div class="tile"><div class="n">ZFS-резерв</div><div class="l">быстрые локальные дампы/снапшоты баз на NVMe 240</div></div>
     <div class="tile"><div class="n">Кластер Proxmox</div><div class="l">миграции ВМ, снапшоты, централизованные бэкапы</div></div>
   </div>
 
@@ -96,6 +104,23 @@
       <tr><td>Одновременные пользователи</td><td class="old">3–5 с очередями</td><td><span class="big">3–5 без задержек</span></td><td class="gain">без очередей</td></tr>
       <tr><td>Операции с БД (отчёты, поиск)</td><td class="old">SATA SSD, файловый доступ</td><td><span class="big">NVMe + PostgreSQL</span></td><td class="gain">×5–10 IOPS</td></tr>
     </table>
+  </div>
+
+  <h2>4.1. Графики «до / после»</h2>
+  <div class="card">
+    <div class="chart">
+      <div class="row"><div class="lab">Обновление конфигурации</div><div class="barwrap"><div class="bar before" style="width:100%">6 ч</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar after" style="width:33%">2 ч</div></div></div>
+      <div class="cap">↓ быстрее в 3 раза</div>
+
+      <div class="row"><div class="lab">Открытие форм / интерфейс</div><div class="barwrap"><div class="bar before" style="width:100%">2–4 с</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar after" style="width:40%">0,7–1,5 с</div></div></div>
+      <div class="cap">↓ быстрее в 2–3 раза</div>
+
+      <div class="row"><div class="lab">Скорость дисковых операций (IOPS)</div><div class="barwrap"><div class="bar before" style="width:15%">SATA</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar after" style="width:100%">NVMe</div></div></div>
+      <div class="cap">↑ в 5–10 раз больше операций в секунду</div>
+    </div>
   </div>
 
   <div class="card">
