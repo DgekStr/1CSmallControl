@@ -29,7 +29,7 @@
 <div class="kick-block">
 <form method="post" id="kick-mine-form" action="{{ url_for('sessions_kick_mine') }}" data-confirm="Завершить все ваши сеансы 1С? Открытые базы закроются." data-confirm-title="Завершить сеансы 1С?" data-confirm-ok="Завершить" style="display:inline">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-      <button class="icon-button" type="submit" title="Завершить мои сеансы 1С" aria-label="Завершить мои сеансы 1С"><img class="kick-icon kick-icon--dark" src="{{ asset('kick-dark.png') }}" alt=""><img class="kick-icon kick-icon--light" src="{{ asset('kick-light.png') }}" alt=""></button>
+      <button class="icon-button" type="submit" title="Завершить мои сеансы 1С" aria-label="Завершить мои сеансы 1С"><span class="kick-icon" aria-hidden="true"></span></button>
     </form>
 </div>
 <button type="button" class="icon-button" data-open="dlg-settings" title="Настройки" aria-label="Настройки"><i data-lucide="settings"></i></button>

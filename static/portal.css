@@ -578,11 +578,6 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 /* ===== блок «Завершить мои сеансы 1С» в шапке кабинета ===== */
 .kick-block{display:inline-flex;align-items:center;justify-content:center;padding:0 2px;margin:0 -2px}
 .kick-block .icon-button{padding:0}
-.kick-icon{width:18px;height:18px;object-fit:contain;display:block}
-.kick-icon--light{display:none}
-html[data-theme="light"] .kick-icon--dark{display:none}
-html[data-theme="light"] .kick-icon--light{display:block}
-@media (prefers-color-scheme: light){
-  html[data-theme="auto"] .kick-icon--dark{display:none}
-  html[data-theme="auto"] .kick-icon--light{display:block}
-}
+.kick-icon{display:inline-block;width:18px;height:18px;background-color:currentColor;
+  -webkit-mask:url('/static/kick-light.png') center/contain no-repeat;
+  mask:url('/static/kick-light.png') center/contain no-repeat}
