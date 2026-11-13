@@ -1,0 +1,95 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Промпт: ИИ-модуль в 1С</title><style>
+:root{--bg:#0f1420;--panel:#161d2e;--border:#263149;--text:#e7edf7;--muted:#93a4bf;--accent:#7c5cff;--ok:#2fbf71;--warn:#f5a623}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:26px;margin:0 0 8px}
+h2{font-size:19px;margin:30px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h3{font-size:15px;margin:20px 0 8px}
+p{margin:10px 0}
+a{color:#b7a4ff}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+tr:last-child td{border-bottom:none}
+code{background:rgba(124,92,255,.12);padding:1px 5px;border-radius:5px;font-family:Consolas,monospace;font-size:.92em}
+pre{background:#101728;border:1px solid var(--border);border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;padding:0}
+blockquote{margin:14px 0;padding:10px 14px;border-left:3px solid var(--accent);background:rgba(124,92,255,.08);border-radius:8px}
+ul,ol{margin:10px 0;padding-left:22px}
+li{margin:4px 0}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:rgba(47,191,113,.15);color:var(--ok)}
+</style></head><body><div class="wrap"><h1>1C-AI-Control v3.0.0 — промпт: ИИ-модуль в 1С (проверки баз)</h1>
+<blockquote>Рабочее название проекта: <strong>1C-AI-Control v3.0.0</strong>.</blockquote>
+<blockquote>Источник: <code>docs/ИИ/</code> (README, decisions, roadmap, detectors, prompts-mcp, tz-section).</blockquote>
+<blockquote>Реализация — только по железным правилам, без исключений.</blockquote>
+<h2>1. Назначение</h2>
+<p>ИИ-модуль — встроенный помощник для бухгалтеров и администраторов: проверка баз 1С,</p>
+<p>поиск ошибок в данных, потерянных документов и типовых ошибок учёта.</p>
+<p><strong>Главный принцип: ИИ никогда не работает с живой базой. Только с песочницей — её копией.</strong></p>
+<h2>2. Железные правила (не нарушаются никогда)</h2>
+<table><thead><tr><th>№</th><th>Правило</th><th>Следствие</th></tr></thead><tbody>
+<tr><td>1</td><td>Только песочница</td><td>живая база недоступна ИИ ни на чтение, ни на запись</td></tr>
+<tr><td>2</td><td>Песочница = копия одной базы (<code>1c-sandbox</code>)</td><td>в неё попадают только данные этой базы</td></tr>
+<tr><td>3</td><td>Один ИИ-сеанс одновременно</td><td>вторая задача получает «песочница занята»</td></tr>
+<tr><td>4</td><td>В песочнице только чтение (роль <code>SELECT</code>)</td><td>изменения данных невозможны</td></tr>
+<tr><td>5</td><td>Каждый ответ помечен датой среза</td><td>«данные на 14.11.2026 03:00, песочница sb_…»</td></tr>
+<tr><td>6</td><td>Все вызовы в аудит</td><td>кто, когда, база, запрос, ответ</td></tr>
+<tr><td>7</td><td>Песочница живёт не дольше 7 дней</td><td>автоудаление</td></tr>
+<tr><td>8</td><td>ПДн маскируются</td><td>ФИО, ИНН, СНИЛС → метки; суммы сохраняются</td></tr>
+</tbody></table>
+<h2>3. Детекторы (минимум первой версии)</h2>
+<table><thead><tr><th>Детектор</th><th>Что проверяет</th><th>Источник</th></tr></thead><tbody>
+<tr><td><code>negative_stock</code></td><td>отрицательные остатки</td><td>detectors.md</td></tr>
+<tr><td><code>dup_documents</code></td><td>дубли документов (дата+сумма+контрагент)</td><td>detectors.md</td></tr>
+<tr><td><code>postings_gap</code></td><td>разрывы нумерации / непроведённые документы</td><td>detectors.md</td></tr>
+<tr><td><code>amount_outliers</code></td><td>аномальные суммы (выбросы)</td><td>detectors.md</td></tr>
+<tr><td><code>missing_counterparty</code></td><td>контрагенты без реквизитов</td><td>detectors.md</td></tr>
+<tr><td><code>stale_balances</code></td><td>зависшие сальдо</td><td>detectors.md</td></tr>
+<tr><td><code>tax_calc_check</code></td><td>расхождения по НДС/налогам (настраиваемо)</td><td>tz-section.md</td></tr>
+</tbody></table>
+<p>Каждый детектор возвращает: <code>id</code>, <code>severity</code>, <code>count</code>, <code>examples[]</code> (до 10), <code>hint</code>, <code>query_hash</code>.</p>
+<h2>4. Пайплайн задачи</h2>
+<pre><code>
+1. Пользователь выбирает базу и шаблон проверки (или пишет вопрос)
+2. Панель проверяет право доступа к базе
+3. Создаётся песочница (свежий дамп или существующая) → статус busy
+4. Маскирование ПДн в выборках
+5. Запрос к модели (облако) с жёстким системным промптом
+6. Ответ → валидация (нет ли утечки ПДн, соблюдены ли правила)
+7. Отчёт: PDF на сервере + краткая сводка в кабинете
+8. Аудит (ai_task), удаление песочницы по TTL
+</code></pre>
+<h2>5. Ограничения и лимиты</h2>
+<table><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody>
+<tr><td>Задач на клиента в день</td><td>5</td></tr>
+<tr><td>Срок хранения отчётов</td><td>30 дней</td></tr>
+<tr><td>Срез данных</td><td>1 раз в сутки (ночной)</td></tr>
+<tr><td>Модель</td><td>облачная, с маскированием ПДн</td></tr>
+<tr><td>Стоимость на задачу</td><td>считать по токенам, лимит на клиента</td></tr>
+</tbody></table>
+<h2>6. Что должно быть в интерфейсе</h2>
+<ol><li>Карточка «ИИ-проверка» в кабинете клиента: выбор базы, шаблоны, история отчётов.</li><li>Индикатор занятости песочницы («сейчас работает проверка базы X»).</li><li>Отчёт: сводка, топ-10 проблем, ссылки на документы в 1С, дата среза.</li><li>Админ: очередь задач, лимиты, стоимость, аудит вызовов.</li></ol>
+<h2>7. Этапы реализации</h2>
+<table><thead><tr><th>Этап</th><th>Содержание</th><th>Результат</th></tr></thead><tbody>
+<tr><td>1</td><td>MCP-сервер + эксклюзивная песочница</td><td>API задач</td></tr>
+<tr><td>2</td><td>Маскирование ПДн + системный промпт</td><td>безопасные выборки</td></tr>
+<tr><td>3</td><td>Детекторы 1–3</td><td>первые проверки</td></tr>
+<tr><td>4</td><td>Отчёты PDF + кабинет</td><td>UI</td></tr>
+<tr><td>5</td><td>Детекторы 4–7</td><td>полный набор</td></tr>
+<tr><td>6</td><td>Лимиты, биллинг, аудит</td><td>коммерческая готовность</td></tr>
+</tbody></table>
+<h2>8. Оценка сроков</h2>
+<table><thead><tr><th>Работа</th><th>Человек</th><th>С ИИ-агентом</th></tr></thead><tbody>
+<tr><td>MCP + песочница</td><td>2 дня</td><td>0,8 дня</td></tr>
+<tr><td>Маскирование + промпты</td><td>1,5 дня</td><td>0,7 дня</td></tr>
+<tr><td>Детекторы (7 шт)</td><td>4 дня</td><td>1,6 дня</td></tr>
+<tr><td>Отчёты + кабинет</td><td>1,5 дня</td><td>0,7 дня</td></tr>
+<tr><td>Лимиты/биллинг</td><td>1 день</td><td>0,4 дня</td></tr>
+<tr><td>Тесты и приёмка</td><td>1,5 дня</td><td>0,8 дня</td></tr>
+<tr><td><strong>Итого</strong></td><td><strong>11,5 дней</strong></td><td><strong>5 дней</strong></td></tr>
+</tbody></table>
+<h2>9. Критерии приёмки</h2>
+<ol><li>ИИ физически не может обратиться к живой базе (проверка в тестах).</li><li>В отчёте нет ПДн; есть дата среза и идентификатор песочницы.</li><li>Вторая параллельная задача блокируется.</li><li>Каждый вызов модели — в аудите с токенами и стоимостью.</li><li>Все 7 детекторов дают корректные результаты на тестовой базе.</li></ol>
+<h2>10. Запреты</h2>
+<ul><li>Не подключать модель к продовой базе.</li><li>Не отправлять полные таблицы без маскирования.</li><li>Не хранить API-ключи модели в коде/репозитории.</li><li>Не выполнять write-операции в песочнице.</li></ul></div></body></html>

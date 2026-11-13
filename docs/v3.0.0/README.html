@@ -1,0 +1,54 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1C-AI-Control v3.0.0 — документация</title><style>
+:root{--bg:#0f1420;--panel:#161d2e;--border:#263149;--text:#e7edf7;--muted:#93a4bf;--accent:#7c5cff;--ok:#2fbf71;--warn:#f5a623}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:26px;margin:0 0 8px}
+h2{font-size:19px;margin:30px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h3{font-size:15px;margin:20px 0 8px}
+p{margin:10px 0}
+a{color:#b7a4ff}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+tr:last-child td{border-bottom:none}
+code{background:rgba(124,92,255,.12);padding:1px 5px;border-radius:5px;font-family:Consolas,monospace;font-size:.92em}
+pre{background:#101728;border:1px solid var(--border);border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;padding:0}
+blockquote{margin:14px 0;padding:10px 14px;border-left:3px solid var(--accent);background:rgba(124,92,255,.08);border-radius:8px}
+ul,ol{margin:10px 0;padding-left:22px}
+li{margin:4px 0}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:rgba(47,191,113,.15);color:var(--ok)}
+</style></head><body><div class="wrap"><h1>1C-AI-Control v3.0.0 — документация проекта</h1>
+<blockquote><strong>Рабочее название:</strong> 1C-AI-Control v3.0.0 (черновое, возможны дополнения).</blockquote>
+<blockquote><strong>Статус:</strong> проект, реализация не начата. Рабочая версия — 1C Small Control <strong>2.1.2</strong>.</blockquote>
+<h2>Состав папки</h2>
+<table><thead><tr><th>Файл</th><th>Назначение</th></tr></thead><tbody>
+<tr><td><code>README.md</code></td><td>этот индекс</td></tr>
+<tr><td><code>prompt-cluster-service.md</code></td><td>задание для ИИ: отдельный сервис управления кластером 1С (агент + панель)</td></tr>
+<tr><td><code>prompt-ai-in-1c.md</code></td><td>задание для ИИ: ИИ-модуль проверок 1С (песочница, детекторы, отчёты)</td></tr>
+<tr><td><code>unified-prompt.md</code></td><td><strong>единый промпт</strong>: обе реализации, дорожная карта, пошаговый план, сроки</td></tr>
+<tr><td><code>roadmap.html</code></td><td>дорожная карта в HTML (пошагово, для чтения)</td></tr>
+<tr><td><code>client-overview.html</code></td><td>описание для клиента: возможности, стоимость, месячный доступ (1 клиент, 3 БД)</td></tr>
+<tr><td><code>build_html.py</code></td><td>сборка HTML из markdown</td></tr>
+</tbody></table>
+<h2>Кратко о продукте</h2>
+<p>Коммерческий сервис управления парком 1С:</p>
+<ol><li><strong>Панель</strong> на отдельном сервере (без sudo, без локальных скриптов).</li><li><strong>Агент</strong> на сервере 1С — привилегированные операции через HTTP+токен.</li><li><strong>ИИ-модуль</strong> — проверки данных в песочнице (никогда в живой базе).</li><li><strong>Аренда</strong>: тарифы по количеству баз, лимит ИИ-задач, аудит.</li></ol>
+<h2>Сроки (оценка)</h2>
+<table><thead><tr><th>Подход</th><th>Длительность</th></tr></thead><tbody>
+<tr><td>Человек</td><td><strong>22 рабочих дня</strong></td></tr>
+<tr><td>С ИИ-агентом</td><td><strong>≈ 10 рабочих дней</strong> (ускорение 2,2×)</td></tr>
+<tr><td>С согласованиями</td><td>+20–30%</td></tr>
+</tbody></table>
+<h2>Конкурентная среда</h2>
+<table><thead><tr><th>Проект</th><th>Что есть</th><th>Чего нет</th></tr></thead><tbody>
+<tr><td><a href="https://pypi.org/project/python-rac/1.5.2/">python-rac / pyrac</a></td><td>клиент RAS, веб-консоль, MCP</td><td>агент, бэкапы, песочницы, биллинг</td></tr>
+<tr><td><a href="https://github.com/oscript-library/irac">irac</a></td><td>oscript-обёртка rac</td><td>сервис</td></tr>
+<tr><td><a href="https://github.com/ivanov-matvey/cluster-tool">cluster-tool</a></td><td>CLI</td><td>веб, агент</td></tr>
+<tr><td><a href="https://habr.com/en/articles/932918/">RacWorker</a></td><td>PHP RAS</td><td>сервис</td></tr>
+</tbody></table>
+<p><strong>Позиционирование:</strong> агентная модель + ИИ-проверки в песочнице + аренда по базам —</p>
+<p>на русском рынке свободно.</p>
+<h2>Связанные документы</h2>
+<ul><li>Рабочая версия: <code>docs/Server/</code> (план переезда, конфигурация, диагностика).</li><li>ИИ-модуль (детали): <code>docs/ИИ/</code> (README, decisions, detectors, prompts-mcp, roadmap).</li><li>Диагностика производительности: <code>docs/Server/perf-findings-2026-11-14.md</code>.</li></ul></div></body></html>

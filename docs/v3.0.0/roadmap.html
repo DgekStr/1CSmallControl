@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1C-AI-Control v3.0.0 — дорожная карта (пошагово)</title><style>
+:root{--bg:#0f1420;--panel:#161d2e;--border:#263149;--text:#e7edf7;--muted:#93a4bf;--accent:#7c5cff;--ok:#2fbf71;--warn:#f5a623}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:26px;margin:0 0 8px}
+h2{font-size:19px;margin:30px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h3{font-size:15px;margin:20px 0 8px}
+p{margin:10px 0}
+a{color:#b7a4ff}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+tr:last-child td{border-bottom:none}
+code{background:rgba(124,92,255,.12);padding:1px 5px;border-radius:5px;font-family:Consolas,monospace;font-size:.92em}
+pre{background:#101728;border:1px solid var(--border);border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;padding:0}
+blockquote{margin:14px 0;padding:10px 14px;border-left:3px solid var(--accent);background:rgba(124,92,255,.08);border-radius:8px}
+ul,ol{margin:10px 0;padding-left:22px}
+li{margin:4px 0}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:rgba(47,191,113,.15);color:var(--ok)}
+</style></head><body><div class="wrap"><h1>1C-AI-Control v3.0.0 — дорожная карта (пошагово)</h1>
+<blockquote>Рабочее название: <strong>1C-AI-Control v3.0.0</strong> (черновое — возможны дополнения).</blockquote>
+<blockquote>Единый документ: связаны два направления — отдельный сервис управления кластером и ИИ-модуль в 1С.</blockquote>
+<blockquote>Детальные задания: <code>prompt-cluster-service.md</code>, <code>prompt-ai-in-1c.md</code>.</blockquote>
+<h2>1. Идея продукта</h2>
+<p>Коммерческий сервис управления парком 1С: панель на отдельном сервере + агенты на серверах 1С +</p>
+<p>ИИ-проверки данных + аренда по базам. Технически — развитие рабочей версии 1C Small Control 2.1.2.</p>
+<table><thead><tr><th>Слой</th><th>Что делает</th><th>Где работает</th></tr></thead><tbody>
+<tr><td>Панель (UI/API)</td><td>базы, сеансы, бэкапы, пользователи, биллинг</td><td>отдельный сервер</td></tr>
+<tr><td>Агент</td><td>привилегированные операции на сервере 1С</td><td>сервер 1С (systemd)</td></tr>
+<tr><td>ИИ-модуль</td><td>проверки в песочнице</td><td>панель + агент</td></tr>
+<tr><td>Кластер 1С</td><td>базы данных</td><td>сервер 1С (rac/ras 1545)</td></tr>
+</tbody></table>
+<h2>2. Единая дорожная карта</h2>
+<table><thead><tr><th>Фаза</th><th>Содержание</th><th>Длительность (человек)</th><th>С ИИ</th></tr></thead><tbody>
+<tr><td><strong>0. Подготовка</strong></td><td>фиксация API, OpenAPI, токены, схема БД v3</td><td>1 день</td><td>0,4</td></tr>
+<tr><td><strong>1. Агент (read)</strong></td><td>статус, кластеры, ИБ, сеансы, размеры, службы, SMART/IOPS</td><td>2 дня</td><td>0,8</td></tr>
+<tr><td><strong>2. Агент (write)</strong></td><td>terminate/deny сеансов, republish, restart, backup, sandbox</td><td>2 дня</td><td>0,9</td></tr>
+<tr><td><strong>3. Панель v3</strong></td><td>мульти-сервер, список баз, сеансы, операции через агент</td><td>3 дня</td><td>1,2</td></tr>
+<tr><td><strong>4. Бэкапы и песочницы</strong></td><td>расписание, TTL, проверка восстановления</td><td>1,5 дня</td><td>0,7</td></tr>
+<tr><td><strong>5. Мониторинг</strong></td><td>healthcheck, HASP, IOPS, место, алерты в MM</td><td>1 день</td><td>0,4</td></tr>
+<tr><td><strong>6. Роли и аудит</strong></td><td>RBAC, журнал, API-токены, лимиты</td><td>1 день</td><td>0,4</td></tr>
+<tr><td><strong>7. ИИ: MCP + песочница</strong></td><td>эксклюзивная песочница, задачи</td><td>2 дня</td><td>0,8</td></tr>
+<tr><td><strong>8. ИИ: маскирование + детекторы</strong></td><td>ПДн, 7 детекторов</td><td>4 дня</td><td>1,6</td></tr>
+<tr><td><strong>9. ИИ: отчёты и кабинет</strong></td><td>PDF, сводки, история</td><td>1,5 дня</td><td>0,7</td></tr>
+<tr><td><strong>10. Биллинг и тарифы</strong></td><td>лимиты задач, стоимость, счета</td><td>1 день</td><td>0,4</td></tr>
+<tr><td><strong>11. Миграция 2.1.2 → 3.0.0</strong></td><td>перенос портальной БД, без простоя</td><td>1,5 дня</td><td>0,7</td></tr>
+<tr><td><strong>12. Тесты и приёмка</strong></td><td>e2e, нагрузка, отказ сети</td><td>2 дня</td><td>0,9</td></tr>
+<tr><td><strong>ИТОГО</strong></td><td></td><td><strong>22 дня</strong></td><td><strong>9,9 дня</strong></td></tr>
+</tbody></table>
+<blockquote>Ускорение с ИИ ≈ <strong>2,2×</strong> (22 → ~10 рабочих дней). Оценка «человеком» — без учёта простоев</blockquote>
+<blockquote>на согласования; с согласованиями добавьте 20–30%.</blockquote>
+<h2>3. Пошаговый план для ИИ-агента</h2>
+<h3>Шаг 1 — фундамент (0,5 дня)</h3>
+<ol><li>Создать репозиторий <code>1c-ai-control</code> (или ветку <code>v3</code> в текущем).</li><li><code>openapi.yaml</code>: <code>/status</code>, <code>/infobases</code>, <code>/sessions</code>, <code>/sessions/{sid}/terminate</code>,</li></ol>
+<p>   <code>/infobases/{uuid}/deny</code>, <code>/republish</code>, <code>/restart</code>, <code>/backup</code>, <code>/sandbox</code>, <code>/metrics</code>.</p>
+<ol><li>Схема токенов: агент-токен (32 байта, HMAC), IP-allowlist, аудит.</li></ol>
+<h3>Шаг 2 — агент, чтение (1 день)</h3>
+<ol><li>Flask/FastAPI на <code>:8099</code>, systemd-юнит, <code>After=srv1cv8.service</code>.</li><li>Обёртки над <code>rac</code> (без шелла): <code>cluster list</code>, <code>infobase summary</code>, <code>session list</code>, <code>process list</code>.</li><li>Размеры БД (PG), службы, <code>df</code>, <code>smartctl</code>, IOPS-тест.</li><li>Кэш 5 с, таймауты 10 с, единый формат ошибок.</li></ol>
+<h3>Шаг 3 — агент, запись (1 день)</h3>
+<ol><li>Белый список операций, каждая — отдельный endpoint с параметрами.</li><li>Идемпотентность <code>request_id</code>, журнал в <code>/var/log/1c-agent.log</code>.</li><li>Проверки безопасности: не более 1 рестарта в 5 минут, запрет при активных операциях.</li></ol>
+<h3>Шаг 4 — панель (1,5 дня)</h3>
+<ol><li>Модель «серверы»: адрес агента, токен, статус.</li><li>Список баз/сеансов по всем серверам, фильтры, поиск.</li><li>Операции через агент, прогресс через polling/SSE.</li><li>Таймауты и деградация: агент недоступен → «сервер offline», без зависаний.</li></ol>
+<h3>Шаг 5 — бэкапы/песочницы (0,7 дня)</h3>
+<ol><li>Расписание в панели → агент запускает <code>1c-backup</code>.</li><li>Песочницы: создание из дампа, TTL, автоудаление, проверка <code>pg_restore</code>.</li><li>Проверка восстановления раз в неделю (тестовая БД).</li></ol>
+<h3>Шаг 6 — мониторинг (0,4 дня)</h3>
+<ol><li>Healthcheck: 1541/rmngr/rphost, RAS, HASP (<code>Loaded N licenses</code>), IOPS, место.</li><li>Алерты в Mattermost с троттлингом (1 сообщение на инцидент).</li></ol>
+<h3>Шаг 7 — ИИ (3 дня)</h3>
+<ol><li>MCP-сервер + эксклюзивная песочница (1 задача).</li><li>Маскирование ПДн, системный промпт, валидация ответа.</li><li>Детекторы 7 шт., отчёты PDF, история 30 дней, лимит 5 задач/день.</li></ol>
+<h3>Шаг 8 — коммерция (0,4 дня)</h3>
+<ol><li>Тарифы, лимиты по базам, месячная подписка, счёт.</li><li>Учёт токенов ИИ и стоимости на клиента.</li></ol>
+<h3>Шаг 9 — миграция и приёмка (1,6 дня)</h3>
+<ol><li>Перенос данных портала v2.1.2 (bases, users, access, settings).</li><li>e2e: две площадки, отказ сети, отказ агента, отказ кластера.</li><li>Чек-лист приёмки и передача.</li></ol>
+<h2>4. Общие технические требования</h2>
+<table><thead><tr><th>Требование</th><th>Значение</th></tr></thead><tbody>
+<tr><td>Язык</td><td>Python 3.11+ (единый стек с 2.1.2)</td></tr>
+<tr><td>БД панели</td><td>SQLite (v3.0) → PostgreSQL (v3.1)</td></tr>
+<tr><td>Транспорт</td><td>HTTPS, JSON, токены, аудит</td></tr>
+<tr><td>Совместимость</td><td>1С 8.3.20+ (RAS 10.0+), PostgreSQL Pro 1c</td></tr>
+<tr><td>Развёртывание</td><td>systemd + venv, без Docker (по требованию — Docker)</td></tr>
+<tr><td>Логи</td><td>journald + файлы, ротация</td></tr>
+<tr><td>Наблюдаемость</td><td><code>/healthz</code>, <code>/metrics</code> (Prometheus-формат)</td></tr>
+</tbody></table>
+<h2>5. Риски</h2>
+<table><thead><tr><th>Риск</th><th>Смягчение</th></tr></thead><tbody>
+<tr><td>Открытый RAS в сеть</td><td>только IP панели, ufw, токены</td></tr>
+<tr><td>Агент = root</td><td>белый список, аудит, отдельный системный пользователь где возможно</td></tr>
+<tr><td>ИИ утечёт ПДн</td><td>маскирование до отправки + валидация ответа</td></tr>
+<tr><td>Долгая миграция</td><td>поэтапно, v2.1.2 остаётся рабочей</td></tr>
+<tr><td>IOPS-ограничение дисков</td><td>NVMe под SQL (см. <code>docs/Server/</code>)</td></tr>
+</tbody></table>
+<h2>6. Что считается готовностью v3.0.0</h2>
+<ol><li>Панель управляет 1С на другом сервере без локального sudo.</li><li>ИИ-проверки работают в песочнице, отчёт PDF с датой среза.</li><li>Тарифы и лимиты действуют, аудит полон.</li><li>Миграция с 2.1.2 без потери данных.</li><li>Все тесты зелёные, есть инструкция для клиента.</li></ol></div></body></html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1C-AI-Control v3.0.0 — возможности и стоимость</title>
+<style>
+  :root{
+    --bg:#f6f8fc; --panel:#fff; --panel2:#eef2f8; --border:#d7deea;
+    --text:#1b2436; --muted:#5f6d85; --accent:#5b3fd1; --ok:#1f9d5a; --warn:#b7791f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.6}
+  .wrap{max-width:1020px;margin:0 auto;padding:40px 20px 70px}
+  header{text-align:center;margin-bottom:34px}
+  h1{font-size:30px;margin:0 0 8px}
+  .lead{color:var(--muted);font-size:15px;margin:0}
+  h2{font-size:20px;margin:34px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px;box-shadow:0 1px 3px rgba(27,36,54,.06)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  tr:last-child td{border-bottom:none}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .tile{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+  .tile .n{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .tile .l{color:var(--muted);font-size:13px}
+  .price{display:flex;gap:16px;flex-wrap:wrap}
+  .plan{flex:1 1 240px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(27,36,54,.06)}
+  .plan.hot{border-color:var(--accent);box-shadow:0 4px 20px rgba(91,63,209,.15)}
+  .plan h3{margin:0 0 4px;font-size:17px}
+  .plan .sum{font-size:26px;font-weight:700;color:var(--accent);margin:8px 0}
+  .plan .sum small{font-size:13px;color:var(--muted);font-weight:400}
+  .plan ul{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+  .plan li{margin:4px 0}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600;background:rgba(31,157,90,.12);color:var(--ok)}
+  .badge.warn{background:rgba(183,121,31,.14);color:var(--warn)}
+  .note{background:rgba(91,63,209,.07);border-left:3px solid var(--accent);padding:12px 16px;border-radius:10px;font-size:13px}
+  footer{margin-top:40px;color:var(--muted);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>1C-AI-Control <span style="font-size:16px;color:var(--muted)">v3.0.0</span></h1>
+    <p class="lead">Управление базами 1С, резервное копирование и ИИ-проверки учёта — в одном окне</p>
+  </header>
+
+  <div class="note">
+    Рабочее название системы — <b>1C-AI-Control v3.0.0</b> (возможны уточнения).
+    Предложение для клиента: 1 организация, <b>3 базы 1С</b>.
+  </div>
+
+  <h2>Что вы получаете</h2>
+  <div class="grid">
+    <div class="tile"><div class="n">Все базы в одном окне</div><div class="l">статус, размер, сеансы, кто и откуда подключён</div></div>
+    <div class="tile"><div class="n">Резервные копии</div><div class="l">по расписанию, на сервер и в сетевую папку, с проверкой восстановления</div></div>
+    <div class="tile"><div class="n">Копии баз (песочницы)</div><div class="l">безопасная копия для тестов и обучения — не трогает рабочую базу</div></div>
+    <div class="tile"><div class="n">ИИ-проверки учёта</div><div class="l">ошибки в данных, дубли, отрицательные остатки, аномальные суммы</div></div>
+    <div class="tile"><div class="n">Доступы и аудит</div><div class="l">кто что делал, когда, с какого адреса — весь журнал</div></div>
+    <div class="tile"><div class="n">Уведомления</div><div class="l">сбой резервной копии, зависшие сеансы, место на диске</div></div>
+  </div>
+
+  <h2>Как это работает</h2>
+  <div class="card">
+    <p><b>Панель</b> — веб-интерфейс в браузере, работает и с телефона. Через неё вы видите базы 1С,
+    запускаете копию, смотрите отчёты ИИ и выдаёте доступы.</p>
+    <p><b>Агент</b> — небольшая служба на вашем сервере 1С. Она выполняет только разрешённые операции
+    (копия, перезапуск, отключение сеанса), фиксирует каждое действие в журнале.</p>
+    <p><b>ИИ</b> — никогда не работает с рабочей базой: анализ идёт по копии (песочнице),
+    персональные данные обезличиваются. Поэтому ИИ не может испортить вашу учётность.</p>
+  </div>
+
+  <h2>Тарифы и стоимость</h2>
+  <div class="price">
+    <div class="plan">
+      <h3>Базовый</h3>
+      <div class="sum">4 900 ₽<small> /мес</small></div>
+      <ul>
+        <li>до 3 баз 1С</li>
+        <li>резервные копии по расписанию</li>
+        <li>сеансы и доступы</li>
+        <li>уведомления о сбоях</li>
+        <li>без ИИ-проверок</li>
+      </ul>
+    </div>
+    <div class="plan hot">
+      <h3>Стандарт <span class="badge">рекомендуем</span></h3>
+      <div class="sum">7 900 ₽<small> /мес</small></div>
+      <ul>
+        <li>всё из «Базового»</li>
+        <li><b>ИИ-проверки</b> — до 5 задач/день</li>
+        <li>отчёты PDF, история 30 дней</li>
+        <li>копии баз для тестов</li>
+        <li>контроль восстановления копий</li>
+      </ul>
+    </div>
+    <div class="plan">
+      <h3>Расширенный</h3>
+      <div class="sum">11 900 ₽<small> /мес</small></div>
+      <ul>
+        <li>всё из «Стандарта»</li>
+        <li>до 10 баз 1С</li>
+        <li>ИИ-проверки без дневного лимита*</li>
+        <li>несколько серверов 1С</li>
+        <li>приоритетная поддержка</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted" style="font-size:12px;margin-top:10px">* без лимита — в пределах согласованного месячного объёма токенов ИИ.</p>
+
+  <h2>Разовый запуск</h2>
+  <div class="card">
+    <table>
+      <tr><th>Работы</th><th>Стоимость</th></tr>
+      <tr><td>Настройка сервера, установка системы, публикации</td><td>включено в первый месяц</td></tr>
+      <tr><td>Перенос/подключение до 3 баз 1С</td><td>12 000 ₽</td></tr>
+      <tr><td>Настройка резервного копирования и проверка восстановления</td><td>6 000 ₽</td></tr>
+      <tr><td>ИИ-модуль: настройка детекторов под вашу базу</td><td>9 000 ₽</td></tr>
+      <tr><td>Обучение сотрудников (1 час)</td><td>3 000 ₽</td></tr>
+      <tr><td><b>Итого за запуск</b></td><td><b>≈ 30 000 ₽</b></td></tr>
+    </table>
+    <p class="muted" style="font-size:13px">Можно без разового блока: только подписка, базы подключаете сами по инструкции.</p>
+  </div>
+
+  <h2>Что входит в месячную поддержку</h2>
+  <div class="card">
+    <table>
+      <tr><th>Пункт</th><th>Описание</th></tr>
+      <tr><td>Мониторинг</td><td>круглосуточно: кластер 1С, лицензии, место на диске, копии</td></tr>
+      <tr><td>Реакция на сбой</td><td>в рабочее время — до 4 часов; критичное — в течение 1 часа</td></tr>
+      <tr><td>Обновления</td><td>обновления панели и агента — без доплат</td></tr>
+      <tr><td>Консультации</td><td>до 2 часов в месяц по работе с системой</td></tr>
+      <tr><td>Резервные копии</td><td>хранение по согласованному сроку, контроль восстановления раз в неделю</td></tr>
+    </table>
+  </div>
+
+  <h2>Сравнение с «как сейчас»</h2>
+  <div class="card">
+    <table>
+      <tr><th>Задача</th><th>Сейчас (вручную)</th><th>С 1C-AI-Control</th></tr>
+      <tr><td>Кто в базе, откуда подключён</td><td>звонок администратору</td><td>сразу в панели</td></tr>
+      <tr><td>Резервная копия</td><td>по памяти, без проверки</td><td>по расписанию + проверка восстановления</td></tr>
+      <tr><td>Поиск ошибок учёта</td><td>вручную, выборочно</td><td>ИИ-проверка за 5–10 минут</td></tr>
+      <tr><td>Зависшие сеансы</td><td>пока не позвонит бухгалтер</td><td>уведомление и отключение в 1 клик</td></tr>
+      <tr><td>Отчёт для руководителя</td><td>собирается вручную</td><td>PDF по расписанию</td></tr>
+    </table>
+  </div>
+
+  <h2>Ограничения (честно)</h2>
+  <div class="card">
+    <ul style="margin:0;padding-left:20px;font-size:14px">
+      <li>Скорость работы 1С зависит от <b>диска сервера</b>: на слабых дисках вход может занимать минуты — рекомендуется NVMe/SSD с 1 000+ IOPS.</li>
+      <li>ИИ даёт <b>подсказки</b>, а не юридические заключения — решения принимает бухгалтер.</li>
+      <li>Работа ИИ — только по копии базы (песочнице), анализ «онлайн» не предусмотрен.</li>
+      <li>Количество задач ИИ ограничено тарифом и месячным объёмом токенов.</li>
+      <li>Данные клиента обезличиваются; полные персональные данные в облако не передаются.</li>
+    </ul>
+  </div>
+
+  <h2>Как начать</h2>
+  <div class="card">
+    <ol style="margin:0;padding-left:20px;font-size:14px">
+      <li>Проверяем сервер 1С (процессор, диск, память) — 1 день.</li>
+      <li>Подключаем базы и настраиваем резервные копии — 1 день.</li>
+      <li>Включаем ИИ-проверки и показываем первый отчёт — 1–2 дня.</li>
+      <li>Обучение и передача доступов.</li>
+    </ol>
+  </div>
+
+  <footer>
+    Документ подготовлен 14.11.2026 · 1C-AI-Control v3.0.0 (рабочее название) ·
+    цены ориентировочные, зависят от объёма базы и состояния сервера
+  </footer>
+
+</div>
+</body>
+</html>

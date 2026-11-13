@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Промпт: сервис управления кластером 1С</title><style>
+:root{--bg:#0f1420;--panel:#161d2e;--border:#263149;--text:#e7edf7;--muted:#93a4bf;--accent:#7c5cff;--ok:#2fbf71;--warn:#f5a623}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:26px;margin:0 0 8px}
+h2{font-size:19px;margin:30px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h3{font-size:15px;margin:20px 0 8px}
+p{margin:10px 0}
+a{color:#b7a4ff}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+tr:last-child td{border-bottom:none}
+code{background:rgba(124,92,255,.12);padding:1px 5px;border-radius:5px;font-family:Consolas,monospace;font-size:.92em}
+pre{background:#101728;border:1px solid var(--border);border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;padding:0}
+blockquote{margin:14px 0;padding:10px 14px;border-left:3px solid var(--accent);background:rgba(124,92,255,.08);border-radius:8px}
+ul,ol{margin:10px 0;padding-left:22px}
+li{margin:4px 0}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:rgba(47,191,113,.15);color:var(--ok)}
+</style></head><body><div class="wrap"><h1>1C-AI-Control v3.0.0 — промпт: отдельный сервис управления кластером 1С</h1>
+<blockquote>Рабочее название проекта: <strong>1C-AI-Control v3.0.0</strong> (черновое, возможны дополнения).</blockquote>
+<blockquote>Документ: задание для ИИ-агента на реализацию <strong>отдельного сервиса управления кластером 1С</strong>.</blockquote>
+<h2>1. Цель</h2>
+<p>Вынести управление кластером 1С в самостоятельный сервис, работающий <strong>на любом сервере</strong></p>
+<p>(физическом или виртуальном) и управляющий одним или несколькими серверами 1С по сети.</p>
+<p>Портал «1C Small Control» (v2.1.2) остаётся рабочей версией и становится первым клиентом сервиса.</p>
+<h2>2. Что уже есть (исходная точка)</h2>
+<table><thead><tr><th>Компонент</th><th>Состояние</th></tr></thead><tbody>
+<tr><td>Портал Flask <code>/opt/1c-portal</code></td><td>182 → 143 файла, версия 2.1.2, работает</td></tr>
+<tr><td>Управление кластером</td><td><code>rac</code>/<code>ras</code> на <code>127.0.0.1:1545</code>, кластер <code>maincluster</code></td></tr>
+<tr><td>Скрипты</td><td><code>/usr/local/bin/1c-*</code> (28 вызовов через sudo)</td></tr>
+<tr><td>Прокси баз</td><td><code>PORTAL_1C_BACKEND_HOST</code> (по умолчанию <code>127.0.0.1</code>)</td></tr>
+<tr><td>PostgreSQL</td><td>локально, <code>1c-base-size</code>, дампы, песочницы</td></tr>
+<tr><td>Бэкапы</td><td><code>1c-backup.sh</code> → SMB <code>//192.168.0.79/backup/1cbackup</code></td></tr>
+</tbody></table>
+<h2>3. Целевая архитектура</h2>
+<pre><code>
+┌──────────────────────┐         HTTPS          ┌────────────────────────┐
+│  1C-AI-Control UI    │ ─────────────────────► │  Агент на сервере 1С   │
+│  (веб-панель, Flask) │ ◄───────────────────── │  (HTTP+token, systemd) │
+└──────────────────────┘     JSON + события     └────────────────────────┘
+          │                                              │
+          │ RAS 1545 (только чтение/управление сеансами)  │ rac, pg_dump, pg_restore
+          ▼                                              ▼
+   ┌──────────────┐                              ┌──────────────────┐
+   │ Кластер 1С   │◄─────────────────────────────│ PostgreSQL       │
+   └──────────────┘                              └──────────────────┘
+</code></pre>
+<p><strong>Ключевое разделение:</strong></p>
+<ul><li><strong>UI/оркестратор</strong> — где угодно, без sudo, без локальных скриптов.</li><li><strong>Агент</strong> — на сервере 1С, root-права, выполняет привилегированные операции.</li></ul>
+<h2>4. Требования к агент��</h2>
+<table><thead><tr><th>Требование</th><th>Детали</th></tr></thead><tbody>
+<tr><td>Протокол</td><td>HTTP/JSON, <code>Authorization: Bearer &lt;token&gt;</code>, TLS обязателен</td></tr>
+<tr><td>Порт</td><td>8099 (настраиваемый), доступ только с IP панели (firewall)</td></tr>
+<tr><td>Аутентификация</td><td>токен + IP-allowlist, ротация токена из панели</td></tr>
+<tr><td>Операции (read)</td><td>список кластеров/ИБ/сеансов/процессов, размеры БД, статус служб, SMART, IOPS-тест</td></tr>
+<tr><td>Операции (write)</td><td>terminate session, deny/enable sessions, republish base, restart 1C, backup, restore, sandbox create/drop</td></tr>
+<tr><td>Безопасность</td><td>белый список команд (никакого произвольного shell), аудит каждого вызова</td></tr>
+<tr><td>Отказоустойчивость</td><td>таймауты, повтор, идемпотентность по <code>request_id</code></td></tr>
+<tr><td>Обновление</td><td>self-update из панели с подписью пакета</td></tr>
+</tbody></table>
+<h2>5. Требования к панели</h2>
+<ol><li><strong>Мульти-сервер</strong>: несколько серверов 1С, у каждого свой агент и RAS.</li><li><strong>Единый список баз</strong> по всем серверам, статус, размеры, сеансы.</li><li><strong>Операции</strong>: те же, что в v2.1.2, но через агент (без локального sudo).</li><li><strong>Мониторинг</strong>: healthcheck кластера, HASP-лицензии, IOPS, свободное место, бэкапы.</li><li><strong>Пользователи и роли</strong>: админ/оператор/клиент, доступ к базам, аудит.</li><li><strong>Публикации</strong>: управление <code>default.vrd</code>, <code>.v8i</code>, ссылками.</li><li><strong>Бэкапы</strong>: расписание, хранение, проверка восстановления, копии на SMB/NAS.</li><li><strong>Песочницы</strong>: создание копии базы, TTL, автоудаление, права.</li><li><strong>API</strong>: REST для интеграций + вебхуки (Mattermost, Telegram).</li></ol>
+<h2>6. Что проверить в мире (конкурентный анализ)</h2>
+<p>Найдены близкие open-source проекты — использовать как источники идей, не копировать:</p>
+<table><thead><tr><th>Проект</th><th>Что даёт</th><th>Чего нет</th></tr></thead><tbody>
+<tr><td><a href="https://pypi.org/project/python-rac/1.5.2/">python-rac (pyrac)</a></td><td>клиент RAS на Python без <code>rac.exe</code>, веб-консоль, MCP-сервер</td><td>нет агента, бэкапов, песочниц, клиентского биллинга</td></tr>
+<tr><td><a href="https://github.com/oscript-library/irac">irac</a></td><td>библиотека oscript к <code>rac</code></td><td>только интерфейс к rac</td></tr>
+<tr><td><a href="https://awesome.ecosyste.ms/projects/github.com%2Farkuznetsov%2Fhirac">hirac</a></td><td>веб-интерфейс на OneScript.Web</td><td>без агентной модели</td></tr>
+<tr><td><a href="https://github.com/ivanov-matvey/cluster-tool">cluster-tool</a></td><td>CLI для управления кластером</td><td>только консоль</td></tr>
+<tr><td><a href="https://habr.com/en/articles/932918/">RacWorker</a></td><td>PHP-библиотека RAS</td><td>нет сервиса</td></tr>
+<tr><td>GitHub topics <code>rac</code>, <code>ras</code></td><td>45–49 репозиториев мониторинга/аудита</td><td>фрагментарно: либо мониторинг, либо CLI</td></tr>
+</tbody></table>
+<p><strong>Вывод:</strong> ниша «агент + панель + ИИ + биллинг» на русском рынке свободна.</p>
+<p>Отличие 1C-AI-Control: <strong>агентная модель, ИИ-проверки в песочнице, аренда по базам.</strong></p>
+<h2>7. Этапы реализации</h2>
+<table><thead><tr><th>Этап</th><th>Содержание</th><th>Результат</th></tr></thead><tbody>
+<tr><td>1</td><td>Спецификация API агента (OpenAPI), схема токенов</td><td><code>openapi.yaml</code></td></tr>
+<tr><td>2</td><td>Агент: read-операции (rac, состояние, размеры)</td><td><code>/api/v1/status</code>, <code>/sessions</code></td></tr>
+<tr><td>3</td><td>Агент: write-операции (terminate, deny, republish, restart)</td><td>безопасный whitelist</td></tr>
+<tr><td>4</td><td>Панель: мульти-сервер, список баз, сеансы</td><td>UI v3.0.0</td></tr>
+<tr><td>5</td><td>Бэкапы и песочницы через агент</td><td>расписание, TTL, проверка restore</td></tr>
+<tr><td>6</td><td>Мониторинг и алерты</td><td>healthcheck, HASP, IOPS</td></tr>
+<tr><td>7</td><td>Роли, аудит, API-токены</td><td>RBAC, журнал</td></tr>
+<tr><td>8</td><td>Миграция v2.1.2 → v3.0.0 без простоя</td><td>скрипт переноса данных портала</td></tr>
+</tbody></table>
+<h2>8. Оценка сроков</h2>
+<table><thead><tr><th>Работа</th><th>Человек</th><th>С ИИ-агентом</th></tr></thead><tbody>
+<tr><td>Спецификация API</td><td>0,5 дня</td><td>0,2 дня</td></tr>
+<tr><td>Агент (read+write)</td><td>2 дня</td><td>0,8 дня</td></tr>
+<tr><td>Панель (мульти-сервер)</td><td>3 дня</td><td>1,2 дня</td></tr>
+<tr><td>Бэкапы/песочницы</td><td>1,5 дня</td><td>0,7 дня</td></tr>
+<tr><td>Мониторинг/алерты</td><td>1 день</td><td>0,4 дня</td></tr>
+<tr><td>Роли/аудит/API</td><td>1 день</td><td>0,4 дня</td></tr>
+<tr><td>Миграция и тесты</td><td>1,5 дня</td><td>0,8 дня</td></tr>
+<tr><td><strong>Итого</strong></td><td><strong>10,5 дней</strong></td><td><strong>4,5 дня</strong></td></tr>
+</tbody></table>
+<h2>9. Критерии приёмки</h2>
+<ol><li>Панель на отдельном сервере управляет 1С на другом сервере (без локального sudo).</li><li>Все операции v2.1.2 доступны удалённо и покрыты тестами.</li><li>Агент не выполняет произвольные команды; каждый вызов — в аудите.</li><li>Потеря связи агента → понятная ошибка, без «зависших» страниц.</li><li>Отключение панели не влияет на работу 1С.</li></ol>
+<h2>10. Запреты</h2>
+<ul><li>Не открывать RAS (1545) в интернет; только панель по IP.</li><li>Не хранить пароли в открытом виде; только хэши/секреты в файле с 600.</li><li>Не давать агенту «shell по запросу» — только фиксированный набор команд.</li><li>Не удалять данные без подтверждения и бэкапа.</li></ul></div></body></html>
