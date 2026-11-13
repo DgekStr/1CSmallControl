@@ -3,19 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>1C-AI-Control v3.0.0 — возможности и стоимость</title>
+<title>1C-AI-Control v3.0.0 — переход, стоимость, рынок</title>
 <style>
   :root{
     --bg:#f6f8fc; --panel:#fff; --panel2:#eef2f8; --border:#d7deea;
-    --text:#1b2436; --muted:#5f6d85; --accent:#5b3fd1; --ok:#1f9d5a; --warn:#b7791f;
+    --text:#1b2436; --muted:#5f6d85; --accent:#5b3fd1; --ok:#1f9d5a; --warn:#b7791f; --bad:#c0392b;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.6}
-  .wrap{max-width:1020px;margin:0 auto;padding:40px 20px 70px}
-  header{text-align:center;margin-bottom:34px}
-  h1{font-size:30px;margin:0 0 8px}
+  .wrap{max-width:1040px;margin:0 auto;padding:40px 20px 70px}
+  header{text-align:center;margin-bottom:32px}
+  h1{font-size:29px;margin:0 0 8px}
   .lead{color:var(--muted);font-size:15px;margin:0}
   h2{font-size:20px;margin:34px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  h3{font-size:15px;margin:18px 0 8px}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:16px;box-shadow:0 1px 3px rgba(27,36,54,.06)}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
@@ -23,19 +24,29 @@
   tr:last-child td{border-bottom:none}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
   .tile{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
-  .tile .n{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .tile .n{font-size:16px;font-weight:700;color:var(--accent);margin-bottom:4px}
   .tile .l{color:var(--muted);font-size:13px}
-  .price{display:flex;gap:16px;flex-wrap:wrap}
-  .plan{flex:1 1 240px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(27,36,54,.06)}
-  .plan.hot{border-color:var(--accent);box-shadow:0 4px 20px rgba(91,63,209,.15)}
-  .plan h3{margin:0 0 4px;font-size:17px}
-  .plan .sum{font-size:26px;font-weight:700;color:var(--accent);margin:8px 0}
-  .plan .sum small{font-size:13px;color:var(--muted);font-weight:400}
-  .plan ul{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
-  .plan li{margin:4px 0}
   .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600;background:rgba(31,157,90,.12);color:var(--ok)}
   .badge.warn{background:rgba(183,121,31,.14);color:var(--warn)}
+  .badge.free{background:rgba(91,63,209,.14);color:var(--accent)}
   .note{background:rgba(91,63,209,.07);border-left:3px solid var(--accent);padding:12px 16px;border-radius:10px;font-size:13px}
+  .warnbox{background:rgba(192,57,43,.06);border-left:3px solid var(--bad);padding:12px 16px;border-radius:10px;font-size:13px}
+  /* графики */
+  .chart{margin:8px 0 18px}
+  .chart .row{display:flex;align-items:center;gap:12px;margin:7px 0}
+  .chart .lab{width:230px;font-size:13px;color:var(--muted);flex-shrink:0}
+  .chart .barwrap{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:6px;height:24px;overflow:hidden}
+  .chart .bar{height:100%;display:flex;align-items:center;padding-left:8px;font-size:11px;color:#fff;font-weight:600;white-space:nowrap}
+  .bar.manual{background:linear-gradient(90deg,#8d99ad,#6c7a91)}
+  .bar.ai{background:linear-gradient(90deg,#1f9d5a,#57c98a)}
+  .chart .cap{font-size:11px;color:var(--muted);margin:-2px 0 14px 242px}
+  .price{display:flex;gap:16px;flex-wrap:wrap}
+  .plan{flex:1 1 230px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px}
+  .plan.hot{border-color:var(--accent);box-shadow:0 4px 20px rgba(91,63,209,.15)}
+  .plan h3{margin:0 0 4px;font-size:17px}
+  .plan .sum{font-size:25px;font-weight:700;color:var(--accent);margin:8px 0}
+  .plan .sum small{font-size:13px;color:var(--muted);font-weight:400}
+  .plan ul{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
   footer{margin-top:40px;color:var(--muted);font-size:13px;text-align:center}
 </style>
 </head>
@@ -43,196 +54,151 @@
 <div class="wrap">
 
   <header>
-    <h1>1C-AI-Control <span style="font-size:16px;color:var(--muted)">v3.0.0</span></h1>
-    <p class="lead">Управление базами 1С, резервное копирование и ИИ-проверки учёта — в одном окне</p>
+    <h1>Переход на 1C-AI-Control <span style="font-size:16px;color:var(--muted)">v3.0.0</span></h1>
+    <p class="lead">Перенос ваших баз 1С, касс (ККТ) и учёта — быстро. Проверка ошибок — не выборочно, а по всей базе.</p>
   </header>
 
   <div class="note">
-    Рабочее название системы — <b>1C-AI-Control v3.0.0</b> (возможны уточнения).
-    Предложение для клиента: 1 организация, <b>3 базы 1С</b>.
+    Документ для клиента: что даёт переход, сколько стоит развёртывание у вас, сколько — подписка,
+    и как это выглядит на фоне рынка. Цены ориентировочные, финальная смета — после проверки сервера и баз.
   </div>
 
-  <h2>Что вы получаете</h2>
+  <h2>1. Что вы получаете при переходе</h2>
   <div class="grid">
-    <div class="tile"><div class="n">Все базы в одном окне</div><div class="l">статус, размер, сеансы, кто и откуда подключён</div></div>
-    <div class="tile"><div class="n">Резервные копии</div><div class="l">по расписанию, на сервер и в сетевую папку, с проверкой восстановления</div></div>
-    <div class="tile"><div class="n">Копии баз (песочницы)</div><div class="l">безопасная копия для тестов и обучения — не трогает рабочую базу</div></div>
-    <div class="tile"><div class="n">ИИ-проверки учёта</div><div class="l">ошибки в данных, дубли, отрицательные остатки, аномальные суммы</div></div>
-    <div class="tile"><div class="n">Доступы и аудит</div><div class="l">кто что делал, когда, с какого адреса — весь журнал</div></div>
-    <div class="tile"><div class="n">Уведомления</div><div class="l">сбой резервной копии, зависшие сеансы, место на диске</div></div>
+    <div class="tile"><div class="n">Ваши базы — без переделки</div><div class="l">переносим как есть: файловые и серверные, 1С:Бухгалтерия, ЗУП, УНФ</div></div>
+    <div class="tile"><div class="n">ККТ и кассы работают</div><div class="l">переносим настройки, проверяем обмен с ОФД и фискализацию</div></div>
+    <div class="tile"><div class="n">Все базы в одном окне</div><div class="l">статус, размер, кто подключён, свободное место — без звонков администратору</div></div>
+    <div class="tile"><div class="n">Копии по расписанию</div><div class="l">ежедневно, с проверкой восстановления — а не «надеемся, что есть»</div></div>
+    <div class="tile"><div class="n">Проверка всей базы</div><div class="l">ИИ ищет ошибки не по выборке, а по всем документам — за минуты</div></div>
+    <div class="tile"><div class="n">Отчёты для руководителя</div><div class="l">PDF: где проблемы, какие документы, что исправить</div></div>
   </div>
 
-  <h2>Как это работает</h2>
+  <h2>2. Что делаем при переносе</h2>
   <div class="card">
-    <p><b>Панель</b> — веб-интерфейс в браузере, работает и с телефона. Через неё вы видите базы 1С,
-    запускаете копию, смотрите отчёты ИИ и выдаёте доступы.</p>
-    <p><b>Агент</b> — небольшая служба на вашем сервере 1С. Она выполняет только разрешённые операции
-    (копия, перезапуск, отключение сеанса), фиксирует каждое действие в журнале.</p>
-    <p><b>ИИ</b> — никогда не работает с рабочей базой: анализ идёт по копии (песочнице),
-    персональные данные обезличиваются. Поэтому ИИ не может испортить вашу учётность.</p>
-  </div>
-
-  <h2>ИИ-проверки: что именно проверяется</h2>
-  <div class="card">
-    <p>ИИ работает <b>по копии базы</b> (песочнице) и возвращает отчёт: где проблема, в каких документах,
-       что сделать. Восемь проверок входят в тариф «Стандарт»:</p>
     <table>
-      <tr><th>№</th><th>Проверка</th><th>Что находит</th></tr>
-      <tr><td>1</td><td><b>Проверка базы</b></td><td>общее состояние: ошибки в данных, «битые» ссылки, некорректные реквизиты</td></tr>
-      <tr><td>2</td><td><b>Поиск ошибок в данных</b></td><td>отрицательные остатки, аномальные суммы, дубли документов</td></tr>
-      <tr><td>3</td><td><b>Поиск потерянных документов</b></td><td>документы без проводок, разрывы нумерации, «зависшие» черновики</td></tr>
-      <tr><td>4</td><td><b>Ошибки бухгалтера</b></td><td>типовые ошибки учёта: неверная корреспонденция счетов, НДС, даты</td></tr>
-      <tr><td>5</td><td><b>Закрытие периода</b></td><td>что мешает закрыть месяц: незакрытые счета, не проведённые документы</td></tr>
-      <tr><td>6</td><td><b>Сверка взаиморасчётов</b></td><td>расхождения с контрагентом: сальдо, акты, счета-фактуры</td></tr>
-      <tr><td>7</td><td><b>НДС</b></td><td>счета-фактуры и книги покупок/продаж: пропуски, дубли, расхождения</td></tr>
-      <tr><td>8</td><td><b>Зарплата (ЗУП)</b></td><td>расхождения в начислениях, удержаниях и взносах</td></tr>
+      <tr><th>Этап</th><th>Что входит</th><th>Срок</th></tr>
+      <tr><td><b>1. Проверка</b></td><td>сервер, диск (IOPS), память, версия платформы, размер баз</td><td>0,5 дня</td></tr>
+      <tr><td><b>2. Перенос баз</b></td><td>выгрузка/загрузка, проверка целостности, сверка контрольных сумм и количества документов</td><td>0,5–1 день</td></tr>
+      <tr><td><b>3. ККТ и кассы</b></td><td>драйверы, обмен с ОФД, тестовая фискализация, маркировка</td><td>0,5 дня</td></tr>
+      <tr><td><b>4. Доступы</b></td><td>пользователи, роли, публикации, .v8i, веб/тонкий клиент</td><td>0,5 дня</td></tr>
+      <tr><td><b>5. Копии</b></td><td>расписание, хранилище, проверка восстановления на тестовой базе</td><td>0,5 дня</td></tr>
+      <tr><td><b>6. Обучение</b></td><td>1 час: вход, копии, отчёты, что делать при сбое</td><td>1 час</td></tr>
     </table>
-    <h3 style="margin:18px 0 8px;font-size:15px">Что вы получаете в отчёте</h3>
-    <ul style="margin:0;padding-left:20px;font-size:14px">
-      <li><b>Сводка</b>: сколько проблем, какие критичные;</li>
-      <li><b>Топ-10 находок</b>: документ, дата, сумма, пояснение;</li>
-      <li><b>Что сделать</b>: конкретные шаги для бухгалтера;</li>
-      <li><b>Дата среза данных</b> и номер песочницы — видно, на каких данных сделан отчёт.</li>
-    </ul>
-    <p class="note" style="margin-top:14px">
-      <b>Важно:</b> ИИ даёт подсказки, а не юридическое заключение — решение принимает бухгалтер.
-      Рабочая база не изменяется: все проверки идут по копии, персональные данные обезличиваются.
+    <p class="muted" style="font-size:13px;margin-top:10px">
+      Обычно весь перенос — <b>2–3 рабочих дня</b>. Работа идёт параллельно: старая база продолжает работать,
+      переключение — в согласованное окно.
     </p>
   </div>
 
-  <h2>С какими вопросами можно обратиться</h2>
+  <h2>3. Проверка ошибок: бухгалтер вручную и с ИИ</h2>
   <div class="card">
-    <p>Формулируйте как удобно — «по-человечески», без технических терминов. Примеры реальных запросов:</p>
-    <table>
-      <tr><th>Вопрос</th><th>Что получите</th></tr>
-      <tr><td>«Почему НДС не сходится с декларацией?»</td><td>расхождения по периодам и документам</td></tr>
-      <tr><td>«Где потерялись счета-фактуры?»</td><td>список СФ без регистрации или без проводок</td></tr>
-      <tr><td>«Почему не закрывается месяц?»</td><td>перечень документов и счетов, мешающих закрытию</td></tr>
-      <tr><td>«Где отрицательные остатки?»</td><td>номенклатура, склад, количество, документы</td></tr>
-      <tr><td>«Почему расхождение с контрагентом?»</td><td>сальдо по договорам и разница по документам</td></tr>
-      <tr><td>«Где зависшая дебиторка?»</td><td>сроки, суммы, контрагенты</td></tr>
-      <tr><td>«Почему не сформировались проводки по зарплате?»</td><td>документы «Отражение зарплаты» без проводок</td></tr>
-      <tr><td>«Можно выгрузить список проблем в Excel?»</td><td>CSV/PDF со всеми находками</td></tr>
-    </table>
-    <p class="muted" style="font-size:13px;margin-top:12px">
-      Всего в системе <b>24 типовых запроса</b> по НДС, закрытию периода, зарплате,
-      взаиморасчётам, складу, документам и отчётам — формулировки можно менять своими словами.
+    <div class="chart">
+      <div class="row"><div class="lab">Проверка базы (1С:Бухгалтерия)</div><div class="barwrap"><div class="bar manual" style="width:100%">3–4 часа вручную</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar ai" style="width:5%">5–10 мин</div></div></div>
+      <div class="cap">↓ в 20–40 раз быстрее</div>
+
+      <div class="row"><div class="lab">Охват документов проверкой</div><div class="barwrap"><div class="bar manual" style="width:10%">5–10 % (выборка)</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar ai" style="width:100%">100 % документов</div></div></div>
+      <div class="cap">↑ проверяется вся база, а не выборка</div>
+
+      <div class="row"><div class="lab">Поиск потерянных документов</div><div class="barwrap"><div class="bar manual" style="width:100%">2–3 часа, без гарантии</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar ai" style="width:8%">2–5 мин</div></div></div>
+      <div class="cap">↓ с гарантированным перечнем найденного</div>
+
+      <div class="row"><div class="lab">Подготовка отчёта руководителю</div><div class="barwrap"><div class="bar manual" style="width:100%">1–2 часа вручную</div></div></div>
+      <div class="row"><div class="lab"></div><div class="barwrap"><div class="bar ai" style="width:8%">~5 мин (PDF)</div></div></div>
+      <div class="cap">↓ отчёт формируется автоматически</div>
+    </div>
+    <p class="muted" style="font-size:13px">
+      ИИ работает <b>по копии базы</b>: рабочая учётность не меняется, персональные данные обезличиваются.
+      Итог — не «заключение аудитора», а точный список мест с ошибками и подсказка, что проверить.
     </p>
   </div>
 
-  <h2>Тарифы и стоимость</h2>
+  <h2>4. Стоимость развёртывания у вас (разово)</h2>
+  <div class="card">
+    <table>
+      <tr><th>Работа</th><th>Стоимость</th></tr>
+      <tr><td>Проверка сервера и баз (диагностика)</td><td>0 ₽ — включено</td></tr>
+      <tr><td>Перенос до 3 баз 1С (со сверкой данных)</td><td>15 000 ₽</td></tr>
+      <tr><td>ККТ и кассы: настройка, ОФД, тест фискализации</td><td>6 000 ₽</td></tr>
+      <tr><td>Сервер 1С: настройка публикаций, PostgreSQL, доступы</td><td>12 000 ₽</td></tr>
+      <tr><td>Резервное копирование + проверка восстановления</td><td>6 000 ₽</td></tr>
+      <tr><td>Обучение (1 час)</td><td>3 000 ₽</td></tr>
+      <tr><td><b>Итого разово</b></td><td><b>≈ 42 000 ₽</b></td></tr>
+      <tr><td><b>Пакетом «под ключ»</b></td><td><b>35 000 ₽</b> <span class="badge">выгоднее</span></td></tr>
+    </table>
+    <p class="muted" style="font-size:13px;margin-top:10px">
+      Если сервер уже есть и нужен только перенос баз — от <b>15 000 ₽</b>.
+    </p>
+  </div>
+
+  <h2>5. Подписка (ежемесячно)</h2>
   <div class="price">
     <div class="plan">
       <h3>Базовый</h3>
-      <div class="sum">4 900 ₽<small> /мес</small></div>
-      <ul>
-        <li>до 3 баз 1С</li>
-        <li>резервные копии по расписанию</li>
-        <li>сеансы и доступы</li>
-        <li>уведомления о сбоях</li>
-        <li>без ИИ-проверок</li>
-      </ul>
+      <div class="sum">4 900 ₽<small>/мес</small></div>
+      <ul><li>до 3 баз 1С</li><li>копии по расписанию</li><li>сеансы и доступы</li><li>уведомления о сбоях</li></ul>
     </div>
     <div class="plan hot">
       <h3>Стандарт <span class="badge">рекомендуем</span></h3>
-      <div class="sum">7 900 ₽<small> /мес</small></div>
-      <ul>
-        <li>всё из «Базового»</li>
-        <li><b>ИИ-проверки</b> — до 5 задач/день</li>
-        <li>отчёты PDF, история 30 дней</li>
-        <li>копии баз для тестов</li>
-        <li>контроль восстановления копий</li>
-      </ul>
+      <div class="sum">7 900 ₽<small>/мес</small></div>
+      <ul><li>всё из «Базового»</li><li><b>ИИ-проверки</b> до 5 задач/день</li><li>PDF-отчёты, история 30 дней</li><li>контроль восстановления копий</li></ul>
     </div>
     <div class="plan">
       <h3>Расширенный</h3>
-      <div class="sum">11 900 ₽<small> /мес</small></div>
-      <ul>
-        <li>всё из «Стандарта»</li>
-        <li>до 10 баз 1С</li>
-        <li>ИИ-проверки без дневного лимита*</li>
-        <li>несколько серверов 1С</li>
-        <li>приоритетная поддержка</li>
-      </ul>
+      <div class="sum">11 900 ₽<small>/мес</small></div>
+      <ul><li>всё из «Стандарта»</li><li>до 10 баз</li><li>несколько серверов 1С</li><li>приоритетная поддержка</li></ul>
     </div>
   </div>
-  <p class="muted" style="font-size:12px;margin-top:10px">* без лимита — в пределах согласованного месячного объёма токенов ИИ.</p>
 
-  <h2>Разовый запуск</h2>
+  <h2>6. Оценка рынка: с чем сравнить</h2>
   <div class="card">
     <table>
-      <tr><th>Работы</th><th>Стоимость</th></tr>
-      <tr><td>Настройка сервера, установка системы, публикации</td><td>включено в первый месяц</td></tr>
-      <tr><td>Перенос/подключение до 3 баз 1С</td><td>12 000 ₽</td></tr>
-      <tr><td>Настройка резервного копирования и проверка восстановления</td><td>6 000 ₽</td></tr>
-      <tr><td>ИИ-модуль: настройка детекторов под вашу базу</td><td>9 000 ₽</td></tr>
-      <tr><td>Обучение сотрудников (1 час)</td><td>3 000 ₽</td></tr>
-      <tr><td><b>Итого за запуск</b></td><td><b>≈ 30 000 ₽</b></td></tr>
+      <tr><th>Услуга на рынке</th><th>Цена (ориентир)</th><th>Что это даёт</th></tr>
+      <tr><td>1С:Фреш (аренда в облаке)</td><td>от 755 ₽/мес за пользователя; «ПРОФ» — десятки тысяч в год</td><td>типовая 1С в облаке, без своего сервера и без проверок данных</td></tr>
+      <tr><td>Аудит базы 1С (консалтинг)</td><td>от 1 500 ₽/час; восстановление учёта — от 3 000 ₽</td><td>ручной разбор, часы и дни, по выборке</td></tr>
+      <tr><td>Настройка сервера 1С «под ключ»</td><td>5 000–15 000 ₽ (частные исполнители), 100 000+ ₽ (корпоративный подряд)</td><td>только сервер, без проверки учёта</td></tr>
+      <tr><td>Экспресс-аудит / проверка участка</td><td>от 30 000 ₽ (минимальный формат), 80 000–120 000 ₽ (расширенный)</td><td>разовая проверка одного-двух участков</td></tr>
+      <tr><td><b>ИИ-проверка базы 1С с отчётом</b></td><td><b>—</b></td><td><span class="badge free">на рынке готовой услуги нет</span></td></tr>
     </table>
-    <p class="muted" style="font-size:13px">Можно без разового блока: только подписка, базы подключаете сами по инструкции.</p>
-  </div>
 
-  <h2>Что входит в месячную поддержку</h2>
-  <div class="card">
-    <table>
-      <tr><th>Пункт</th><th>Описание</th></tr>
-      <tr><td>Мониторинг</td><td>круглосуточно: кластер 1С, лицензии, место на диске, копии</td></tr>
-      <tr><td>Реакция на сбой</td><td>в рабочее время — до 4 часов; критичное — в течение 1 часа</td></tr>
-      <tr><td>Обновления</td><td>обновления панели и агента — без доплат</td></tr>
-      <tr><td>Консультации</td><td>до 2 часов в месяц по работе с системой</td></tr>
-      <tr><td>Резервные копии</td><td>хранение по согласованному сроку, контроль восстановления раз в неделю</td></tr>
-    </table>
-  </div>
+    <h3>Почему это важно</h3>
+    <div class="note">
+      Проверки баз с помощью ИИ в таком виде (по копии, с отчётом и списком документов) на рынке
+      <b>фактически не предлагают</b>: есть либо ручной аудит по часам, либо облачная 1С без анализа данных.
+      Поэтому 1C-AI-Control не «ещё одна 1С в облаке», а новый тип услуги:
+      <b>мониторинг + копии + ИИ-проверки по подписке</b>.
+    </div>
 
-  <h2>Сравнение с «как сейчас»</h2>
-  <div class="card">
+    <h3>Сравнение по деньгам за год (3 базы)</h3>
     <table>
-      <tr><th>Задача</th><th>Сейчас (вручную)</th><th>С 1C-AI-Control</th></tr>
-      <tr><td>Кто в базе, откуда подключён</td><td>звонок администратору</td><td>сразу в панели</td></tr>
-      <tr><td>Резервная копия</td><td>по памяти, без проверки</td><td>по расписанию + проверка восстановления</td></tr>
-      <tr><td>Поиск ошибок учёта</td><td>вручную, выборочно</td><td>ИИ-проверка за 5–10 минут</td></tr>
-      <tr><td>Зависшие сеансы</td><td>пока не позвонит бухгалтер</td><td>уведомление и отключение в 1 клик</td></tr>
-      <tr><td>Отчёт для руководителя</td><td>собирается вручную</td><td>PDF по расписанию</td></tr>
+      <tr><th>Вариант</th><th>За год</th><th>Что получаете</th></tr>
+      <tr><td>Аудит у консультанта (2 раза в год по 40 000 ₽)</td><td>≈ 80 000 ₽</td><td>ручная проверка 2 раза в год, по выборке</td></tr>
+      <tr><td>1С:Фреш «ПРОФ» + отдельные копии и админ</td><td>от 60 000 ₽ и выше</td><td>типовая 1С, без проверки данных</td></tr>
+      <tr><td><b>1C-AI-Control «Стандарт» + запуск</b></td><td><b>35 000 + 94 800 = ≈ 130 000 ₽</b></td><td>5 проверок в день, копии, мониторинг, отчёты — круглый год</td></tr>
+      <tr><td><b>1C-AI-Control «Базовый»</b></td><td><b>35 000 + 58 800 = ≈ 94 000 ₽</b></td><td>копии, доступы, мониторинг (без ИИ)</td></tr>
     </table>
-  </div>
-
-    <h2>Какая модель используется</h2>
-  <div class="card">
-    <table>
-      <tr><th>Модель</th><th>Когда</th><th>Особенность</th></tr>
-      <tr><td><b>DeepSeek</b></td><td>по умолчанию</td><td>быстро и недорого; данные обезличиваются</td></tr>
-      <tr><td><b>GigaChat (Сбер)</b></td><td>по требованию клиента</td><td>данные остаются в России (152-ФЗ), договор и рубли</td></tr>
-    </table>
-    <p class="muted" style="font-size:13px;margin-top:10px">
-      Модель переключается администратором вручную в любой момент — без переустановки и без изменения отчётов.
-      Персональные данные обезличиваются перед отправкой в любом режиме.
+    <p class="muted" style="font-size:12px;margin-top:8px">
+      Оценка рынка собрана по открытым источникам (октябрь–ноябрь 2026): тарифы 1С:Фреш, прайсы
+      консалтинга «аудит базы 1С», частные предложения по настройке сервера, аудиторские экспресс-услуги.
     </p>
   </div>
 
-  <h2>Ограничения (честно)</h2>
+  <h2>7. Ограничения (честно)</h2>
   <div class="card">
     <ul style="margin:0;padding-left:20px;font-size:14px">
-      <li>Скорость работы 1С зависит от <b>диска сервера</b>: на слабых дисках вход может занимать минуты — рекомендуется NVMe/SSD с 1 000+ IOPS.</li>
-      <li>ИИ даёт <b>подсказки</b>, а не юридические заключения — решения принимает бухгалтер.</li>
-      <li>Работа ИИ — только по копии базы (песочнице), анализ «онлайн» не предусмотрен.</li>
-      <li>Количество задач ИИ ограничено тарифом и месячным объёмом токенов.</li>
-      <li>Данные клиента обезличиваются; полные персональные данные в облако не передаются.</li>
+      <li>Скорость 1С зависит от <b>диска сервера</b>: на слабых дисках вход может занимать минуты — нужен SSD/NVMe с 1 000+ IOPS.</li>
+      <li>ИИ даёт <b>подсказки</b>, а не юридическое заключение — решение принимает бухгалтер.</li>
+      <li>ИИ работает только по копии базы (песочнице), «онлайн-анализ» не предусмотрен.</li>
+      <li>Количество ИИ-задач ограничено тарифом (5 в день в «Стандарте»).</li>
+      <li>Перенос ККТ требует доступа к драйверам и ОФД — согласуется заранее.</li>
     </ul>
-  </div>
-
-  <h2>Как начать</h2>
-  <div class="card">
-    <ol style="margin:0;padding-left:20px;font-size:14px">
-      <li>Проверяем сервер 1С (процессор, диск, память) — 1 день.</li>
-      <li>Подключаем базы и настраиваем резервные копии — 1 день.</li>
-      <li>Включаем ИИ-проверки и показываем первый отчёт — 1–2 дня.</li>
-      <li>Обучение и передача доступов.</li>
-    </ol>
   </div>
 
   <footer>
     Документ подготовлен 14.11.2026 · 1C-AI-Control v3.0.0 (рабочее название) ·
-    цены ориентировочные, зависят от объёма базы и состояния сервера
+    цены ориентировочные; точная смета — после диагностики сервера и баз
   </footer>
 
 </div>
