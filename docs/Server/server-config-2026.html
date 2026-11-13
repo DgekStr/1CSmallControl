@@ -58,6 +58,7 @@
       <tr><td>Память</td><td>32 ГБ DDR4</td><td>мало кэша для БД + ВМ</td></tr>
       <tr><td>Диск системы</td><td>NVMe M.2 (Windows Server 2019)</td><td>система отдельно</td></tr>
       <tr><td>Диск баз 1С</td><td>Kingston SSD (SATA)</td><td>файловые базы, низкий IOPS</td></tr>
+      <tr><td>После переезда (схема №1)</td><td><span class="tag ok">NVMe 1 ТБ в M.2</span> = базы PostgreSQL; система на SATA SSD</td><td>базы на штатном NVMe, система отдельно</td></tr>
       <tr><td>Архив/копии</td><td>HDD 1 ТБ</td><td>медленный, только архив</td></tr>
       <tr><td>Режим 1С</td><td><span class="tag warn">Файловые базы</span> + RDP</td><td>1 файл = 1 база, блокировки, очереди</td></tr>
     </table>
@@ -68,7 +69,7 @@
     <table>
       <tr><th>Позиция</th><th>Модель / объём</th><th>Зачем</th><th>Приоритет</th></tr>
       <tr><td>Память</td><td><b>2×32 ГБ DDR4-3200 CL16</b> (Kingston Fury / Patriot)</td><td>64 ГБ: кэш PostgreSQL + ZFS + ВМ</td><td><span class="tag ok">обязательно</span></td></tr>
-      <tr><td>NVMe под базы</td><td><b>Samsung 970 EVO Plus 1 ТБ</b> + PCIe x4-адаптер</td><td>PostgreSQL на NVMe (IOPS ×5–10)</td><td><span class="tag ok">обязательно</span></td></tr>
+      <tr><td>NVMe под базы</td><td><b>Samsung 970 EVO Plus 1 ТБ</b> — в слот M.2 на плате</td><td>PostgreSQL на NVMe (IOPS ×5–10), нативная линия без адаптера</td><td><span class="tag ok">обязательно</span></td></tr>
       <tr><td>Второй SSD 512 ГБ</td><td>Kingston (в зеркало)</td><td>ZFS mirror — защита от отказа диска</td><td><span class="tag accent">желательно</span></td></tr>
       <tr><td>Процессор</td><td><b>i9-10850K / i9-10900K</b> (10/20)</td><td>+2 ядра для многопользовательской 1С</td><td><span class="tag accent">опционально</span></td></tr>
       <tr><td>ИБП</td><td>любой 600–1000 ВА</td><td>защита от пропадания питания</td><td><span class="tag ok">обязательно</span></td></tr>
