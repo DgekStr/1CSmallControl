@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" preserveAspectRatio="xMidYMid slice">
+
+  <defs>
+    <linearGradient id="d3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1020"/><stop offset="1" stop-color="#0A0E18"/>
+    </linearGradient>
+    <linearGradient id="a1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7C5CFF" stop-opacity="0"/><stop offset=".5" stop-color="#7C5CFF" stop-opacity=".5"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="a2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2FBF71" stop-opacity="0"/><stop offset=".5" stop-color="#2FBF71" stop-opacity=".4"/><stop offset="1" stop-color="#2FBF71" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="40"/></filter>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#d3)"/>
+  <g filter="url(#soft)">
+    <path d="M-200 320 C 500 120, 1200 520, 2120 240" stroke="url(#a1)" stroke-width="160" fill="none"/>
+    <path d="M-200 760 C 600 620, 1300 940, 2120 720" stroke="url(#a2)" stroke-width="120" fill="none"/>
+  </g>
+
+</svg>

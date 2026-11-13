@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" preserveAspectRatio="xMidYMid slice">
+
+  <defs>
+    <linearGradient id="lh" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141C31"/><stop offset="1" stop-color="#0A0F1A"/>
+    </linearGradient>
+    <radialGradient id="lglow" cx="0.75" cy="0.2" r="0.7">
+      <stop offset="0" stop-color="#7C5CFF" stop-opacity=".38"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7BE0A7"/><stop offset="1" stop-color="#2FBF71"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#lh)"/>
+  <rect width="1920" height="1080" fill="url(#lglow)"/>
+  <g opacity=".14" transform="translate(1480,240)">
+    <path d="M0 -220 Q 50 -50 220 0 Q 50 50 0 220 Q -50 50 -220 0 Q -50 -50 0 -220 Z" fill="url(#spark)"/>
+  </g>
+  <g opacity=".1" stroke="#8E74FF" stroke-width="2" fill="none">
+    <path d="M0 880 H520 l80 -120 120 260 90 -180 H1920"/>
+  </g>
+
+</svg>

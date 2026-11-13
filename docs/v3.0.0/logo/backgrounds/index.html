@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>1C-AI-Control — фоны для светлой и тёмной темы</title>
+<style>
+:root{--bg:#0d1320;--panel:#151d2e;--border:#26314a;--text:#e7edf7;--muted:#93a4bf;--accent:#7c5cff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.6}
+.wrap{max-width:1120px;margin:0 auto;padding:36px 20px 64px}
+h1{font-size:26px;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 26px}
+h2{font-size:18px;margin:30px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.card img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
+.card .body{padding:12px 14px}
+.card .name{font-weight:700;font-size:14px}
+.card .desc{font-size:12px;color:var(--muted);margin:4px 0 8px}
+.card .file{font-family:Consolas,monospace;font-size:11px;color:#8e9cb5}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin-right:6px}
+.badge.dark{background:rgba(124,92,255,.18);color:#c3b7ff}
+.badge.light{background:rgba(47,191,113,.16);color:#7be0a7}
+.note{background:rgba(124,92,255,.1);border-left:3px solid var(--accent);padding:12px 16px;border-radius:10px;font-size:13px;margin-top:16px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--border);text-align:left}
+th{color:var(--muted);font-size:12px;text-transform:uppercase}
+</style></head><body><div class="wrap">
+<h1>1C-AI-Control — фоны</h1>
+<p class="lead">8 вариантов: 4 светлых и 4 тёмных. Все SVG — масштабируются на любой экран, вес 3–15 КБ.</p>
+<div class="grid">
+<div class="card"><img src="bg-1-light-soft.png" alt="Светлый: мягкий градиент + пятна"><div class="body"><div class="name">Светлый: мягкий градиент + пятна</div><div class="desc">панель, кабинет клиента — спокойный фон под таблицами</div><div class="badge light">светлая тема</div><div class="file">backgrounds/bg-1-light-soft.svg</div></div></div>
+<div class="card"><img src="bg-2-light-grid.png" alt="Светлый: сетка"><div class="body"><div class="name">Светлый: сетка</div><div class="desc">админка, формы — сетка помогает выравниванию</div><div class="badge light">светлая тема</div><div class="file">backgrounds/bg-2-light-grid.svg</div></div></div>
+<div class="card"><img src="bg-3-light-mesh.png" alt="Светлый: mesh-пятна"><div class="body"><div class="name">Светлый: mesh-пятна</div><div class="desc">лендинг, презентация — «мягкий» маркетинговый фон</div><div class="badge light">светлая тема</div><div class="file">backgrounds/bg-3-light-mesh.svg</div></div></div>
+<div class="card"><img src="bg-4-dark-deep.png" alt="Тёмный: глубокий + свечение"><div class="body"><div class="name">Тёмный: глубокий + свечение</div><div class="desc">тёмная тема интерфейса (по умолчанию в панели)</div><div class="badge dark">тёмная тема</div><div class="file">backgrounds/bg-4-dark-deep.svg</div></div></div>
+<div class="card"><img src="bg-5-dark-circuit.png" alt="Тёмный: схемы/плата"><div class="body"><div class="name">Тёмный: схемы/плата</div><div class="desc">экран кластера, технические разделы</div><div class="badge dark">тёмная тема</div><div class="file">backgrounds/bg-5-dark-circuit.svg</div></div></div>
+<div class="card"><img src="bg-6-dark-aurora.png" alt="Тёмный: aurora-полосы"><div class="body"><div class="name">Тёмный: aurora-полосы</div><div class="desc">экран входа, hero-блок</div><div class="badge dark">тёмная тема</div><div class="file">backgrounds/bg-6-dark-aurora.svg</div></div></div>
+<div class="card"><img src="bg-7-tile-dots.png" alt="Плитка: точки (tileable)"><div class="body"><div class="name">Плитка: точки (tileable)</div><div class="desc">рабочая область со списками — минимальный шум</div><div class="badge light">светлая тема</div><div class="file">backgrounds/bg-7-tile-dots.svg</div></div></div>
+<div class="card"><img src="bg-8-login-hero.png" alt="Экран входа: тёмный + искра"><div class="body"><div class="name">Экран входа: тёмный + искра</div><div class="desc">страница логина и первый экран панели</div><div class="badge dark">тёмная тема</div><div class="file">backgrounds/bg-8-login-hero.svg</div></div></div>
+</div>
+<h2>Что где применять</h2>
+<table>
+<tr><th>Экран</th><th>Рекомендация</th></tr>
+<tr><td>Экран входа</td><td><b>bg-8-login-hero</b> (тёмный, искра)</td></tr>
+<tr><td>Панель, светлая тема</td><td><b>bg-1-light-soft</b> или <b>bg-7-tile-dots</b></td></tr>
+<tr><td>Панель, тёмная тема</td><td><b>bg-4-dark-deep</b> (по умолчанию)</td></tr>
+<tr><td>Админка, формы</td><td><b>bg-2-light-grid</b></td></tr>
+<tr><td>Раздел «Кластер»</td><td><b>bg-5-dark-circuit</b></td></tr>
+<tr><td>Лендинг, презентация</td><td><b>bg-3-light-mesh</b> / <b>bg-6-dark-aurora</b></td></tr>
+</table>
+<div class="note">Фоны сделаны так, чтобы поверх них читался текст: светлые — приглушены к верху страницы,
+тёмные — с мягким свечением по краям и без ярких пятен в центре, где обычно контент.</div>
+</div></body></html>
