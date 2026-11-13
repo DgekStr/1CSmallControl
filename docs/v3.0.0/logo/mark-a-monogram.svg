@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#242E4C"/><stop offset="1" stop-color="#0F1524"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8E74FF"/><stop offset="1" stop-color="#5B3FD1"/>
+    </linearGradient>
+    <linearGradient id="grn" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2FBF71"/><stop offset="1" stop-color="#7BE0A7"/>
+    </linearGradient>
+    <linearGradient id="pl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5B3FD1"/><stop offset="1" stop-color="#8E74FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="none" stroke="#2E3A5A" stroke-width="2"/>
+  <text x="34" y="170" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="104" font-weight="700"
+        fill="#FFFFFF" letter-spacing="-5">1C</text>
+  <g transform="translate(196,84)">
+    <path d="M 0 -22 Q 5 -5 22 0 Q 5 5 0 22 Q -5 5 -22 0 Q -5 -5 0 -22 Z" fill="url(#grn)"/>
+  </g>
+  <path d="M40 196 H150" stroke="#7C5CFF" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="176" cy="196" r="7" fill="#8E74FF"/>
+
+</svg>

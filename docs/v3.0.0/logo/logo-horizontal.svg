@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" width="720" height="180">
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#242E4C"/><stop offset="1" stop-color="#0F1524"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8E74FF"/><stop offset="1" stop-color="#5B3FD1"/>
+    </linearGradient>
+    <linearGradient id="grn" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2FBF71"/><stop offset="1" stop-color="#7BE0A7"/>
+    </linearGradient>
+    <linearGradient id="pl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5B3FD1"/><stop offset="1" stop-color="#8E74FF"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(20,30) scale(0.5)">
+    <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+    <text x="34" y="170" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="104" font-weight="700"
+          fill="#FFFFFF" letter-spacing="-5">1C</text>
+    <g transform="translate(196,84)"><path d="M 0 -22 Q 5 -5 22 0 Q 5 5 0 22 Q -5 5 -22 0 Q -5 -5 0 -22 Z" fill="url(#grn)"/></g>
+    <path d="M40 196 H150" stroke="#7C5CFF" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <text x="176" y="88" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="48" font-weight="700"
+        fill="#FFFFFF" letter-spacing="-1">1C-AI-Control</text>
+  <text x="178" y="126" font-family="Segoe UI,Arial,Helvetica,sans-serif" font-size="21" fill="#93A4BF">
+        копии · мониторинг · ИИ-проверки баз 1С</text>
+  <rect x="178" y="142" width="92" height="4" rx="2" fill="url(#grn)"/>
+
+</svg>
