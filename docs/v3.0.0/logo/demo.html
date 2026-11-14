@@ -118,6 +118,15 @@ footer .in a:hover{color:var(--acc)}
 .bbtns{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto}
 .btn.sm{padding:6px 11px;font-size:12.5px;border-radius:8px}
 .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+
+/* водяной знак 1С в карточках баз */
+.bases .bcard{position:relative;overflow:hidden}
+.bases .bcard > *:not(.bmark){position:relative;z-index:1}
+.bmark{position:absolute;right:-18px;bottom:-20px;width:128px;height:auto;opacity:.12;
+       pointer-events:none;z-index:0;filter:saturate(.85)}
+body.dark .bmark{opacity:.18}
+.bcard.add .bmark{opacity:.06}
+body.dark .bcard.add .bmark{opacity:.10}
 </style>
 </head>
 <body class="dark">
@@ -236,7 +245,7 @@ footer .in a:hover{color:var(--acc)}
 
     <h2>Мои базы</h2>
     <div class="grid g4 bases">
-      <div class="bcard">
+      <div class="bcard"><img class="bmark" src="img/1c-watermark.png" alt="">
         <div class="bhead">
           <span class="bico">1С</span>
           <div>
@@ -255,7 +264,7 @@ footer .in a:hover{color:var(--acc)}
           <a class="btn sm ghost" href="#">ИИ-проверка</a>
         </div>
       </div>
-      <div class="bcard">
+      <div class="bcard"><img class="bmark" src="img/1c-watermark.png" alt="">
         <div class="bhead">
           <span class="bico">1С</span>
           <div>
@@ -274,7 +283,7 @@ footer .in a:hover{color:var(--acc)}
           <a class="btn sm ghost" href="#">ИИ-проверка</a>
         </div>
       </div>
-      <div class="bcard">
+      <div class="bcard"><img class="bmark" src="img/1c-watermark.png" alt="">
         <div class="bhead">
           <span class="bico">1С</span>
           <div>
@@ -293,7 +302,7 @@ footer .in a:hover{color:var(--acc)}
           <a class="btn sm ghost" href="#">ИИ-проверка</a>
         </div>
       </div>
-      <div class="bcard add">
+      <div class="bcard add"><img class="bmark" src="img/1c-watermark.png" alt="">
         <div class="bhead">
           <span class="bico" style="background:var(--panel2);color:var(--mut)">+</span>
           <div>
