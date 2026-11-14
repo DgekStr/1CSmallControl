@@ -105,6 +105,19 @@ footer .in a:hover{color:var(--acc)}
 .mini-ftr .links{display:flex;gap:15px;flex-wrap:wrap}
 .mini-ftr .links a{font-size:12.5px;color:var(--mut)}
 [hidden]{display:none!important}
+
+.bases .bcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;display:flex;flex-direction:column;gap:11px}
+.bcard.dashed{border-style:dashed}
+.bhead{display:flex;align-items:center;gap:10px}
+.bico{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bname{font-weight:700;font-size:14.5px}
+.bsub{font-size:12px;color:var(--mut)}
+.bhead .tag{margin-left:auto}
+.bmeta{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--mut);border-top:1px solid var(--line);padding-top:10px}
+.bmeta b{color:var(--ink)}
+.bbtns{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto}
+.btn.sm{padding:6px 11px;font-size:12.5px;border-radius:8px}
+.btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
 </style>
 </head>
 <body class="dark">
@@ -218,6 +231,79 @@ footer .in a:hover{color:var(--acc)}
       <div class="card"><div class="kpi">Зарплата</div><div class="big">640 МБ</div><div class="sub">копия сегодня 04:31 · <span class="tag t-ok">ok</span></div></div>
       <div class="card"><div class="kpi">ИИ-проверки</div><div class="big">5 / 12</div><div class="sub">задач сегодня / находок</div></div>
       <div class="card"><div class="kpi">Следующая копия</div><div class="big">04:30</div><div class="sub">завтра · хранение 5 копий</div></div>
+    </div>
+
+
+    <h2>Мои базы</h2>
+    <div class="grid g4 bases">
+      <div class="bcard">
+        <div class="bhead">
+          <span class="bico">1С</span>
+          <div>
+            <div class="bname">Бухгалтерия</div>
+            <div class="bsub">dgek_db · 1,7 ГБ</div>
+          </div>
+          <span class="tag t-ok">работает</span>
+        </div>
+        <div class="bmeta">
+          <span>Копия: <b>сегодня 04:30</b></span>
+          <span>Онлайн: <b>2</b></span>
+        </div>
+        <div class="bbtns">
+          <a class="btn sm" href="#">Открыть</a>
+          <a class="btn sm ghost" href="#">Копия</a>
+          <a class="btn sm ghost" href="#">ИИ-проверка</a>
+        </div>
+      </div>
+      <div class="bcard">
+        <div class="bhead">
+          <span class="bico">1С</span>
+          <div>
+            <div class="bname">Зарплата</div>
+            <div class="bsub">montes_bp · 640 МБ</div>
+          </div>
+          <span class="tag t-ok">работает</span>
+        </div>
+        <div class="bmeta">
+          <span>Копия: <b>сегодня 04:31</b></span>
+          <span>Онлайн: <b>1</b></span>
+        </div>
+        <div class="bbtns">
+          <a class="btn sm" href="#">Открыть</a>
+          <a class="btn sm ghost" href="#">Копия</a>
+          <a class="btn sm ghost" href="#">ИИ-проверка</a>
+        </div>
+      </div>
+      <div class="bcard">
+        <div class="bhead">
+          <span class="bico">1С</span>
+          <div>
+            <div class="bname">Управление</div>
+            <div class="bsub">goncharov2026 · 3,0 ГБ</div>
+          </div>
+          <span class="tag t-warn">только чтение</span>
+        </div>
+        <div class="bmeta">
+          <span>Копия: <b>сегодня 04:33</b></span>
+          <span>Онлайн: <b>0</b></span>
+        </div>
+        <div class="bbtns">
+          <a class="btn sm" href="#">Открыть</a>
+          <a class="btn sm ghost" href="#">Копия</a>
+          <a class="btn sm ghost" href="#">ИИ-проверка</a>
+        </div>
+      </div>
+      <div class="bcard add">
+        <div class="bhead">
+          <span class="bico" style="background:var(--panel2);color:var(--mut)">+</span>
+          <div>
+            <div class="bname">Подключить базу</div>
+            <div class="bsub">тариф: осталось 1 место</div>
+          </div>
+        </div>
+        <div class="bmeta"><span>Перенос базы и ККТ — 3–4 дня</span></div>
+        <div class="bbtns"><a class="btn sm" href="#">Оставить заявку</a></div>
+      </div>
     </div>
 
     <h2>Последняя проверка · Бухгалтерия</h2>
