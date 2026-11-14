@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1C-AI-Control — демо интерфейса (админ + клиент)</title>
+<style>
+/* ---------- база ---------- */
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.5;transition:background .25s,color .25s}
+a{text-decoration:none;color:inherit}
+.wrap{max-width:1220px;margin:0 auto;padding:0 26px}
+
+/* ---------- темы ---------- */
+body.dark{
+  --ink:#E7EDF7;--mut:#9AAAC6;--line:rgba(255,255,255,.10);
+  --panel:rgba(20,28,46,.74);--panel2:rgba(28,38,60,.7);
+  --acc:#8E74FF;--acc2:#5B3FD1;--ok:#2FBF71;--okl:#7BE0A7;
+  --warn:#F5A623;--bad:#F0605D;
+  background:#0D1320;color:var(--ink);
+  --bgimg:url('backgrounds/bg-4-dark-deep.svg');
+}
+body.light{
+  --ink:#1B2436;--mut:#5F6D85;--line:#DFE6F1;
+  --panel:rgba(255,255,255,.86);--panel2:#F1F5FB;
+  --acc:#7C5CFF;--acc2:#5B3FD1;--ok:#1F9D5A;--okl:#1F9D5A;
+  --warn:#B7791F;--bad:#C0392B;
+  background:#F6F8FC;color:var(--ink);
+  --bgimg:url('backgrounds/bg-3-light-mesh.svg');
+}
+.stage{background:var(--bgimg) center top/cover no-repeat fixed;min-height:100vh;padding-bottom:40px}
+
+/* ---------- тулбар ---------- */
+.toolbar{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+  background:color-mix(in srgb,var(--panel) 88%,transparent);border-bottom:1px solid var(--line)}
+.toolbar .in{max-width:1220px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:11px 26px;flex-wrap:wrap}
+.tb-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+.tb-brand img{height:30px}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+.seg button{border:0;background:none;color:var(--mut);font:inherit;font-size:13.5px;padding:7px 14px;border-radius:9px;cursor:pointer}
+.seg button.on{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-weight:600}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.hint{font-size:12px;color:var(--mut)}
+
+/* ---------- шапка ---------- */
+.hdr{backdrop-filter:blur(14px);background:color-mix(in srgb,var(--panel) 82%,transparent);border-bottom:1px solid var(--line)}
+.hdr .in{max-width:1220px;margin:0 auto;display:flex;align-items:center;gap:22px;padding:13px 26px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:16.5px}
+.brand img{height:34px}
+.nav{display:flex;gap:3px;flex-wrap:wrap}
+.nav a{padding:7px 12px;border-radius:9px;color:var(--mut);font-size:13.5px}
+.nav a:hover{color:var(--ink);background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.nav a.on{color:#fff;background:linear-gradient(135deg,var(--acc),var(--acc2))}
+.hdr .r{margin-left:auto;display:flex;align-items:center;gap:9px}
+.pill{font-size:12.5px;padding:6px 11px;border-radius:9px;border:1px solid var(--line);color:var(--mut)}
+.chip{font-size:12.5px;padding:6px 11px;border-radius:9px;border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);
+  background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--okl)}
+.btn{padding:8px 15px;border-radius:9px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-size:13.5px;font-weight:600;border:0;cursor:pointer}
+.ava{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--ok));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0D1320}
+
+/* ---------- контент ---------- */
+main{padding:34px 0 10px}
+h1{font-size:26px;margin:6px 0 8px;letter-spacing:-.4px}
+.lead{font-size:14.5px;color:var(--mut);max-width:720px;margin:0 0 20px}
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;padding:4px 10px;border-radius:20px;
+  background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--okl);border:1px solid color-mix(in srgb,var(--ok) 28%,transparent)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.grid{display:grid;gap:13px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:15px 17px}
+.card b{display:block;font-size:14.5px;margin-bottom:3px}
+.card .sub{font-size:12.5px;color:var(--mut)}
+.card .big{font-size:22px;font-weight:700;margin:2px 0 1px}
+.kpi{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+h2{font-size:17px;margin:26px 0 10px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+tr:last-child td{border-bottom:none}
+.tbl{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.tag{font-size:11.5px;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.t-ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--okl)}
+.t-warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.t-bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.t-neu{background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--acc)}
+.t-neutral{background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--acc)}
+.mono{font-family:Consolas,monospace;font-size:12.5px}
+.mut{color:var(--mut)}
+.split{display:grid;grid-template-columns:1.4fr 1fr;gap:13px}
+@media(max-width:900px){.split{grid-template-columns:1fr}}
+
+/* ---------- подвал ---------- */
+footer{margin-top:34px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--panel) 84%,transparent);backdrop-filter:blur(14px)}
+footer .in{max-width:1220px;margin:0 auto;padding:26px 26px 18px;display:grid;grid-template-columns:1.5fr repeat(3,1fr);gap:22px}
+@media(max-width:900px){footer .in{grid-template-columns:1fr 1fr}}
+.f-brand{display:flex;align-items:center;gap:10px;font-weight:700;margin-bottom:8px}
+.f-brand img{height:30px}
+.f-t{font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-bottom:8px}
+footer .in a{display:block;font-size:13px;padding:2.5px 0;color:color-mix(in srgb,var(--ink) 78%,var(--mut))}
+footer .in a:hover{color:var(--acc)}
+.f-bot{max-width:1220px;margin:0 auto;padding:10px 26px 22px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--mut)}
+.mini-ftr .in{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 26px;grid-template-columns:none;flex-wrap:wrap}
+.mini-ftr .links{display:flex;gap:15px;flex-wrap:wrap}
+.mini-ftr .links a{font-size:12.5px;color:var(--mut)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body class="dark">
+
+<div class="toolbar"><div class="in">
+  <span class="tb-brand"><img src="light/mark-d-chip-light.svg" alt="">1C-AI-Control · демо</span>
+  <div class="seg" id="segRole">
+    <button class="on" data-role="admin">Админка · C</button>
+    <button data-role="client">Клиент · B</button>
+  </div>
+  <div class="tb-right">
+    <div class="seg" id="segTheme">
+      <button class="on" data-theme="dark">Тёмная</button>
+      <button data-theme="light">Светлая</button>
+    </div>
+    <span class="hint">демо-данные · v3.0.0</span>
+  </div>
+</div></div>
+
+<div class="stage">
+
+<!-- ================= АДМИН ================= -->
+<section id="view-admin">
+  <div class="hdr"><div class="in">
+    <a class="brand" href="#"><img src="light/mark-d-chip-light.svg" alt="">1C-AI-Control</a>
+    <nav class="nav">
+      <a class="on" href="#">Базы</a><a href="#">Сеансы</a><a href="#">Копии</a>
+      <a href="#">ИИ-проверки</a><a href="#">Мониторинг</a><a href="#">Пользователи</a>
+    </nav>
+    <div class="r"><span class="pill">v3.0.0</span><button class="btn">Панель</button><span class="ava">АК</span></div>
+  </div></div>
+
+  <main><div class="wrap">
+    <span class="badge"><span class="dot"></span>Панель администратора · демо-данные</span>
+    <h1>Состояние парка 1С</h1>
+    <p class="lead">Копии, сеансы, лицензии и диск — в одном месте. Ниже данные за последние сутки с тестового контура.</p>
+
+    <div class="grid g4">
+      <div class="card"><div class="kpi">Базы</div><div class="big">4</div><div class="sub">test · dgek_db · montes_bp · goncharov2026</div></div>
+      <div class="card"><div class="kpi">Копии</div><div class="big">5 / 0</div><div class="sub">успешно / ошибок · последняя 04:30</div></div>
+      <div class="card"><div class="kpi">ИИ-проверки</div><div class="big">3</div><div class="sub">задачи · 12 находок · 1 критичная</div></div>
+      <div class="card"><div class="kpi">Диск БД</div><div class="big">24 IOPS</div><div class="sub">свободно 241 ГБ из 469 · «узкое место»</div></div>
+    </div>
+
+    <h2>Базы</h2>
+    <div class="tbl"><table>
+      <tr><th>База</th><th>Размер</th><th>Сеансы</th><th>Копия</th><th>ИИ</th><th>Статус</th></tr>
+      <tr><td class="mono">dgek_db</td><td>1,7 ГБ</td><td>3</td><td>04:30</td><td><span class="tag t-ok">чисто</span></td><td><span class="tag t-ok">работает</span></td></tr>
+      <tr><td class="mono">montes-bp</td><td>1,1 ГБ</td><td>2</td><td>04:31</td><td><span class="tag t-warn">3 находки</span></td><td><span class="tag t-ok">работает</span></td></tr>
+      <tr><td class="mono">goncharov2026</td><td>3,0 ГБ</td><td>0</td><td>04:33</td><td><span class="tag t-bad">1 критичная</span></td><td><span class="tag t-warn">только чтение</span></td></tr>
+      <tr><td class="mono">test</td><td>0,4 ГБ</td><td>0</td><td>04:34</td><td><span class="tag t-neu">не проверялась</span></td><td><span class="tag t-ok">работает</span></td></tr>
+    </table></div>
+
+    <div class="split" style="margin-top:13px">
+      <div>
+        <h2 style="margin-top:16px">Активные сеансы</h2>
+        <div class="tbl"><table>
+          <tr><th>Пользователь</th><th>Клиент</th><th>База</th><th>Компьютер</th><th>Начало</th></tr>
+          <tr><td>Бухгалтер</td><td><span class="tag t-neu">WebClient</span></td><td class="mono">dgek_db</td><td class="mono mut">95.107.33.189</td><td class="mut">03:12</td></tr>
+          <tr><td>Евгений</td><td><span class="tag t-neu">WebClient</span></td><td class="mono">dgek_db</td><td class="mono mut">192.168.0.40</td><td class="mut">03:41</td></tr>
+          <tr><td>Бухгалтер</td><td><span class="tag t-neutral">ThinClient</span></td><td class="mono">montes-bp</td><td class="mono mut">192.168.0.51</td><td class="mut">03:52</td></tr>
+        </table></div>
+      </div>
+      <div>
+        <h2 style="margin-top:16px">ИИ-проверки сегодня</h2>
+        <div class="tbl"><table>
+          <tr><th>Проверка</th><th>Находки</th><th>Статус</th></tr>
+          <tr><td>Отрицательные остатки</td><td>4</td><td><span class="tag t-warn">есть</span></td></tr>
+          <tr><td>Дубли документов</td><td>7</td><td><span class="tag t-warn">есть</span></td></tr>
+          <tr><td>Разрывы нумерации</td><td>1</td><td><span class="tag t-bad">критично</span></td></tr>
+          <tr><td>Сверка НДС</td><td>0</td><td><span class="tag t-ok">чисто</span></td></tr>
+        </table></div>
+      </div>
+    </div>
+  </div></main>
+
+  <footer>
+    <div class="in">
+      <div>
+        <div class="f-brand"><img src="light/mark-d-chip-light.svg" alt="">1C-AI-Control</div>
+        <div class="mut" style="font-size:13px;max-width:280px">Копии, мониторинг и ИИ-проверки баз 1С. Работаем только с копией базы — данные не меняются.</div>
+        <div class="badge" style="margin-top:11px"><span class="dot"></span>Все системы работают</div>
+      </div>
+      <div><div class="f-t">Продукт</div><a href="#">Базы 1С</a><a href="#">Копии</a><a href="#">ИИ-проверки</a><a href="#">Мониторинг</a></div>
+      <div><div class="f-t">Эксплуатация</div><a href="#">Кластер</a><a href="#">Пользователи</a><a href="#">Лицензии</a><a href="#">Журнал</a></div>
+      <div><div class="f-t">Поддержка</div><a href="#">Инструкции</a><a href="#">Статус</a><a href="#">Контакты</a><a href="#">Заявка</a></div>
+    </div>
+    <div class="f-bot"><span>© 2026 1C-AI-Control · v3.0.0</span><span>Политика · Условия · Поддержка 24/7</span></div>
+  </footer>
+</section>
+
+<!-- ================= КЛИЕНТ ================= -->
+<section id="view-client" hidden>
+  <div class="hdr"><div class="in">
+    <a class="brand" href="#"><img src="light/mark-d-chip-light.svg" alt="">1C-AI-Control</a>
+    <nav class="nav">
+      <a class="on" href="#">Мои базы</a><a href="#">ИИ-проверки</a><a href="#">Отчёты</a>
+      <a href="#">Копии</a><a href="#">Поддержка</a>
+    </nav>
+    <div class="r"><span class="chip">Тариф: Стандарт · 3 базы</span><button class="btn">Заказать проверку</button><span class="ava" style="color:#fff">ИП</span></div>
+  </div></div>
+
+  <main><div class="wrap">
+    <span class="badge"><span class="dot"></span>Кабинет клиента · демо-данные</span>
+    <h1>Ваши базы под контролем</h1>
+    <p class="lead">Копии по расписанию, проверки учёта и отчёты. Всё — по копии базы, рабочая учётность не меняется.</p>
+
+    <div class="grid g4">
+      <div class="card"><div class="kpi">Бухгалтерия</div><div class="big">1,7 ГБ</div><div class="sub">копия сегодня 04:30 · <span class="tag t-ok">ok</span></div></div>
+      <div class="card"><div class="kpi">Зарплата</div><div class="big">640 МБ</div><div class="sub">копия сегодня 04:31 · <span class="tag t-ok">ok</span></div></div>
+      <div class="card"><div class="kpi">ИИ-проверки</div><div class="big">5 / 12</div><div class="sub">задач сегодня / находок</div></div>
+      <div class="card"><div class="kpi">Следующая копия</div><div class="big">04:30</div><div class="sub">завтра · хранение 5 копий</div></div>
+    </div>
+
+    <h2>Последняя проверка · Бухгалтерия</h2>
+    <div class="split">
+      <div class="tbl"><table>
+        <tr><th>Что нашли</th><th>Документов</th><th>Важность</th></tr>
+        <tr><td>Отрицательные остатки на складе</td><td>4</td><td><span class="tag t-warn">проверить</span></td></tr>
+        <tr><td>Дубли поступлений от «Ромашка»</td><td>2</td><td><span class="tag t-warn">проверить</span></td></tr>
+        <tr><td>Документ без проводок от 02.11</td><td>1</td><td><span class="tag t-bad">важно</span></td></tr>
+        <tr><td>Сверка НДС с книгой покупок</td><td>0</td><td><span class="tag t-ok">чисто</span></td></tr>
+      </table></div>
+      <div>
+        <div class="card" style="margin-bottom:13px">
+          <div class="kpi">Отчёт</div>
+          <b style="margin-top:6px">Проверка базы · 14.11.2026</b>
+          <div class="sub">Данные на 04:30 · песочница <span class="mono">sb_dgekdb_1114</span></div>
+          <div style="display:flex;gap:8px;margin-top:11px"><button class="btn" style="padding:7px 13px">Скачать PDF</button><button class="btn" style="padding:7px 13px;background:var(--panel2);color:var(--ink);border:1px solid var(--line)">Открыть в кабинете</button></div>
+        </div>
+        <div class="card">
+          <div class="kpi">Подписка</div>
+          <b style="margin-top:6px">Стандарт · 7 900 ₽/мес</b>
+          <div class="sub">3 базы · 5 задач/день · оплачено до 14.12.2026</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>История копий</h2>
+    <div class="tbl"><table>
+      <tr><th>Дата</th><th>База</th><th>Размер</th><th>Проверка восстановления</th><th>Статус</th></tr>
+      <tr><td>14.11 04:30</td><td class="mono">dgek_db</td><td>1,7 ГБ</td><td><span class="tag t-ok">пройдена</span></td><td><span class="tag t-ok">ok</span></td></tr>
+      <tr><td>13.11 04:30</td><td class="mono">dgek_db</td><td>1,7 ГБ</td><td><span class="tag t-ok">пройдена</span></td><td><span class="tag t-ok">ok</span></td></tr>
+      <tr><td>13.11 04:31</td><td class="mono">montes_bp</td><td>640 МБ</td><td><span class="tag t-ok">пройдена</span></td><td><span class="tag t-ok">ok</span></td></tr>
+    </table></div>
+  </div></main>
+
+  <footer class="mini-ftr">
+    <div class="in">
+      <span style="font-weight:700">1C-AI-Control</span>
+      <div class="links"><a href="#">Тарифы</a><a href="#">Оплата</a><a href="#">Документы</a><a href="#">Статус</a><a href="#">Поддержка</a></div>
+      <span style="font-size:12.5px;opacity:.75">© 2026 · v3.0.0</span>
+    </div>
+  </footer>
+</section>
+
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  function setTheme(t) {
+    body.className = t;
+    [].forEach.call(document.querySelectorAll('#segTheme button'), function (b) {
+      b.classList.toggle('on', b.dataset.theme === t);
+    });
+  }
+  function setRole(r) {
+    document.getElementById('view-admin').hidden = r !== 'admin';
+    document.getElementById('view-client').hidden = r !== 'client';
+    [].forEach.call(document.querySelectorAll('#segRole button'), function (b) {
+      b.classList.toggle('on', b.dataset.role === r);
+    });
+  }
+  document.getElementById('segTheme').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (b) setTheme(b.dataset.theme);
+  });
+  document.getElementById('segRole').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (b) setRole(b.dataset.role);
+  });
+  // предпросмотр по ссылке: demo.html#client или ?theme=light
+  var q = new URLSearchParams(location.search);
+  if (q.get('theme')) setTheme(q.get('theme'));
+  if (location.hash === '#client') setRole('client');
+})();
+</script>
+</body>
+</html>
