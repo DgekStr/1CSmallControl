@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>1C-AI-Control — меню и подвал (светлая тема)</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;line-height:1.55}
+a{text-decoration:none}
+.page{min-height:100vh;display:flex;flex-direction:column}
+.content{flex:1;padding:56px 28px;max-width:1180px;margin:0 auto;width:100%}
+h1{font-size:30px;margin:0 0 10px}
+p.lead{font-size:15px;max-width:640px;margin:0 0 26px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:8px}
+.tile{border-radius:14px;padding:16px 18px;font-size:14px}
+.tile b{display:block;margin-bottom:4px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:20px}
+.dot{width:8px;height:8px;border-radius:50%;background:#2FBF71}
+
+:root{--ink:#1B2436;--mut:#5F6D85;--line:#DFE6F1;--panel:rgba(255,255,255,.82);--acc:#5B3FD1}
+body{background:#F6F8FC;color:var(--ink)}
+.page{background:url('../backgrounds/bg-3-light-mesh.svg') center top / cover no-repeat fixed}
+.hdr{position:sticky;top:0;z-index:10;backdrop-filter:blur(14px);background:rgba(255,255,255,.78);border-bottom:1px solid var(--line)}
+.hdr .in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:26px;padding:14px 28px}
+.brand{display:flex;align-items:center;gap:12px;color:var(--ink);font-weight:700;font-size:17px;letter-spacing:-.3px}
+.brand img{height:38px}
+.nav{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
+.nav-link{padding:8px 12px;border-radius:10px;color:var(--mut);font-size:14px}
+.nav-link:hover{color:var(--ink);background:rgba(91,63,209,.08)}
+.nav-link.is-active{color:#fff;background:linear-gradient(135deg,#7C5CFF,#5B3FD1)}
+.hdr .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.pill{font-size:13px;padding:7px 12px;border-radius:10px;border:1px solid var(--line);color:var(--mut);background:#fff}
+.btn{padding:9px 16px;border-radius:10px;background:linear-gradient(135deg,#7C5CFF,#5B3FD1);color:#fff;font-size:14px;font-weight:600}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#7C5CFF,#2FBF71);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
+.tile{background:var(--panel);border:1px solid var(--line);box-shadow:0 1px 3px rgba(27,36,54,.06)}
+.f-status{background:rgba(47,191,113,.14);color:#1F9D5A;border:1px solid rgba(47,191,113,.3)}
+.ftr{border-top:1px solid var(--line);background:rgba(255,255,255,.86);backdrop-filter:blur(14px)}
+.ftr .in{max-width:1180px;margin:0 auto;padding:34px 28px 22px;display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:26px}
+.f-brand img{height:36px;margin-bottom:10px}
+.f-brand .muted{color:var(--mut);font-size:13px;max-width:280px}
+.f-title{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-bottom:10px}
+.f-col a{display:block;color:#26314A;font-size:13.5px;padding:3px 0}
+.f-col a:hover{color:var(--acc)}
+.f-bot{max-width:1180px;margin:0 auto;padding:14px 28px 26px;display:flex;justify-content:space-between;gap:14px;color:var(--mut);font-size:12.5px;flex-wrap:wrap}
+
+.hdr .in{padding:12px 28px;gap:18px}
+.mini .nav{gap:2px}
+.mini .nav-link{border-radius:999px;padding:7px 13px;font-size:13.5px}
+.mini .hdr .in{border-bottom:none}
+.mini-ftr{padding:18px 0}
+.mini-ftr .in{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 28px;flex-wrap:wrap}
+.mini-links{display:flex;gap:16px;flex-wrap:wrap}
+.mini-links a{font-size:12.5px;color:var(--mut)}
+.mini-links a:hover{color:var(--acc)}
+
+.variant{margin:0 0 40px}
+.v-title{font-size:16px;font-weight:700;margin:0 0 4px}
+.v-note{font-size:13px;color:var(--mut);margin:0 0 12px}
+.v-frame{border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.v-frame .page{min-height:auto}
+.v-frame .content{padding:36px 24px}
+.wrap{max-width:1180px;margin:0 auto;padding:36px 24px 60px}
+</style></head>
+<body><div class="page" style="min-height:auto;background:url('../backgrounds/bg-3-light-mesh.svg') center top / cover no-repeat fixed">
+<div class="wrap">
+  <h1 style="margin-bottom:6px">Верхнее меню и подвал — светлая тема</h1>
+  <p class="lead">Три варианта: классика с колонками, минимал в одну строку, и «панельный» с плитками. Фон: bg-3-light-mesh.svg</p>
+  
+<section class="variant">
+  <div class="v-title">Вариант A · Классика</div>
+  <div class="v-note">Логотип слева, меню по центру, кнопка и аватар справа. Подвал — 4 колонки + строка копирайта.</div>
+  <div class="v-frame"><div class="page " style="background-size:cover">
+    <header class="hdr">
+      <div class="in">
+        <a class="brand" href="#"><img src="../light/mark-d-chip-light.svg" alt="">1C-AI-Control</a>
+        <nav class="nav"><a class="nav-link is-active" href="#">Базы</a>
+<a class="nav-link" href="#">Сеансы</a>
+<a class="nav-link" href="#">Копии</a>
+<a class="nav-link" href="#">ИИ-проверки</a>
+<a class="nav-link" href="#">Мониторинг</a>
+<a class="nav-link" href="#">Пользователи</a></nav>
+        <div class="right"><span class="pill">v3.0.0</span><a class="btn" href="#">Открыть панель</a><span class="avatar">АК</span></div>
+      </div>
+    </header><main class="content">
+      <div class="tiles">
+        <div class="tile"><b>Базы</b>4 базы · 1 250 сеансов за сутки</div>
+        <div class="tile"><b>Копии</b>последняя: сегодня 04:30 · успешно</div>
+        <div class="tile"><b>ИИ-проверки</b>3 задачи сегодня · 12 находок</div>
+        <div class="tile"><b>Мониторинг</b>IOPS 24 · диск 78 % · HASP ок</div>
+      </div></main>
+    <footer class="ftr">
+      <div class="in">
+        <div class="f-brand">
+          <img src="../light/logo-horizontal-light.svg" alt="">
+          <div class="muted">Копии, мониторинг и ИИ-проверки баз 1С. Работаем только с копией базы — данные не меняются.</div>
+          <div class="badge f-status" style="margin-top:12px"><span class="dot"></span>Все системы работают</div>
+        </div>
+        <div class="f-col"><div class="f-title">Продукт</div><a href="#">Базы 1С</a><a href="#">Резервные копии</a><a href="#">ИИ-проверки</a><a href="#">Мониторинг</a></div>
+<div class="f-col"><div class="f-title">Клиентам</div><a href="#">Тарифы</a><a href="#">Подключение баз</a><a href="#">Перенос ККТ</a><a href="#">Обучение</a></div>
+<div class="f-col"><div class="f-title">Поддержка</div><a href="#">Инструкции</a><a href="#">Статус сервиса</a><a href="#">Контакты</a><a href="#">Заявка в поддержку</a></div>
+      </div>
+      <div class="f-bot">
+        <span>© 2026 1C-AI-Control · v3.0.0</span>
+        <span>Политика конфиденциальности · Условия · Поддержка 24/7</span>
+      </div>
+    </footer></div></div>
+</section>
+  
+<section class="variant">
+  <div class="v-title">Вариант B · Минимал</div>
+  <div class="v-note">Пилюли-ссылки, подвал в одну строку. Хорош для внутренней панели, где важна плотность.</div>
+  <div class="v-frame"><div class="page mini" style="background-size:cover">
+    <header class="hdr">
+      <div class="in">
+        <a class="brand" href="#"><img src="../light/mark-d-chip-light.svg" alt="">1C-AI-Control</a>
+        <nav class="nav"><a class="nav-link is-active" href="#">Базы</a>
+<a class="nav-link" href="#">Сеансы</a>
+<a class="nav-link" href="#">Копии</a>
+<a class="nav-link" href="#">ИИ-проверки</a>
+<a class="nav-link" href="#">Мониторинг</a>
+<a class="nav-link" href="#">Пользователи</a></nav>
+        <div class="right"><span class="pill">v3.0.0</span><a class="btn" href="#">Открыть панель</a><span class="avatar">АК</span></div>
+      </div>
+    </header><main class="content">
+      <div class="tiles">
+        <div class="tile"><b>Базы</b>4 базы · 1 250 сеансов за сутки</div>
+        <div class="tile"><b>Копии</b>последняя: сегодня 04:30 · успешно</div>
+        <div class="tile"><b>ИИ-проверки</b>3 задачи сегодня · 12 находок</div>
+        <div class="tile"><b>Мониторинг</b>IOPS 24 · диск 78 % · HASP ок</div>
+      </div></main>
+    <footer class="ftr mini-ftr">
+      <div class="in">
+        <span style="font-weight:700">1C-AI-Control</span>
+        <div class="mini-links">
+          <a href="#">Тарифы</a><a href="#">Документы</a><a href="#">Статус</a><a href="#">Поддержка</a><a href="#">Контакты</a>
+        </div>
+        <span style="font-size:12.5px;opacity:.75">© 2026 · v3.0.0</span>
+      </div>
+    </footer></div></div>
+</section>
+  
+<section class="variant">
+  <div class="v-title">Вариант C · Панельный</div>
+  <div class="v-note">Тот же каркас, но с плитками-виджетами в контенте — проверка контраста на фоне.</div>
+  <div class="v-frame"><div class="page " style="background-size:cover">
+    <header class="hdr">
+      <div class="in">
+        <a class="brand" href="#"><img src="../light/mark-d-chip-light.svg" alt="">1C-AI-Control</a>
+        <nav class="nav"><a class="nav-link is-active" href="#">Базы</a>
+<a class="nav-link" href="#">Сеансы</a>
+<a class="nav-link" href="#">Копии</a>
+<a class="nav-link" href="#">ИИ-проверки</a>
+<a class="nav-link" href="#">Мониторинг</a>
+<a class="nav-link" href="#">Пользователи</a></nav>
+        <div class="right"><span class="pill">v3.0.0</span><a class="btn" href="#">Открыть панель</a><span class="avatar">АК</span></div>
+      </div>
+    </header><main class="content">
+      <div class="tiles">
+        <div class="tile"><b>Базы</b>4 базы · 1 250 сеансов за сутки</div>
+        <div class="tile"><b>Копии</b>последняя: сегодня 04:30 · успешно</div>
+        <div class="tile"><b>ИИ-проверки</b>3 задачи сегодня · 12 находок</div>
+        <div class="tile"><b>Мониторинг</b>IOPS 24 · диск 78 % · HASP ок</div>
+      </div></main>
+    <footer class="ftr">
+      <div class="in">
+        <div class="f-brand">
+          <img src="../light/logo-horizontal-light.svg" alt="">
+          <div class="muted">Копии, мониторинг и ИИ-проверки баз 1С. Работаем только с копией базы — данные не меняются.</div>
+          <div class="badge f-status" style="margin-top:12px"><span class="dot"></span>Все системы работают</div>
+        </div>
+        <div class="f-col"><div class="f-title">Продукт</div><a href="#">Базы 1С</a><a href="#">Резервные копии</a><a href="#">ИИ-проверки</a><a href="#">Мониторинг</a></div>
+<div class="f-col"><div class="f-title">Клиентам</div><a href="#">Тарифы</a><a href="#">Подключение баз</a><a href="#">Перенос ККТ</a><a href="#">Обучение</a></div>
+<div class="f-col"><div class="f-title">Поддержка</div><a href="#">Инструкции</a><a href="#">Статус сервиса</a><a href="#">Контакты</a><a href="#">Заявка в поддержку</a></div>
+      </div>
+      <div class="f-bot">
+        <span>© 2026 1C-AI-Control · v3.0.0</span>
+        <span>Политика конфиденциальности · Условия · Поддержка 24/7</span>
+      </div>
+    </footer></div></div>
+</section>
+</div>
+</div></body></html>
