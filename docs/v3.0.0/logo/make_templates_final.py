@@ -183,8 +183,10 @@ CLIENT_COLS = [
     ("О сервисе", ["Тарифы", "Оплата", "Договор и акты", "Контакты"]),
 ]
 
-admin_right = '<span class="pill">v3.0.0</span><a class="btn" href="#">Панель</a><span class="avatar">АК</span>'
-client_right = ('<span class="chip">Тариф: Стандарт · 3 базы</span>'
+admin_right = ('<a class="view-switch" href="client-%s.html">Клиент →</a>'
+               '<span class="pill">v3.0.0</span><a class="btn" href="#">Панель</a><span class="avatar">АК</span>')
+client_right = ('<a class="view-switch" href="admin-%s.html">Админка →</a>'
+                '<span class="chip">Тариф: Стандарт · 3 базы</span>'
                 '<a class="btn" href="#">Заказать проверку</a><span class="avatar">ИП</span>')
 
 # --- админ: вариант C (панельный) ---
@@ -193,7 +195,7 @@ for theme in ("dark", "light"):
                 "Панель администратора",
                 "Вариант C · панельный: шапка с меню, плитки состояния, полный подвал.",
                 ADMIN_TILES,
-                header(ADMIN_NAV, admin_right),
+                header(ADMIN_NAV, admin_right % theme),
                 footer("Копии, мониторинг и ИИ-проверки баз 1С. Работаем только с копией базы.",
                        ADMIN_COLS, "Политика · Условия · Поддержка 24/7"))
     name = "admin-%s.html" % theme
@@ -206,7 +208,7 @@ for theme in ("light", "dark"):
                 "Ваши базы под контролем",
                 "Вариант B · минимал: короткое меню, подвал в одну строку.",
                 CLIENT_TILES,
-                header(CLIENT_NAV, client_right, narrow=True),
+                header(CLIENT_NAV, client_right % theme, narrow=True),
                 mini_footer(["Тарифы", "Оплата", "Документы", "Статус", "Поддержка"]))
     name = "client-%s.html" % theme
     io.open(os.path.join(TPL, name), "w", encoding="utf-8", newline="\n").write(html)

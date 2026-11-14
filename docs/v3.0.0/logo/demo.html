@@ -41,6 +41,7 @@ body.light{
 .seg button{border:0;background:none;color:var(--mut);font:inherit;font-size:13.5px;padding:7px 14px;border-radius:9px;cursor:pointer}
 .seg button.on{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-weight:600}
 .tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.seg-label{font-size:13px;font-weight:600}
 .hint{font-size:12px;color:var(--mut)}
 
 /* ---------- шапка ---------- */
@@ -110,7 +111,8 @@ footer .in a:hover{color:var(--acc)}
 
 <div class="toolbar"><div class="in">
   <span class="tb-brand"><img src="light/mark-d-chip-light.svg" alt="">1C-AI-Control · демо</span>
-  <div class="seg" id="segRole">
+  <span class="hint" style="font-weight:600">Вид:</span>
+    <div class="seg" id="segRole">
     <button class="on" data-role="admin">Админка · C</button>
     <button data-role="client">Клиент · B</button>
   </div>
