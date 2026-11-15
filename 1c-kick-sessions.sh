@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # 1c-kick-sessions [--dry] <инфобаза> — завершает все сеансы указанной базы 1С.
 #   --dry            только показать сеансы
-#   KICK_DENY_SEC=N  на сколько секунд запретить вход (по умолчанию 20),
-#                    чтобы клиент не переподключился сразу же
+#   KICK_DENY_SEC=N  на сколько секунд запретить вход (по умолчанию 0).
+#                    20 с вешали веб-клиент: он не показывал «сеанс завершён»,
+#                    а просто замирал на время запрета. Включайте осознанно.
 set -uo pipefail
 
 DRY=0
@@ -25,7 +26,7 @@ RAS=${IC_RAS:-127.0.0.1:1545}
 CA=(--cluster-user="${IC_CLUSTER_USER:-}" --cluster-pwd="${IC_CLUSTER_PWD:-}")
 # операции с конкретной инфобазой (в т.ч. запрет сеансов) требуют её администратора
 IBA=(--infobase-user="${IC_ADMIN_USER:-}" --infobase-pwd="${IC_ADMIN_PWD:-}")
-DENY_SEC=${KICK_DENY_SEC:-20}
+DENY_SEC=${KICK_DENY_SEC:-0}
 
 CLUSTER=${IC_CLUSTER:-$($RAC "$RAS" cluster list 2>/dev/null | awk '/^cluster/{print $3; exit}')}
 if [ -z "$CLUSTER" ]; then
@@ -95,5 +96,5 @@ done
 
 echo "отключено сеансов: $OK (база «$NAME»)${FAIL:+, не удалось: $FAIL}"
 [ -n "$FIRST_ERR" ] && echo "  ошибка: $FIRST_ERR"
-[ "$OK" -gt 0 ] && echo "  вход в базу запрещён на ${DENY_SEC} с, затем откроется снова"
+[ "$OK" -gt 0 ] && [ "$DENY_SEC" -gt 0 ] && echo "  вход в базу запрещён на ${DENY_SEC} с, затем откроется снова"
 exit 0
