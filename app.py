@@ -2077,9 +2077,21 @@ def admin_stats():
             _cache['live'] = (time.time(), _sessions_snapshot())
     except Exception:  # noqa: BLE001
         pass
+    # base обязателен в выборке: без него история показывала «—»
     client_history = db().execute("""
-        SELECT username, app, host, started_at, first_seen, last_seen
+        SELECT username, app, host, base, started_at, first_seen, last_seen
         FROM client_sessions ORDER BY last_seen DESC LIMIT 150""").fetchall()
+    # показываем привычный slug портала (dgek-db), а не имя инфобазы 1С (dgek_db)
+    try:
+        _bmap = {}
+        for _b in db().execute("SELECT slug, ib_name, db_name FROM bases"):
+            for _k in (_b['slug'], _b['ib_name'], _b['db_name']):
+                if _k:
+                    _bmap[_k] = _b['slug']
+        client_history = [dict(r, base=_bmap.get((r['base'] or '').strip(), r['base']))
+                          for r in client_history]
+    except Exception:  # noqa: BLE001
+        pass
 
     vpn_rows = db().execute("""
         SELECT u.username, u.full_name, u.organization, u.vpn_enabled,
@@ -2174,6 +2186,22 @@ def _sessions_snapshot():
         rows.append({'sid': parts[0], 'user': user, 'app': app,
                      'host': parts[3], 'started': parts[4], 'last': parts[5],
                      'base': parts[6].strip() if len(parts) > 6 else ''})
+    # приводим имя базы к каноническому slug портала: 1С отдаёт имя инфобазы
+    # (dgek_db, sb_test_...), а в кабинете и истории показываем slug (dgek-db)
+    if rows:
+        try:
+            canon = {}
+            for b in db().execute("SELECT slug, ib_name, db_name FROM bases"):
+                for key in (b['slug'], b['ib_name'], b['db_name']):
+                    if key:
+                        canon[key] = b['slug']
+            for r in rows:
+                raw = (r.get('base') or '').strip()
+                if raw and raw in canon:
+                    r['base'] = canon[raw]
+        except Exception:  # noqa: BLE001
+            pass
+
     cleared = _setting_get('stats_cleared_at')
     try:
         for r in rows:
@@ -2186,7 +2214,12 @@ def _sessions_snapshot():
                 VALUES(?,?,?,?,?,?,datetime('now','localtime'))
                 ON CONFLICT(sid) DO UPDATE SET
                     username = excluded.username, app = excluded.app, host = excluded.host,
-                    started_at = excluded.started_at, last_seen = datetime('now','localtime')""",
+                    started_at = excluded.started_at,
+                    -- база могла быть неизвестна при первой записи сеанса:
+                    -- заполняем её, как только 1С сообщила имя инфобазы
+                    base = CASE WHEN COALESCE(excluded.base, '') <> ''
+                                THEN excluded.base ELSE client_sessions.base END,
+                    last_seen = datetime('now','localtime')""",
                          (r['sid'], r['user'], r['app'], r['host'], r.get('base') or '', started))
         db().commit()
     except Exception as exc:  # noqa: BLE001
