@@ -3094,7 +3094,13 @@ def _sandbox_copies(*names):
     paths = []
     base_dir = _backup_local_dir()
     for nm in db_names:
-        paths.extend(glob.glob(os.path.join(base_dir, '%s-*.dump' % nm)))
+        try:
+            paths.extend(glob.glob(os.path.join(base_dir, '%s-*.dump' % nm)))
+        except PermissionError:
+            # каталог архивов смонтирован с правами группы 1cbackup:
+            # если у службы её нет — копии «пропадают», пишем это в лог
+            app.logger.warning('backup dir not readable: %s (проверьте группу 1cbackup)', base_dir)
+            return []
     for path in sorted(set(paths)):
         if not os.path.isfile(path):      # остатки индекса: файл уже удалён
             continue
