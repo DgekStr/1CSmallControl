@@ -7,7 +7,9 @@ set -uo pipefail
 CONF=/etc/1c-portal/1c-session-admin.conf
 if [ -f "$CONF" ]; then
   # shellcheck disable=SC1090
+  set -a          # экспортируем всё, что объявлено в конфиге (IC_CLUSTER_USER/PWD/CLUSTER)
   . "$CONF"
+  set +a
 fi
 
 export IC_RAC=${IC_RAC:-/opt/1cv8/x86_64/8.3.27.2342/rac}
@@ -20,7 +22,7 @@ import os
 import re
 import subprocess
 
-rac = os.environ['IC_RAC']
+rac = os.environ['IC_RAC'].split()
 ras = os.environ['IC_RAS']
 
 # --- всего мест по ключам ---
@@ -47,7 +49,8 @@ for path in sorted(glob.glob('/etc/usbhaspd/keys/*.json')):
 # --- занято: клиентские сеансы ---
 used = 0
 try:
-    clusters = subprocess.run([rac, ras, 'cluster', 'list'],
+    # cluster list не принимает флаги авторизации — вызываем без них
+    clusters = subprocess.run(rac + [ras, 'cluster', 'list'],
                               capture_output=True, text=True, timeout=20).stdout
     uuid = ''
     for line in clusters.splitlines():
@@ -55,8 +58,12 @@ try:
             uuid = line.split(':', 1)[1].strip()
             break
     if uuid:
-        out = subprocess.run([rac, ras, 'session', 'list', '--cluster', uuid],
-                             capture_output=True, text=True, timeout=20).stdout
+        cmd = rac + [ras, 'session', 'list', '--cluster', uuid]
+        if os.environ.get('IC_CLUSTER_USER'):
+            cmd += ['--cluster-user', os.environ['IC_CLUSTER_USER']]
+        if os.environ.get('IC_CLUSTER_PWD'):
+            cmd += ['--cluster-pwd', os.environ['IC_CLUSTER_PWD']]
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=20).stdout
         apps = [l.split(':', 1)[1].strip() for l in out.splitlines() if l.strip().startswith('app-id')]
         used = sum(1 for a in apps if a in ('WebClient', '1CV8', '1CV8C', 'Designer', 'COMConnection'))
 except Exception:
