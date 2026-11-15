@@ -3616,7 +3616,7 @@ def admin_cluster_sessions(uuid):
     check_csrf()
     deny = request.form.get('deny') == '1'
     rc, out = _rac(['infobase', 'update', '--infobase=%s' % uuid,
-                    '--sessions-deny=%s' % ('true' if deny else 'false')])
+                    '--sessions-deny=%s' % ('on' if deny else 'off')])
     _RAC_CACHE.update(ts=0, items=None)
     audit('cluster_sessions', '%s deny=%s' % (uuid, deny))
     flash('Сеансы %s' % ('запрещены' if deny else 'разрешены') if rc == 0 else 'Ошибка: %s' % out.strip()[:200])
