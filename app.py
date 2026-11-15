@@ -162,7 +162,7 @@ def _warm_caches():
     try:
         with app.app_context():
             _cached_swr('live', 60, 1800, _sessions_snapshot)
-            _cached_swr('lic', 300, 7200, _licenses)
+            _licenses_live()
     except Exception:  # noqa: BLE001
         pass
 
@@ -1330,6 +1330,27 @@ def _cache_stamp(key):
     return time.strftime('%H:%M:%S', time.localtime(hit[0])) if hit else time.strftime('%H:%M:%S')
 
 
+def _licenses_live(ttl=10):
+    """Счётчик лицензий с коротким кэшем.
+
+    Раньше здесь стоял _cached_swr с TTL 300 с: страница до 5 минут показывала
+    устаревшее «0 / 101», даже когда сеанс уже открыт, а при неудачном фоновом
+    обновлении — до 2 часов. Счётчик считается быстро (rac ~100 мс), поэтому
+    обновляем его синхронно и держим кэш всего несколько секунд.
+    """
+    now = time.time()
+    hit = _cache.get('lic_live')
+    if hit and now - hit[0] < ttl:
+        return hit[1]
+    try:
+        val = _licenses()
+    except Exception:  # noqa: BLE001
+        # при сбое не обнуляем счётчик: показываем последнее известное значение
+        return hit[1] if hit else {'used': 0, 'total': 0, 'net': 0, 'local': 0}
+    _cache['lic_live'] = (now, val)
+    return val
+
+
 def _licenses():
     """Занято/всего клиентских лицензий 1С (ключи HASP + активные сеансы)."""
     try:
@@ -2104,7 +2125,7 @@ def admin_stats():
         WHERE u.vpn_enabled = 1 OR (u.vpn_config IS NOT NULL AND length(u.vpn_config) > 0)
         ORDER BY u.username""").fetchall()
 
-    lic = _cached_swr('lic', 300, 7200, _licenses)
+    lic = _licenses_live()
     srv = metrics.collect()
     try:
         db().execute("INSERT INTO metrics(cpu, rx, tx) VALUES(?,?,?)",
