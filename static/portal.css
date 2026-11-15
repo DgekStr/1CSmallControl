@@ -589,3 +589,23 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 .smb-test-result{font-size:calc(13px*var(--fs));align-self:center;margin-left:4px}
 .smb-test-result.ok{color:var(--ok)}
 .smb-test-result.err{color:var(--bad)}
+
+/* картинка-анимация на заглушке (Парк юрского периода) */
+.denied-image{
+  display:block;
+  width:min(100%, 360px);
+  height:auto;
+  margin:0 auto 10px;
+  border-radius:12px;
+  border:1px solid var(--line, rgba(255,255,255,.12));
+  box-shadow:0 8px 28px rgba(0,0,0,.35);
+}
+.denied-image-caption{
+  margin:0 0 14px;
+  text-align:center;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+  color:var(--warn, #F5A623);
+}

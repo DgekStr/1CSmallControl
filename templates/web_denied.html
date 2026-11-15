@@ -23,7 +23,13 @@
     </div>
 
     <div class="denied-card">
+      {% if icon in ('lock', 'user-x') %}
+      <img class="denied-image" src="{{ asset('you-didnt-say-the-magic-word-ah-ah.gif') }}"
+           alt="Анимированная картинка: «Ах-ах-ах!»" width="498" height="423" loading="lazy">
+      <p class="denied-image-caption">Ай-Ай-Ай! Ты не сказал волшебное слово!</p>
+      {% else %}
       <div class="denied-icon"><i data-lucide="{{ icon }}"></i></div>
+      {% endif %}
       <p class="denied-text">{{ message }}</p>
       {% if slug %}<p class="denied-base">База: <code class="mono">{{ slug }}</code></p>{% endif %}
       <p class="muted small">{{ hint }}</p>
