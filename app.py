@@ -723,6 +723,13 @@ def web_gate(slug, rest=''):
             return out
 
         data = resp.read()
+        # 1С закрыла сеансы: показываем понятную заглушку вместо страницы 1С
+        if resp.status in (401, 403, 503):
+            low = data[:4096].lower()
+            if (b'\xd1\x81\xd0\xb5\xd0\xb0\xd0\xbd\xd1\x81' in low      # «сеанс»
+                    or b'session' in low or b'denied' in low or b'forbidden' in low):
+                audit('web_sessions_denied', slug)
+                return _web_denied(slug, 'sessions-denied', 503)
         # content_type=None — чтобы не подмешивать Content-Type Flask'а к ответу 1С
         if inject_banner and b'<html' in data[:2048].lower():
             try:

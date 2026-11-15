@@ -56,3 +56,25 @@ nginx -t && nginx -s reload
 Протокол в браузере: DevTools → Network → колонка Protocol = `h2`.
 
 История: включено 2026-11-07, бэкап конфига — `/root/1c.dgek.ru.conf.bak.*`.
+
+## Заглушка при недоступности портала
+
+В vhost `1c.dgek.ru` (только HTTPS-блок) включаем собственные обработчики ошибок вместо
+общего `snippets/maintenance_all.conf` — иначе при падении портала отдаётся страница
+другого проекта (`FOCUSLENS.DEV`).
+
+```nginx
+proxy_intercept_errors on;
+error_page 500 502 503 504 = /portal-down.html;
+
+location = /portal-down.html {
+    internal;
+    root /var/www/html;
+}
+```
+
+Файл `/var/www/html/portal-down.html` — брендированная страница «Портал временно недоступен»
+(статус 200, чтобы браузер не показывал `ERR_FAILED`).
+
+Проверка: остановить портал и запросить `https://1c.dgek.ru/WEB/<база>/ru_RU/` —
+должна вернуться страница «Портал временно недоступен» с кодом 200.
