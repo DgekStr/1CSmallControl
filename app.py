@@ -3057,6 +3057,21 @@ def admin_2fa_disable():
 SANDBOX_DIR = '/mnt/1cbackup'
 
 
+def _backup_local_dir():
+    """Локальный каталог дампов.
+
+    Настройка backup_dir может быть UNC-путём (//nas/share/sub), который
+    монтируется в SANDBOX_DIR. Раньше каталог был жёстко /mnt/1cbackup, и при
+    подкаталоге в UNC песочница не находила копии (500 + пустой список).
+    """
+    raw = (_setting_get('backup_dir') or '').strip()
+    if raw.startswith('//'):
+        parts = [x for x in raw.split('/') if x]
+        sub = parts[2:]
+        return os.path.join(SANDBOX_DIR, *sub) if sub else SANDBOX_DIR
+    return raw or SANDBOX_DIR
+
+
 def _sandbox_copies(*names):
     """Все копии базы из каталога архивации: и ночные, и ручные.
 
@@ -3077,9 +3092,12 @@ def _sandbox_copies(*names):
 
     found = {}
     paths = []
+    base_dir = _backup_local_dir()
     for nm in db_names:
-        paths.extend(glob.glob(os.path.join(SANDBOX_DIR, '%s-*.dump' % nm)))
+        paths.extend(glob.glob(os.path.join(base_dir, '%s-*.dump' % nm)))
     for path in sorted(set(paths)):
+        if not os.path.isfile(path):      # остатки индекса: файл уже удалён
+            continue
         name = os.path.basename(path)
         try:
             size = os.path.getsize(path)
@@ -3094,7 +3112,7 @@ def _sandbox_copies(*names):
             import json
             data = json.load(open('/etc/1c-portal/backup-files.json', encoding='utf-8'))
             for item in data.get('files', []):
-                if item.get('base') in db_names:
+                if item.get('base') in db_names and os.path.isfile(item.get('path') or ''):
                     found[item['name']] = {
                         'path': item['path'], 'name': item['name'], 'when': item.get('when') or item['name'],
                         'size': item.get('size') or 0, 'size_h': human(item.get('size') or 0)}
@@ -3280,9 +3298,17 @@ def base_sandbox_create(bid):
         flash('Копия не найдена')
         return redirect('/')
 
+    try:
+        dump_bytes = os.path.getsize(dump)
+    except OSError:
+        audit('sandbox_dump_missing', '%s: %s' % (row['slug'], dump[:120]))
+        flash('Выбранная копия недоступна: файл не найден в каталоге архивации. '
+              'Обновите страницу и выберите другую копию.')
+        return redirect('/')
+
     free = _sandbox_free_gb()
     min_free = float(_setting_get('sandbox_min_free_gb') or 8)
-    need = os.path.getsize(dump) / 1024 ** 3 * 1.8
+    need = dump_bytes / 1024 ** 3 * 1.8
     if free - need < min_free:
         flash('Недостаточно места: свободно %.1f ГБ, нужно %.1f ГБ' % (free, need + min_free))
         return redirect('/')

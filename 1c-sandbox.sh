@@ -10,8 +10,12 @@ CONF=/etc/1c-portal/1c-session-admin.conf
 [ -f "$CONF" ] && . "$CONF"
 
 RAC=${IC_RAC:-/opt/1cv8/x86_64/8.3.27.2342/rac}
+IBCMD=${IC_IBCMD:-$(dirname "$RAC")/ibcmd}
 RAS=${IC_RAS:-127.0.0.1:1545}
 AUTH=(--cluster-user="${IC_CLUSTER_USER:-}" --cluster-pwd="${IC_CLUSTER_PWD:-}")
+# операции с конкретной информационной базой (update/drop) требуют ещё и
+# администратора этой базы, иначе 1С отвечает «Недостаточно прав пользователя»
+IBAUTH=(--infobase-user="${IC_ADMIN_USER:-}" --infobase-pwd="${IC_ADMIN_PWD:-}")
 
 mode="${1:-}"
 
@@ -71,16 +75,51 @@ case "$mode" in
     ROLE="usr_${NEW//[^a-zA-Z0-9_]/_}"
     PWD="${RPWD:-$(openssl rand -hex 12)}"
 
-    echo "  [1/5] база PostgreSQL $NEW"
+    echo "  [1/7] роль PostgreSQL $NEW"
     cleanup_failed "$NEW" "$ROLE"
     # 1С при создании инфобазы требует у роли права администратора БД,
     # поэтому роль копии создаём с superuser (пароль случайный, живёт до удаления копии)
     su -s /bin/bash postgres -c "psql -c \"set password_encryption='md5'; create role $ROLE login createdb superuser password '$PWD'\"" >/dev/null 2>&1 \
       || { echo "не удалось создать роль $ROLE"; exit 4; }
-    su -s /bin/bash postgres -c "psql -c \"create database $NEW owner $ROLE\"" >/dev/null 2>&1 \
-      || { echo "не удалось создать базу $NEW"; cleanup_failed "$NEW" "$ROLE"; exit 4; }
+    # 1С отказывается регистрировать инфобазу в базе, созданной «вручную» через
+    # psql: "Ошибка СУБД: DATABASE не пригоден для использования" — в ней нет
+    # служебных таблиц платформы. Поэтому сначала инициализируем базу
+    # утилитой ibcmd (она создаёт схему 1С), и только потом регистрируем ИБ.
+    echo "  [2/7] инициализация базы средствами 1С"
+    IBDATA="/var/tmp/ibcmd-$NEW"
+    rm -rf "$IBDATA"; mkdir -p "$IBDATA"
+    IO=$("$IBCMD" infobase create --dbms=PostgreSQL --db-server=127.0.0.1 \
+            --db-name="$NEW" --db-user="$ROLE" --db-pwd="$PWD" \
+            --create-database --data="$IBDATA" 2>&1)
+    if [ $? -ne 0 ]; then
+      echo "        не удалось инициализировать базу: $(echo "$IO" | tail -1)"
+      rm -rf "$IBDATA"
+      cleanup_failed "$NEW" "$ROLE"
+      exit 6
+    fi
+    rm -rf "$IBDATA"
 
-    echo "  [2/5] восстановление из дампа"
+    echo "  [3/7] информационная база в кластере"
+    OUT=$($RAC "$RAS" infobase create --cluster="$CLUSTER" --name="$NEW" \
+            --dbms=PostgreSQL --db-server=127.0.0.1 --db-name="$NEW" \
+            --db-user="$ROLE" --db-pwd="$PWD" --locale=ru_RU \
+            --scheduled-jobs-deny=on --license-distribution=allow "${AUTH[@]}" 2>&1)
+    if [ $? -ne 0 ]; then
+      echo "        не удалось создать инфобазу: $(echo "$OUT" | head -1)"
+      cleanup_failed "$NEW" "$ROLE"
+      exit 6
+    fi
+    sleep 1
+    # в новую ИБ никто не должен войти, пока в базе не будет данных из дампа
+    UUID=$(infobase_uuid "$NEW")
+    if [ -n "$UUID" ]; then
+      $RAC "$RAS" infobase update --cluster="$CLUSTER" --infobase="$UUID" \
+          --sessions-deny=true "${AUTH[@]}" "${IBAUTH[@]}" >/dev/null 2>&1 || true
+    fi
+    su -s /bin/bash postgres -c "psql -Atc \"select pg_terminate_backend(pid) from pg_stat_activity where datname = '$NEW' and pid <> pg_backend_pid()\"" >/dev/null 2>&1
+
+    echo "  [4/7] восстановление из дампа"
+    su -s /bin/bash postgres -c "psql -d $NEW -c 'drop schema if exists public cascade; create schema public'" >/dev/null 2>&1
     ionice -c3 nice -n 10 su -s /bin/bash postgres -c "pg_restore -Fc -d $NEW '$DUMP'" >/tmp/sandbox-restore.log 2>&1
     RC=$?
     TABLES=$(tables_count "$NEW")
@@ -88,6 +127,7 @@ case "$mode" in
     # pg_restore: 0 — без замечаний, 1 — предупреждения; всё выше или явные ошибки — провал
     if [ "${RC:-9}" -ge 2 ] || [ "${ERRORS:-0}" -gt 0 ]; then
       echo "        восстановление не удалось (код $RC, ошибок $ERRORS): $(grep -i 'error:' /tmp/sandbox-restore.log | head -1 | cut -c1-120)"
+      [ -n "$UUID" ] && $RAC "$RAS" infobase drop --cluster="$CLUSTER" --infobase="$UUID" "${AUTH[@]}" "${IBAUTH[@]}" >/dev/null 2>&1
       cleanup_failed "$NEW" "$ROLE"
       exit 5
     fi
@@ -102,35 +142,37 @@ case "$mode" in
     su -s /bin/bash postgres -c "psql -d $NEW -c \"update v8users set admrole = true where name in ('Бухгалтер','Администратор') and coalesce(admrole,false) = false\"" >/dev/null 2>&1
     echo "        признак администратора ИБ выставлен"
 
-    # пользователи 1С берутся из текущей базы: в старых дампах их набор может не иметь прав
+    # Пользователи 1С берутся из текущей базы: в старых дампах их набор может не
+    # иметь прав. При этом строки, созданные платформой при инициализации (в них
+    # есть и администратор ИБ — иначе копию нельзя будет удалить), сохраняем.
     HAS_SRC=$(su -s /bin/bash postgres -c "psql -d $SRC -Atc \"select count(*) from pg_tables where schemaname='public' and tablename='v8users'\"" 2>/dev/null)
     if [ "${HAS_SRC:-0}" = "1" ]; then
+      # запоминаем исходный (инициализированный 1С) набор пользователей
+      su -s /bin/bash postgres -c "psql -d $NEW -c \"drop table if exists _v8users_init\"" >/dev/null 2>&1
+      su -s /bin/bash postgres -c "psql -d $NEW -c \"create table _v8users_init as select * from v8users\"" >/dev/null 2>&1
       su -s /bin/bash postgres -c "psql -d $SRC -c \"\\copy (select * from v8users) to '/tmp/sb-users.csv' csv\"" >/dev/null 2>&1
       if [ -s /tmp/sb-users.csv ]; then
         su -s /bin/bash postgres -c "psql -d $NEW -c \"delete from v8users\"" >/dev/null 2>&1
         su -s /bin/bash postgres -c "psql -d $NEW -c \"\\copy v8users from '/tmp/sb-users.csv' csv\"" >/dev/null 2>&1
+        # возвращаем администратора ИБ, если его не было среди пользователей источника
+        su -s /bin/bash postgres -c "psql -d $NEW -c \"insert into v8users select * from _v8users_init i where not exists (select 1 from v8users v where v.name = i.name)\"" >/dev/null 2>&1
         USERS=$(su -s /bin/bash postgres -c "psql -d $NEW -Atc \"select count(*) from v8users\"" 2>/dev/null)
-        echo "        пользователей 1С из текущей базы: ${USERS:-0}"
+        echo "        пользователей 1С в копии: ${USERS:-0}"
       fi
+      su -s /bin/bash postgres -c "psql -d $NEW -c \"drop table if exists _v8users_init\"" >/dev/null 2>&1
       rm -f /tmp/sb-users.csv
     fi
 
-    echo "  [3/5] информационная база в кластере"
-    OUT=$($RAC "$RAS" infobase create --cluster="$CLUSTER" --name="$NEW" \
-            --dbms=PostgreSQL --db-server=127.0.0.1 --db-name="$NEW" \
-            --db-user="$ROLE" --db-pwd="$PWD" --locale=ru_RU \
-            --scheduled-jobs-deny=on --license-distribution=allow "${AUTH[@]}" 2>&1)
-    even=$?
-    if [ $even -ne 0 ]; then
-      echo "        не удалось создать инфобазу: $(echo "$OUT" | head -1)"
-      cleanup_failed "$NEW" "$ROLE"
-      exit 6
+    echo "  [5/7] открываю доступ"
+    if [ -n "$UUID" ]; then
+      $RAC "$RAS" infobase update --cluster="$CLUSTER" --infobase="$UUID" \
+          --sessions-deny=false "${AUTH[@]}" "${IBAUTH[@]}" >/dev/null 2>&1 || true
     fi
 
-    echo "  [4/5] публикация"
+    echo "  [6/7] публикация"
     /usr/local/bin/1c-republish-base "$NEW" "$NEW" 2>&1 | sed 's/^/        /'
 
-    echo "  [5/5] готово"
+    echo "  [7/7] готово"
     ;;
 
   drop)
@@ -144,7 +186,7 @@ case "$mode" in
     echo "  [2/4] удаляю инфобазу"
     UUID=$(infobase_uuid "$NEW")
     if [ -n "$UUID" ]; then
-      $RAC "$RAS" infobase drop --cluster="$CLUSTER" --infobase="$UUID" "${AUTH[@]}" 2>&1 | sed 's/^/        /'
+      $RAC "$RAS" infobase drop --cluster="$CLUSTER" --infobase="$UUID" "${AUTH[@]}" "${IBAUTH[@]}" 2>&1 | sed 's/^/        /'
     else
       echo "        инфобаза не найдена — пропускаю"
     fi
