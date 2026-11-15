@@ -65,7 +65,7 @@ nginx -t && nginx -s reload
 
 ```nginx
 proxy_intercept_errors on;
-error_page 500 502 503 504 = /portal-down.html;
+error_page 500 502 503 504 /portal-down.html;
 
 location = /portal-down.html {
     internal;
@@ -78,3 +78,33 @@ location = /portal-down.html {
 
 Проверка: остановить портал и запросить `https://1c.dgek.ru/WEB/<база>/ru_RU/` —
 должна вернуться страница «Портал временно недоступен» с кодом 200.
+
+### Почему без «=» в error_page
+
+`error_page ... = /portal-down.html` **подменяет статус на 200**. Для документа это
+удобно, но для любого другого ресурса (JS/CSS/XHR) браузер получает HTML-страницу
+с кодом 200 и пытается исполнить её как скрипт — получаются «непонятные» TypeError
+в веб-клиенте 1С (`Cannot read properties of undefined ...`).
+
+Правильно — сохранять исходный статус:
+
+```nginx
+error_page 500 502 503 504 /portal-down.html;   # статус 502/503/504 сохраняется
+```
+
+Тогда документ отрисует нашу страницу, а загрузчик скриптов получит честную
+ошибку HTTP и покажет «нет связи», не ломая код.
+
+### Деплой портала — только graceful reload
+
+`systemctl restart` обрывает активные сеансы веб-клиента 1С: запросы модулей
+получают 5xx, и открытая форма падает с клиентской ошибкой.
+
+В unit-файле уже есть `ExecReload=/bin/kill -HUP $MAINPID`, поэтому обновление
+кода выполняем так:
+
+```bash
+systemctl reload 1c-portal      # мастера не убиваем, воркеры доигрывают запросы
+```
+
+Проверка: `systemctl show -p MainPID --value 1c-portal` не меняется, `healthz` = 200.
