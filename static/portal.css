@@ -609,3 +609,36 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
   text-transform:uppercase;
   color:var(--warn, #F5A623);
 }
+
+/* ===== заглушка: окно по центру экрана ===== */
+.denied-page{display:flex;flex-direction:column;min-height:100vh}
+.denied-page .login-main{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  padding:20px 16px;
+  box-sizing:border-box;
+}
+.denied-page .login-heading{text-align:center;margin:0 0 2px}
+.denied-page .login-heading h1{font-size:calc(24px*var(--fs));margin:2px 0 0}
+.denied-page .denied-card{
+  width:min(100%, 500px);
+  margin:0 auto;
+  align-items:center;
+  text-align:center;
+  gap:10px;
+  padding:20px 22px;
+}
+.denied-page .denied-image{width:min(100%, 240px);height:auto;margin:0 auto;border-radius:12px}
+.denied-page .denied-icon{margin:0 auto}
+.denied-page .denied-text{max-width:46ch}
+.denied-page .muted.small{max-width:52ch}
+
+/* компактная шапка на заглушке — чтобы окно было по центру экрана */
+.denied-page .login-header{padding:10px 0}
+.denied-page .login-header .brand-mark{width:34px;height:34px}
+.denied-page .login-header .brand-line{font-size:calc(16px*var(--fs))}
+.denied-page .login-header .brand-1c{height:20px}

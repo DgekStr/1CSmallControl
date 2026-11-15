@@ -11,7 +11,7 @@
   <script src="{{ asset('theme.js') }}" defer></script>
   <script src="{{ asset('vendor/lucide.js') }}" defer></script>
 </head>
-<body class="login-page">
+<body class="login-page denied-page">
   <header class="login-header">
     <a class="brand" href="/"><img class="brand-mark" src="{{ asset('brand.png') }}" alt=""><span class="brand-line">ПОРТАЛ<img class="brand-1c" src="{{ asset('logo1c.png') }}" alt="1С"><span class="brand-version">v{{ app_version }}</span></span></a>
   </header>
@@ -25,8 +25,7 @@
     <div class="denied-card">
       {% if icon in ('lock', 'user-x') %}
       <img class="denied-image" src="{{ asset('you-didnt-say-the-magic-word-ah-ah.gif') }}"
-           alt="Анимированная картинка: «Ах-ах-ах!»" width="498" height="423" loading="lazy">
-      <p class="denied-image-caption">Ай-Ай-Ай! Ты не сказал волшебное слово!</p>
+           alt="Анимированная картинка: «Ах-ах-ах!»">
       {% else %}
       <div class="denied-icon"><i data-lucide="{{ icon }}"></i></div>
       {% endif %}
