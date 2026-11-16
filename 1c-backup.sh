@@ -15,6 +15,9 @@ CLCONF=/etc/1c-portal/1c-session-admin.conf
 RAC=${IC_RAC:-/opt/1cv8/x86_64/8.3.27.2342/rac}
 RAS=${IC_RAS:-127.0.0.1:1545}
 CLUSTER=${IC_CLUSTER:-e3220a07-7374-4fc0-b4fb-25ace3789930}
+# операции с конкретной инфобазой (infobase info) требуют администратора ИБ,
+# иначе 1С отвечает «Недостаточно прав» и имя базы PostgreSQL не определяется
+IBAUTH=(--infobase-user="${IC_ADMIN_USER:-}" --infobase-pwd="${IC_ADMIN_PWD:-}")
 
 mkdir -p /var/log "$(dirname "$STATUS")" 2>/dev/null
 
@@ -56,7 +59,17 @@ fi
 
 TARGET="$DIR"
 if [[ "$DIR" == //* ]]; then
-  UNC="$DIR"
+  # backup_dir = //server/share[/подкаталог]
+  # Монтируем КОРЕНЬ шары в $MOUNT, а дампы пишем в $MOUNT/<подкаталог>.
+  # Так путь для портала (/mnt/1cbackup/<подкаталог>) всегда одинаков,
+  # даже если раньше шара монтировалась напрямую в подкаталог.
+  rest="${DIR#//}"
+  SRV="${rest%%/*}"
+  tail="${rest#*/}"
+  SHARE="${tail%%/*}"
+  SUB="${tail#*/}"
+  [ "$SUB" = "$tail" ] && SUB=""
+  UNC="//$SRV/$SHARE"
   command -v mount.cifs >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get -y install cifs-utils >>"$LOG" 2>&1
   mkdir -p /etc/1c-backup "$MOUNT"
   chmod 700 /etc/1c-backup
@@ -68,7 +81,7 @@ if [[ "$DIR" == //* ]]; then
   mount -t cifs "$UNC" "$MOUNT" \
     -o "credentials=$SMB_CRED,vers=3.0,iocharset=utf8,uid=$UID_PG,gid=$GID_WWW,file_mode=0660,dir_mode=0770" \
     >>"$LOG" 2>&1 || log "ERROR: cannot mount $UNC"
-  TARGET="$MOUNT"
+  TARGET="$MOUNT${SUB:+/$SUB}"
 fi
 
 mkdir -p "$TARGET" 2>/dev/null
@@ -97,19 +110,51 @@ SKIP_FILE=/etc/1c-portal/backup-skip.txt
 if [ -f "$SKIP_FILE" ]; then
   SKIP="$SKIP $(grep -vE '^\s*#|^\s*$' "$SKIP_FILE" | tr '\n' ' ')"
 fi
-for NAME in $LIST; do
-  case " $SKIP " in *" $NAME "*) log "$NAME пропущена (песочница)"; continue;; esac
-  DB=$($RAC "$RAS" infobase info --cluster="$CLUSTER" --name="$NAME" \
-         --cluster-user="${IC_CLUSTER_USER:-}" --cluster-pwd="${IC_CLUSTER_PWD:-}" 2>/dev/null \
+# ---- определение базы PostgreSQL для инфобазы ----
+MAP=/etc/1c-portal/backup-map.txt
+resolve_db() {
+  local n="$1" db
+  db=$($RAC "$RAS" infobase info --cluster="$CLUSTER" --name="$n" \
+         --cluster-user="${IC_CLUSTER_USER:-}" --cluster-pwd="${IC_CLUSTER_PWD:-}" "${IBAUTH[@]}" 2>/dev/null \
        | awk -F' *: *' '/^db-name/{print $2; exit}')
-  # если прав на infobase info нет — берём соответствие из карты портала
-  if [ -z "$DB" ] && [ -f /etc/1c-portal/backup-map.txt ]; then
-    DB=$(awk -F= -v n="$NAME" '$1==n {print $2; exit}' /etc/1c-portal/backup-map.txt)
+  # 1С может не отдавать db-name (нет прав на ИБ) — берём карту портала
+  if [ -z "$db" ] && [ -f "$MAP" ]; then
+    db=$(awk -F= -v n="$n" '$1==n {print $2; exit}' "$MAP")
   fi
-  [ -n "$DB" ] || DB="$NAME"
+  printf '%s' "${db:-$n}"
+}
+
+db_exists() {
+  su -s /bin/bash postgres -c "psql -Atc \"select 1 from pg_database where datname='$1'\"" 2>/dev/null | grep -q 1
+}
+
+# --list: показать, что будет архивироваться, без создания дампов
+if [ "$MODE" = "list" ] || [ "$MODE" = "--list" ]; then
+  [ -n "${LIST_OVERRIDE:-}" ] && LIST="$LIST_OVERRIDE"
+  for NAME in $LIST; do
+    case "$NAME" in
+      sb_*) echo "  $NAME: ПРОПУСК (песочница по префиксу sb_)"; continue;;
+    esac
+    case " $SKIP " in
+      *" $NAME "*) echo "  $NAME: ПРОПУСК (песочница портала)"; continue;;
+    esac
+    DB=$(resolve_db "$NAME")
+    if ! db_exists "$DB"; then
+      echo "  $NAME: ПРОПУСК (нет базы $DB в PostgreSQL)"
+    else
+      echo "  $NAME: архивируется (база $DB) → $TARGET"
+    fi
+  done
+  exit 0
+fi
+
+for NAME in $LIST; do
+  # песочницы не архивируем: они всегда называются sb_<база>_<дата>
+  case "$NAME" in sb_*) log "$NAME пропущена (песочница)"; continue;; esac
+  case " $SKIP " in *" $NAME "*) log "$NAME пропущена (песочница)"; continue;; esac
+  DB=$(resolve_db "$NAME")
   # инфобаза могла остаться в кластере, а базы в PostgreSQL уже нет
-  # (например, удалённая песочница) — это не ошибка бэкапа, пропускаем
-  if ! su -s /bin/bash postgres -c "psql -Atc \"select 1 from pg_database where datname='$DB'\"" 2>/dev/null | grep -q 1; then
+  if ! db_exists "$DB"; then
     log "$NAME ($DB) пропущена: базы нет в PostgreSQL"
     continue
   fi
