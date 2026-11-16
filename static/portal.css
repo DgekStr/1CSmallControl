@@ -671,3 +671,31 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 }
 .denied-page .denied-text{max-width:44ch}
 .denied-page .muted.small{max-width:48ch}
+
+/* ===== статистика: компактные кнопки в одну линию ===== */
+.btn-sm,
+.button.btn-sm{
+  min-height:30px;
+  padding:5px 10px;
+  font-size:calc(11px*var(--fs));
+  gap:6px;
+}
+.btn-sm svg,
+.button.btn-sm svg{width:14px;height:14px}
+
+/* шапка статистики: три кнопки в строку, без переносов */
+.page-heading .heading-actions{gap:7px;flex-wrap:nowrap}
+.page-heading .heading-actions .button{
+  min-height:32px;
+  padding:6px 10px;
+  font-size:calc(11px*var(--fs));
+  gap:6px;
+}
+.page-heading .heading-actions .button svg{width:14px;height:14px}
+
+/* заголовок раздела с кнопкой справа */
+.section-heading-tight{margin:26px 0 10px}
+.section-heading-tight .section-title{margin:0}
+@media(max-width:760px){
+  .page-heading .heading-actions{flex-wrap:wrap}
+}
