@@ -108,12 +108,13 @@
           </a>
           <a class="button" href="{{ url_for('admin', tab='bases', refresh=1) }}"><i data-lucide="refresh-cw"></i>Обновить</a>
           <button class="button primary" data-open="dlg-base"><i data-lucide="plus"></i>Добавить базу</button>
+        <button class="button danger" type="button" data-open="dlg-kick-all"><i data-lucide="user-x"></i>Отключить всех</button>
         <button class="button danger" type="button" data-open="dlg-maint-now"><i data-lucide="zap"></i>Запустить работы сейчас</button>
         <button class="button" type="button" data-open="dlg-maint"><i data-lucide="wrench"></i>Регламентные работы</button>
         </div>
       </div>
       <div class="table-scroll">
-        <table class="data-table">
+        <table class="data-table bases-table">
           <thead><tr><th>Код</th><th>Название</th><th>Организация</th><th>Адрес</th><th>Статус</th><th>БД в кластере</th><th>Сейчас</th><th>Задания</th><th>Ускорение (все БД)</th><th></th></tr></thead>
           <tbody>
           {% for b in bases %}
@@ -806,10 +807,7 @@
           </tbody>
         </table>
       </div>
-      <div class="section-heading section-heading-tight">
-        <h2 class="section-title" id="stats-bases">По базам</h2>
-        <button class="button danger button-sm" type="button" data-open="dlg-kick-all"><i data-lucide="user-x"></i>Отключить всех</button>
-      </div>
+      <h2 class="section-title" id="stats-bases">По базам</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
           <thead><tr><th>База</th><th>Открытий</th><th>Пользователей</th></tr></thead>

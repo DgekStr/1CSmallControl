@@ -699,3 +699,9 @@ input,select,textarea{font-size:calc(13px*var(--fs))}
 @media(max-width:760px){
   .page-heading .heading-actions{flex-wrap:wrap}
 }
+
+/* таблица раздела «Базы»: 10 колонок — даём минимальную ширину,
+   чтобы блок иконок-действий не сжимался в вертикальную колонку */
+.bases-table{min-width:1560px}
+.bases-table .row-actions{flex-wrap:nowrap}
+.bases-table td:last-child{white-space:nowrap;width:1%}
