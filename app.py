@@ -565,11 +565,11 @@ def index():
         ORDER BY b.sort_order, b.title""", (session['uid'],)).fetchall()
     jobs = {}
     if rows:
-        slugs = tuple(b['slug'] for b in rows)
-        # счётчики сеансов через rac могут отвечать секундами — не блокируем страницу
-        info = _cached_swr('counts:' + ','.join(slugs), 60, 3600,
-                           lambda: _ib_session_counts(), wait=False) or {}
-        jobs = {k: v.get('jobs', 'off') for k, v in info.items()}
+        names = tuple((b['ib_name'] or b['db_name'] or b['slug']) for b in rows)
+        # считаем через 1c-sessions-count: он отдаёт и число сеансов, и режим заданий
+        info = _cached_swr('counts:' + ','.join(names), 60, 3600,
+                           lambda: _session_counts(list(names))) or {}
+        jobs = {k: (v or {}).get('jobs', 'off') for k, v in info.items()}
     pg_mode = _pg_mode_state()
     sizes = _base_sizes(rows) if rows else {}
     urow = db().execute("SELECT vpn_enabled, vpn_config FROM users WHERE id = ?",
@@ -1414,6 +1414,7 @@ def admin():
         # статистика живёт на отдельном маршруте — иначе не хватает её данных
         return redirect(url_for('admin_stats'))
     counts = {}
+    count_key = ''
     sizes = {}
     if tab == 'bases' and bases:
         try:
@@ -1421,9 +1422,12 @@ def admin():
         except Exception:  # noqa: BLE001
             sizes = {}
         _sync_cluster_state(bases)
-        slugs = tuple(b['slug'] for b in bases)
-        counts = _cached_swr('counts:' + ','.join(slugs), 120, 3600,
-                             lambda: _ib_session_counts(), wait=False)
+        names = tuple((b['ib_name'] or b['db_name'] or b['slug']) for b in bases)
+        count_key = 'counts:' + ','.join(names)
+        if request.args.get('refresh'):
+            _cache.pop(count_key, None)   # кнопка «Обновить» — свежие счётчики
+        counts = _cached_swr(count_key, 60, 3600,
+                             lambda: _session_counts(list(names))) or {}
     pg_mode = _pg_mode_state() if tab == 'bases' else 'off'
     sandboxes_all = _sandbox_active()
     _sizes_sb = _sb_sizes([s['slug'] for s in _sandbox_active()])
@@ -1460,7 +1464,7 @@ def admin():
                                "SELECT id, username, full_name FROM users "
                                "WHERE role = 'client' AND is_active = 1 ORDER BY username").fetchall(),
                            orphan_bases=orphan_bases,
-                           refreshed=_cache_stamp('counts:' + ','.join(slugs) if counts else ''))
+                           refreshed=_cache_stamp(count_key if counts else ''))
 
 
 def _pwd_ok(pwd):
