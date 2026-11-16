@@ -769,7 +769,7 @@
       <h2 class="section-title" id="stats-live">Подключения к 1С сейчас</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
-          <thead><tr><th>Пользователь</th><th>Клиент</th><th>База</th><th>Компьютер</th><th>Начало</th><th>Активность</th></tr></thead>
+          <thead><tr><th>Пользователь</th><th>Клиент</th><th>База</th><th>IP-адрес</th><th>Начало</th><th>Активность</th></tr></thead>
           <tbody>
           {% for s in stats_live %}
             <tr>
@@ -790,7 +790,7 @@
       <h2 class="section-title" id="stats-history">История подключений клиентов 1С</h2>
       <div class="table-scroll">
         <table class="data-table filterable">
-          <thead><tr><th>Пользователь</th><th>Клиент</th><th>База</th><th>Компьютер</th><th>Начало сеанса</th><th>Обновлено</th></tr></thead>
+          <thead><tr><th>Пользователь</th><th>Клиент</th><th>База</th><th>IP-адрес</th><th>Начало сеанса</th><th>Обновлено</th></tr></thead>
           <tbody>
           {% for c in stats_clients %}
             <tr>

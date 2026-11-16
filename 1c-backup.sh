@@ -107,6 +107,12 @@ for NAME in $LIST; do
     DB=$(awk -F= -v n="$NAME" '$1==n {print $2; exit}' /etc/1c-portal/backup-map.txt)
   fi
   [ -n "$DB" ] || DB="$NAME"
+  # инфобаза могла остаться в кластере, а базы в PostgreSQL уже нет
+  # (например, удалённая песочница) — это не ошибка бэкапа, пропускаем
+  if ! su -s /bin/bash postgres -c "psql -Atc \"select 1 from pg_database where datname='$DB'\"" 2>/dev/null | grep -q 1; then
+    log "$NAME ($DB) пропущена: базы нет в PostgreSQL"
+    continue
+  fi
   OUT="$TARGET/$NAME-$STAMP.dump"
   ionice -c3 nice -n 10 su -s /bin/bash postgres -c "pg_dump -Fc -d '$DB' -f '$OUT'" >>"$LOG" 2>&1
   if [ -s "$OUT" ]; then

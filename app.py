@@ -2083,7 +2083,11 @@ def admin_stats():
                SUM((julianday(COALESCE(v.ended_at, v.last_seen)) - julianday(v.started_at)) * 86400) AS seconds,
                MAX(v.started_at) AS last_login,
                MAX(COALESCE(v.ended_at, v.last_seen)) AS last_seen,
-               MAX(CASE WHEN v.ended_at IS NULL THEN 1 ELSE 0 END) AS online,
+               -- «в системе» только если визит не закрыт И был активен последние 15 минут:
+        -- при закрытии браузера без «выхода» ended_at остаётся NULL навсегда
+        MAX(CASE WHEN v.ended_at IS NULL
+                  AND v.last_seen >= datetime('now','localtime','-15 minutes')
+                 THEN 1 ELSE 0 END) AS online,
                COUNT(DISTINCT CASE WHEN v.ip <> '' THEN v.ip END) AS ips,
                (SELECT ip FROM visits v2 WHERE v2.username = v.username ORDER BY v2.id DESC LIMIT 1) AS last_ip
         FROM visits v
@@ -2099,8 +2103,18 @@ def admin_stats():
     except Exception:  # noqa: BLE001
         pass
     # base обязателен в выборке: без него история показывала «—»
+    # host у веб-клиента 1С пустой — подставляем IP из визитов портала
     client_history = db().execute("""
-        SELECT username, app, host, base, started_at, first_seen, last_seen
+        SELECT username, app,
+               COALESCE(NULLIF(host, ''),
+                        -- IP берём из визита портала, активного в момент старта сеанса:
+                        -- имена пользователей 1С («Евгений», «Бухгалтер») не совпадают
+                        -- с логинами портала, поэтому сопоставляем по времени
+                        (SELECT v.ip FROM visits v
+                          WHERE v.started_at <= client_sessions.started_at
+                            AND COALESCE(v.ended_at, v.last_seen) >= client_sessions.started_at
+                          ORDER BY v.last_seen DESC LIMIT 1), '') AS host,
+               base, started_at, first_seen, last_seen
         FROM client_sessions ORDER BY last_seen DESC LIMIT 150""").fetchall()
     # показываем привычный slug портала (dgek-db), а не имя инфобазы 1С (dgek_db)
     try:
@@ -2111,6 +2125,15 @@ def admin_stats():
                     _bmap[_k] = _b['slug']
         client_history = [dict(r, base=_bmap.get((r['base'] or '').strip(), r['base']))
                           for r in client_history]
+    except Exception:  # noqa: BLE001
+        pass
+
+    # закрываем визиты, которые остались открытыми (браузер закрыли без «выхода»)
+    try:
+        _c = db()
+        _c.execute("UPDATE visits SET ended_at = last_seen "
+                   "WHERE ended_at IS NULL AND last_seen < datetime('now','localtime','-15 minutes')")
+        _c.commit()
     except Exception:  # noqa: BLE001
         pass
 
@@ -2220,6 +2243,20 @@ def _sessions_snapshot():
                 raw = (r.get('base') or '').strip()
                 if raw and raw in canon:
                     r['base'] = canon[raw]
+            # host у веб-клиента пустой: берём IP из последнего визита пользователя
+            for r in rows:
+                if not (r.get('host') or '').strip():
+                    try:
+                        started = (r.get('started') or '').replace('T', ' ')[:19]
+                        v = db().execute(
+                            "SELECT ip FROM visits WHERE started_at <= ? "
+                            "AND COALESCE(ended_at, last_seen) >= ? "
+                            "ORDER BY last_seen DESC LIMIT 1",
+                            (started, started)).fetchone()
+                        if v and v['ip']:
+                            r['host'] = v['ip']
+                    except Exception:  # noqa: BLE001
+                        pass
         except Exception:  # noqa: BLE001
             pass
 
