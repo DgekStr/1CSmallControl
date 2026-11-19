@@ -7,7 +7,7 @@
   :root{
     --ink:#0f172a; --mut:#5b6577; --line:#e2e8f0; --line2:#eef2f7;
     --acc:#4f46e5; --acc-soft:#eef0ff; --ok:#15803d; --ok-soft:#e8f7ee;
-    --warn:#92400e; --warn-soft:#fff7e6; --panel:#ffffff;
+    --warn:#92400e; --warn-soft:#fff7e6; --panel:#ffffff; --bad:#b91c1c; --bad-soft:#fef2f2;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -20,29 +20,30 @@
   h1{font-size:20pt; line-height:1.15; margin:0 0 2mm; letter-spacing:-.4px}
   .sub{font-size:10pt; color:var(--mut); margin:0 0 4mm}
   h2{font-size:9pt; letter-spacing:.08em; text-transform:uppercase; color:var(--acc);
-     margin:3.6mm 0 2.2mm; padding-bottom:1.4mm; border-bottom:1px solid var(--line)}
+     margin:2.8mm 0 1.8mm; padding-bottom:1.4mm; border-bottom:1px solid var(--line)}
   h3{font-size:11pt; margin:3mm 0 1.5mm}
   p{margin:0 0 2mm}
   .callout{border-left:3px solid var(--acc); background:var(--acc-soft); border-radius:0 2mm 2mm 0;
            padding:3mm 4mm; margin:0 0 4mm; font-size:9.6pt}
   .callout b{color:var(--acc)}
-  table{width:100%; border-collapse:collapse; margin:1mm 0 3mm; font-size:9.2pt}
-  th{text-align:left; font-size:7.6pt; letter-spacing:.06em; text-transform:uppercase; color:var(--mut);
-     padding:1.6mm 2mm; border-bottom:1px solid var(--line); font-weight:600}
-  td{padding:1.7mm 2mm; border-bottom:1px solid var(--line2); vertical-align:top}
+  table{width:100%; border-collapse:collapse; margin:1mm 0 2.4mm; font-size:9pt}
+  th{text-align:left; font-size:7.4pt; letter-spacing:.06em; text-transform:uppercase; color:var(--mut);
+     padding:1.3mm 2mm; border-bottom:1px solid var(--line); font-weight:600}
+  td{padding:1.35mm 2mm; border-bottom:1px solid var(--line2); vertical-align:top}
   tr:last-child td{border-bottom:none}
   .num{text-align:right; white-space:nowrap}
   .b{font-weight:650}
+  .win{color:var(--ok); font-weight:700}
+  .lose{color:var(--mut)}
   .tag{display:inline-block; padding:.3mm 1.8mm; border-radius:20mm; font-size:7.4pt; font-weight:700;
        letter-spacing:.02em; white-space:nowrap}
   .tag.req{background:var(--ok-soft); color:var(--ok)}
   .tag.rec{background:var(--acc-soft); color:var(--acc)}
   .tag.opt{background:var(--warn-soft); color:var(--warn)}
   .tag.have{background:#f1f5f9; color:#475569}
-  .cards{display:grid; grid-template-columns:1fr 1fr; gap:3mm; margin:2mm 0 3mm}
-  .card{border:1px solid var(--line); border-radius:2.4mm; padding:3mm 3.6mm; background:var(--panel)}
-  .card .k{font-size:14pt; font-weight:800; color:var(--acc); letter-spacing:-.3px; margin-bottom:.6mm}
-  .card .t{font-size:8.2pt; color:var(--mut); line-height:1.35}
+  .note{background:#f8fafc; border:1px solid var(--line); border-radius:2.2mm; padding:2.2mm 3.4mm;
+        font-size:8.8pt; color:#334155; margin:2mm 0}
+  .note b{color:var(--ink)}
   .bars{margin:2mm 0 3mm}
   .barrow{display:grid; grid-template-columns:52mm 1fr; gap:3mm; align-items:center; margin-bottom:1.5mm; font-size:9pt}
   .barrow .lbl{color:var(--mut)}
@@ -52,15 +53,12 @@
         color:#fff; font-size:7.8pt; font-weight:700; padding-right:2mm; white-space:nowrap}
   .fill.acc{background:linear-gradient(90deg,#6366f1,#4f46e5)}
   .fill.ok{background:linear-gradient(90deg,#22c55e,#15803d)}
-  .note{background:#f8fafc; border:1px solid var(--line); border-radius:2.2mm; padding:2.6mm 3.6mm;
-        font-size:8.8pt; color:#334155; margin:2mm 0}
-  .note b{color:var(--ink)}
   .foot{margin-top:auto; padding-top:2.5mm; border-top:1px solid var(--line);
         display:flex; justify-content:space-between; font-size:7.8pt; color:var(--mut)}
   .budget{display:flex; gap:3mm; margin:2mm 0 1mm}
   .budget > div{flex:1; border:1px solid var(--line); border-radius:2.4mm; padding:3mm 3.6mm}
   .budget .k{font-size:8pt; color:var(--mut); text-transform:uppercase; letter-spacing:.05em}
-  .budget .v{font-size:15pt; font-weight:800; color:var(--ok); letter-spacing:-.3px}
+  .budget .v{font-size:14pt; font-weight:800; color:var(--ok); letter-spacing:-.3px}
   .budget .v.warn{color:var(--warn)}
   ul{margin:0 0 2mm; padding-left:4.6mm}
   li{margin:0 0 .7mm; font-size:9.1pt}
@@ -79,9 +77,9 @@
   <p class="sub">Предложение под готовую сборку <b>AMD Ryzen 9 3900X + MSI B450 Tomahawk Max</b>. Ноябрь 2026.</p>
 
   <div class="callout">
-    <b>Что изменилось:</b> процессор, материнская плата, 32 ГБ памяти, системный SSD, HDD и блок питания
-    <b>уже есть</b> — покупать их не нужно. Покупаем только диски под базы 1С, адаптер и (желательно) ещё 32 ГБ памяти.
-    <b>Старые серверы не трогаем</b> — они продолжают работать как есть.
+    <b>Сравнение с плановой сборкой:</b> вместо i7-10700K (8/16, LGA1200) ставим <b>Ryzen 9 3900X</b> (12/24) —
+    он уже есть, быстрее в многопоточных задачах и не требует покупки процессора, платы и памяти.
+    Покупаем только диски под базы 1С, адаптер и, желательно, ещё 32 ГБ памяти.
   </div>
 
   <h2>1. Текущее состояние (эталон)</h2>
@@ -95,21 +93,25 @@
     <tr><td class="b">Режим работы</td><td>файловые базы + RDP</td><td>3–5 пользователей с очередями</td></tr>
   </table>
 
-  <h2>2. Что уже есть — покупать не нужно</h2>
+  <h2>2. Сравнение: Ryzen 9 3900X и Intel i7-10700K</h2>
   <table>
-    <tr><th>Компонент</th><th>Модель</th><th>Роль</th><th>Статус</th></tr>
-    <tr><td class="b">Процессор</td><td>AMD Ryzen 9 3900X — 12 ядер / 24 потока, 3,8–4,6 ГГц</td><td>сервер 1С + PostgreSQL</td><td><span class="tag have">есть</span></td></tr>
-    <tr><td class="b">Плата</td><td>MSI B450 Tomahawk Max (AM4, 4×DDR4, 1×M.2, 6×SATA, 1×PCIe 3.0 ×16 + 1×PCIe 2.0 ×4)</td><td>основа узла Proxmox</td><td><span class="tag have">есть</span></td></tr>
-    <tr><td class="b">Память</td><td>32 ГБ DDR4-3200 (2 планки)</td><td>—</td><td><span class="tag have">есть</span></td></tr>
-    <tr><td class="b">Системный диск</td><td>Patriot Burst 480 ГБ (SATA)</td><td>Proxmox + ISO + снапшоты</td><td><span class="tag have">есть</span></td></tr>
-    <tr><td class="b">Архив</td><td>HDD 1 ТБ</td><td>вторая копия бэкапов</td><td><span class="tag have">есть</span></td></tr>
-    <tr><td class="b">Блок питания</td><td>850 Вт</td><td>запас ×2 к расчётным ~350 Вт</td><td><span class="tag have">есть</span></td></tr>
+    <tr><th>Параметр</th><th>Ryzen 9 3900X (ставим)</th><th>i7-10700K (плановый)</th><th>Для 1С</th></tr>
+    <tr><td class="b">Ядра / потоки</td><td class="win">12 / 24</td><td>8 / 16</td><td>больше параллельных сеансов и фоновых заданий</td></tr>
+    <tr><td class="b">База / буст</td><td>3,8 / 4,6 ГГц</td><td class="win">3,8 / 5,1 ГГц</td><td>у i7 выше пиковая частота</td></tr>
+    <tr><td class="b">Однопоток (CB R20)</td><td>~505–520</td><td class="win">~520–540</td><td>паритет, разница 2–3 %</td></tr>
+    <tr><td class="b">Многопоток (CB R20)</td><td class="win">~7 100–7 200</td><td>~5 300–5 500</td><td>+30–35 % у Ryzen</td></tr>
+    <tr><td class="b">TDP</td><td class="win">105 Вт</td><td>125 Вт</td><td>холоднее и тише</td></tr>
+    <tr><td class="b">Сокет / плата</td><td>AM4, MSI B450 (есть)</td><td>LGA1200, H510M (покупать)</td><td>Ryzen не требует покупки платы</td></tr>
+    <tr><td class="b">Слоты памяти</td><td class="win">4 (до 128 ГБ)</td><td>2 (до 64 ГБ)</td><td>запас на будущее</td></tr>
+    <tr><td class="b">Видеоядро</td><td>нет (нужна видеокарта для установки)</td><td class="win">есть (UHD 630)</td><td>разовая неудобность</td></tr>
+    <tr><td class="b">Стоимость процессора и платы</td><td class="win">0 ₽ — уже есть</td><td>~40 000–50 000 ₽</td><td>экономия</td></tr>
   </table>
 
   <div class="note">
-    <b>Почему 3900X достаточно для 5–10 пользователей:</b> 12 ядер и 24 потока против 4/8 у текущего Xeon,
-    однопоточная скорость выше в 4–5 раз, многопоточная — примерно в 10 раз.
-    У плановой i7-10700K (8/16) однопоток такой же, а многопоток на треть ниже.
+    <b>Вывод:</b> для 5–10 пользователей 1С важнее однопоточная скорость и диск, а не число ядер.
+    По одному потоку Ryzen 9 3900X практически не уступает i7-10700K (2–3 %), зато на треть быстрее
+    в многопоточных задачах (PostgreSQL, регламентные задания, несколько баз), холоднее и уже имеется.
+    Покупать i7-10700K + H510M смысла нет.
   </div>
 
   <div class="foot"><span>Сервер 1С · предложение под Ryzen 9 3900X</span><span>Страница 1 из 4</span></div>
@@ -117,21 +119,30 @@
 
 <!-- ========== стр. 2 ========== -->
 <section class="page">
-  <h2>3. Что докупаем — точные модели</h2>
+  <h2>3. Что уже есть — покупать не нужно</h2>
+  <table>
+    <tr><th>Компонент</th><th>Модель</th><th>Роль</th><th>Статус</th></tr>
+    <tr><td class="b">Процессор</td><td>AMD Ryzen 9 3900X — 12 ядер / 24 потока, 3,8–4,6 ГГц</td><td>сервер 1С + PostgreSQL</td><td><span class="tag have">есть</span></td></tr>
+    <tr><td class="b">Плата</td><td>MSI B450 Tomahawk Max (AM4, 4×DDR4, 1×M.2, 6×SATA, PCIe 3.0 ×16 + PCIe 2.0 ×4)</td><td>основа узла Proxmox</td><td><span class="tag have">есть</span></td></tr>
+    <tr><td class="b">Память</td><td>32 ГБ DDR4-3200 (2 планки)</td><td>—</td><td><span class="tag have">есть</span></td></tr>
+    <tr><td class="b">Системный диск</td><td>Patriot Burst 480 ГБ (SATA)</td><td>Proxmox + ISO + снапшоты</td><td><span class="tag have">есть</span></td></tr>
+    <tr><td class="b">Архив</td><td>HDD 1 ТБ</td><td>вторая копия бэкапов</td><td><span class="tag have">есть</span></td></tr>
+    <tr><td class="b">Блок питания</td><td>850 Вт</td><td>запас ×2 к расчётным ~350 Вт</td><td><span class="tag have">есть</span></td></tr>
+  </table>
+
+  <h2>4. Что докупаем — точные модели</h2>
   <table>
     <tr><th>Позиция</th><th>Точная модель / артикул</th><th>Зачем</th><th class="num">Цена, ₽</th><th>Приоритет</th></tr>
     <tr>
       <td class="b">NVMe под базы</td>
-      <td><b>Samsung 970 EVO Plus 1 ТБ</b> — <code>MZ-V7S1T0BW</code><br>
-          M.2 2280, PCIe 3.0 ×4, DRAM-кэш, 600 TBW</td>
+      <td><b>Samsung 970 EVO Plus 1 ТБ</b> — <code>MZ-V7S1T0BW</code><br>M.2 2280, PCIe 3.0 ×4, DRAM-кэш, 600 TBW</td>
       <td>PostgreSQL на NVMe: IOPS в 5–10 раз выше SATA</td>
       <td class="num">11 000–14 000</td>
       <td><span class="tag req">обязательно</span></td>
     </tr>
     <tr>
       <td class="b">NVMe под «горячий клон»</td>
-      <td><b>Samsung 970 EVO Plus 1 ТБ</b> — <code>MZ-V7S1T0BW</code><br>
-          (альтернатива: <b>WD Black SN770 1 ТБ</b> — <code>WDS100T3X0E</code>)</td>
+      <td><b>Samsung 970 EVO Plus 1 ТБ</b> — <code>MZ-V7S1T0BW</code><br>(альтернатива: <b>WD Black SN770 1 ТБ</b> — <code>WDS100T3X0E</code>)</td>
       <td>живая реплика/миррор базы — быстрый откат и защита от отказа диска</td>
       <td class="num">10 000–13 000</td>
       <td><span class="tag req">обязательно</span></td>
@@ -145,8 +156,7 @@
     </tr>
     <tr>
       <td class="b">Память +32 ГБ</td>
-      <td><b>G.Skill Ripjaws V F4-3200C16D-32GVK</b> — 2×16 ГБ DDR4-3200 CL16<br>
-          (тот же комплект, что уже стоит — для стабильной работы 4 планок)</td>
+      <td><b>G.Skill Ripjaws V F4-3200C16D-32GVK</b> — 2×16 ГБ DDR4-3200 CL16<br>(тот же комплект, что уже стоит — для 4 планок)</td>
       <td>итого 64 ГБ: кэш PostgreSQL + ZFS ARC + память ВМ 1С</td>
       <td class="num">8 000–12 000</td>
       <td><span class="tag rec">желательно</span></td>
@@ -154,14 +164,14 @@
     <tr>
       <td class="b">Видеокарта</td>
       <td>любая простая: <b>NVIDIA GT 710</b> или б/у PCIe</td>
-      <td>у 3900X нет встроенного видео — нужна для установки Proxmox</td>
+      <td>у 3900X нет видео — нужна для установки Proxmox</td>
       <td class="num">1 500–3 000</td>
       <td><span class="tag opt">разово</span></td>
     </tr>
     <tr>
       <td class="b">Кулер</td>
-      <td>если 3900X в версии OEM — <b>DeepCool AK400</b> или be quiet! Pure Rock 2</td>
-      <td>охлаждение 105 Вт; в box-версии Wraith Prism уже в комплекте</td>
+      <td>если 3900X в версии OEM — <b>DeepCool AK400</b></td>
+      <td>охлаждение 105 Вт; в box-версии Wraith Prism в комплекте</td>
       <td class="num">2 500–3 500</td>
       <td><span class="tag opt">проверить</span></td>
     </tr>
@@ -175,16 +185,8 @@
 
   <div class="note">
     <b>32 ГБ хватает, 64 ГБ — желательно.</b> На 5–10 пользователей 32 ГБ работают: ВМ 1С ~16 ГБ,
-    ZFS ARC ~8 ГБ, остальное — Proxmox. Но с 64 ГБ горячая часть базы целиком живёт в кэше PostgreSQL,
-    меньше дисковых обращений — формы открываются быстрее, обновления конфигурации короче.
-    Память докупается в любой момент: 4 слота на плате, апгрейд не требует переустановки.
-  </div>
-
-  <div class="note">
-    <b>Почему именно Samsung 970 EVO Plus:</b> у него есть DRAM-кэш — на случайных записях PostgreSQL это даёт
-    меньше просадок, чем у безкэшных NVMe; ресурс 600 TBW, проверенная совместимость с M.2 на B450 (PCIe 3.0 ×4).
-    <b>WD Black SN770</b> — допустимая альтернатива: дешевле и быстрее по шине, но без DRAM-кэша.
-    Системный Patriot Burst 480 ГБ оставляем под Proxmox — для базы 1С он не подходит (нет DRAM, меньше ресурс).
+    ZFS ARC ~8 ГБ, остальное — Proxmox. С 64 ГБ горячая часть базы целиком в кэше PostgreSQL — меньше
+    дисковых обращений, быстрее формы и обновления. Память докупается в любой момент: на плате 4 слота.
   </div>
 
   <div class="foot"><span>Цены ориентировочные (рынок РФ, ноябрь 2026)</span><span>Страница 2 из 4</span></div>
@@ -192,7 +194,7 @@
 
 <!-- ========== стр. 3 ========== -->
 <section class="page">
-  <h2>4. Схема дисков</h2>
+  <h2>5. Схема дисков</h2>
   <table>
     <tr><th>Слот</th><th>Диск (модель)</th><th>Назначение</th><th>Скорость</th></tr>
     <tr><td class="b">M.2 на плате</td><td><b>Samsung 970 EVO Plus 1 ТБ</b> (MZ-V7S1T0BW)</td><td><b>Базы 1С / PostgreSQL</b></td><td>PCIe 3.0 ×4, до 3 500 МБ/с</td></tr>
@@ -205,9 +207,11 @@
     <b>Почему два одинаковых NVMe:</b> одинаковые модели дают одинаковую производительность и ресурс,
     их можно поставить в ZFS-миррор без «слабого звена». Если миррор не нужен — второй диск используется
     как приёмник репликации (<code>zfs send</code>/<code>pvesr</code> каждые 15 минут).
+    <b>Почему Samsung 970 EVO Plus:</b> DRAM-кэш — меньше просадок на случайных записях PostgreSQL;
+    ресурс 600 TBW; проверенная совместимость с M.2 на B450. WD SN770 — дешевле, но без DRAM.
   </div>
 
-  <h2>5. Зачем «горячий клон»</h2>
+  <h2>6. Зачем «горячий клон»</h2>
   <div class="two">
     <div>
       <h3>Вариант А — ZFS-миррор (рекомендую)</h3>
@@ -230,11 +234,11 @@
 
   <div class="note">
     <b>Резервное копирование — три уровня:</b> NVMe-миррор (отказ диска) → ежедневные дампы PostgreSQL
-    в <code>backup_dir</code> (ошибки, порча данных) → HDD 1 ТБ и сетевое хранилище 192.168.0.20
-    (пожар/затопление). Старые серверы при этом не выключаются и остаются рабочей копией на время переезда.
+    в <code>backup_dir</code> → HDD 1 ТБ и сетевое хранилище 192.168.0.20 (пожар/затопление).
+    Старые серверы не выключаются и остаются рабочей копией на время переезда.
   </div>
 
-  <h2>6. Питание и корпус</h2>
+  <h2>7. Питание и корпус</h2>
   <table>
     <tr><th>Параметр</th><th>Значение</th><th>Комментарий</th></tr>
     <tr><td class="b">БП</td><td>850 Вт (есть)</td><td>запас ×2 к расчётным ~350 Вт</td></tr>
@@ -243,12 +247,12 @@
     <tr><td class="b">ИБП</td><td>желателен</td><td>защита от пропадания питания</td></tr>
   </table>
 
-    <div class="foot"><span>Сервер 1С · схема хранения</span><span>Страница 3 из 4</span></div>
+  <div class="foot"><span>Сервер 1С · схема хранения</span><span>Страница 3 из 4</span></div>
 </section>
 
 <!-- ========== стр. 4 ========== -->
 <section class="page">
-  <h2>7. Прирост скорости</h2>
+  <h2>8. Прирост скорости</h2>
   <table>
     <tr><th>Операция</th><th>Сейчас (файловые + RDP)</th><th>После (PostgreSQL + NVMe)</th><th>Прирост</th></tr>
     <tr><td>Обновление конфигурации</td><td>~6 часов</td><td class="b">~2 часа</td><td>×3</td></tr>
@@ -273,28 +277,18 @@
       <div class="track"><div class="fill ok" style="width:95%">NVMe — ×5–10</div></div></div>
   </div>
 
-  <h2>8. Итог</h2>
+  <h2>9. Итог и чек-лист</h2>
   <div class="budget">
     <div><div class="k">Обязательный минимум</div><div class="v">24 000–31 000 ₽</div></div>
     <div><div class="k">С памятью 64 ГБ</div><div class="v">32 000–43 000 ₽</div></div>
   </div>
   <ul>
-    <li><b>Обязательно закупаем:</b> NVMe 1 ТБ Samsung 970 EVO Plus (под базы), второй NVMe 1 ТБ (под клон), адаптер GLOTRENDS PA19.</li>
-    <li><b>Желательно:</b> +32 ГБ памяти (G.Skill Ripjaws V F4-3200C16D-32GVK) — доводим до 64 ГБ.</li>
-    <li><b>Разово:</b> видеокарта для установки Proxmox (потом можно вынуть).</li>
-    <li><b>Проверить:</b> кулер (box/OEM), BIOS B450, memtest на 4×16 ГБ.</li>
+    <li><b>Обязательно:</b> NVMe 970 EVO Plus 1 ТБ (под базы), второй NVMe 1 ТБ (под клон), адаптер GLOTRENDS PA19.</li>
+    <li><b>Желательно:</b> +32 ГБ (G.Skill Ripjaws V F4-3200C16D-32GVK) — доводим до 64 ГБ.</li>
+    <li><b>Разово:</b> видеокарта для установки Proxmox; кулер — если 3900X OEM.</li>
+    <li><b>Проверить:</b> BIOS B450 (XMP/3200 или 2933), memtest на 4×16 ГБ, SMART дисков.</li>
     <li><b>Не трогаем:</b> pve, pve2, pve3 — работают как раньше; новый узел вводим отдельно.</li>
-  </ul>
-
-  <h2>9. Чек-лист перед стартом</h2>
-  <ul>
-    <li>NVMe 970 EVO Plus 1 ТБ установлен в M.2, второй — через PA19 в x16</li>
-    <li>Память расширена до 64 ГБ (или оставлена 32 ГБ — работает), memtest пройден</li>
-    <li>BIOS B450 обновлён, XMP/3200 (или 2933) выставлен</li>
-    <li>Видеокарта подключена для установки Proxmox 8.4</li>
-    <li>SMART всех дисков снят, ошибок нет</li>
-    <li>Снапшот/бэкап текущей 1С сделан до переезда</li>
-    <li>Окно переезда согласовано, старые серверы в резерве</li>
+    <li>Окно переезда согласовано, бэкап текущей 1С сделан, откат возможен.</li>
   </ul>
 
   <div class="note">
