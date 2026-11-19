@@ -49,21 +49,23 @@ for path in sorted(glob.glob('/etc/usbhaspd/keys/*.json')):
 # --- занято: клиентские сеансы ---
 used = 0
 try:
-    # cluster list не принимает флаги авторизации — вызываем без них
-    clusters = subprocess.run(rac + [ras, 'cluster', 'list'],
-                              capture_output=True, text=True, timeout=20).stdout
-    uuid = ''
-    for line in clusters.splitlines():
-        if line.strip().startswith('cluster') and ':' in line:
-            uuid = line.split(':', 1)[1].strip()
-            break
+    # uuid кластера берём из конфига: `rac cluster list` без авторизации
+    # зависает на 20-25 секунд (и это тормозило страницу статистики)
+    uuid = (os.environ.get('IC_CLUSTER') or '').strip()
+    if not uuid:
+        clusters = subprocess.run(rac + [ras, 'cluster', 'list'],
+                                  capture_output=True, text=True, timeout=3).stdout
+        for line in clusters.splitlines():
+            if line.strip().startswith('cluster') and ':' in line:
+                uuid = line.split(':', 1)[1].strip()
+                break
     if uuid:
         cmd = rac + [ras, 'session', 'list', '--cluster', uuid]
         if os.environ.get('IC_CLUSTER_USER'):
             cmd += ['--cluster-user', os.environ['IC_CLUSTER_USER']]
         if os.environ.get('IC_CLUSTER_PWD'):
             cmd += ['--cluster-pwd', os.environ['IC_CLUSTER_PWD']]
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=20).stdout
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
         apps = [l.split(':', 1)[1].strip() for l in out.splitlines() if l.strip().startswith('app-id')]
         used = sum(1 for a in apps if a in ('WebClient', '1CV8', '1CV8C', 'Designer', 'COMConnection'))
 except Exception:

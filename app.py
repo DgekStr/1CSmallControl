@@ -1355,7 +1355,7 @@ def _licenses():
     """Занято/всего клиентских лицензий 1С (ключи HASP + активные сеансы)."""
     try:
         proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-licenses'],
-                              capture_output=True, text=True, timeout=30)
+                              capture_output=True, text=True, timeout=10)
         parts = (proc.stdout or '').split()
         if len(parts) >= 4:
             return {'used': int(parts[0]), 'total': int(parts[1]),
@@ -2214,7 +2214,7 @@ def _sessions_snapshot():
     """Текущие сеансы 1С + запись их в историю (client_sessions)."""
     try:
         proc = subprocess.run(['sudo', '-n', '/usr/local/bin/1c-sessions-list'],
-                              capture_output=True, text=True, timeout=30)
+                              capture_output=True, text=True, timeout=15)
     except Exception:  # noqa: BLE001
         return []
     rows = []
