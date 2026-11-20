@@ -1756,7 +1756,7 @@ def _vpn_install_cmd(conf_name):
 
 def _vpn_install_readme(username):
     return (
-        '\u041f\u0430\u043a\u0435\u0442 \u00ab1\u0421 + WireGuard\u00bb \u0434\u043b\u044f %s\r\n'
+        '\u041f\u0430\u043a\u0435\u0442 \u00ab1\u0421 + WireGuard\u00bb \u0434\u043b\u044f {user}\r\n'
         '\r\n'
         '\u0427\u0442\u043e \u0432\u043d\u0443\u0442\u0440\u0438:\r\n'
         '  wireguard-amd64-1.1.1.msi  \u2014 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0449\u0438\u043a WireGuard (64-\u0431\u0438\u0442)\r\n'
@@ -1784,7 +1784,7 @@ def _vpn_install_readme(username):
         '  \u2022 \u0438\u043b\u0438 PowerShell: Unblock-File .\\\u0438\u043c\u044f.zip\r\n'
         '\r\n'
         '\u041b\u043e\u0433 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0438 (\u0435\u0441\u043b\u0438 \u0447\u0442\u043e-\u0442\u043e \u043f\u043e\u0448\u043b\u043e \u043d\u0435 \u0442\u0430\u043a): %TEMP%\\wireguard-install.log\r\n'
-    ) % username
+    ).replace('{user}', username)
 
 
 @app.route('/vpn/installer')
