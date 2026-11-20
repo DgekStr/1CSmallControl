@@ -1710,12 +1710,12 @@ Write-Output ('Config registered: ' + $target)
 
 
 def _vpn_install_cmd(conf_name):
-    """install.cmd: установка WireGuard, импорт и запуск туннеля.
+    """install.cmd: установка WireGuard и добавление конфига в список GUI.
 
-    - если WireGuard уже стоит, MSI не трогаем (иначе 1602 от LaunchApplicationAndAbort);
-    - msiexec запускаем через `start /wait` и с DO_NOT_LAUNCH=1, чтобы GUI не открылся
-      раньше импорта (иначе список туннелей пустой до перезапуска);
-    - после импорта запускаем службу туннеля и только потом показываем GUI.
+    Службу туннеля через /installtunnelservice НЕ создаём: иначе GUI считает
+    туннель «службой» и после отключения не может его включить/удалить
+    («The specified service does not exist»). Просто кладём .conf.dpapi —
+    дальше пользователь включает туннель переключателем в GUI.
     """
     tunnel = conf_name[:-5] if conf_name.endswith('.conf') else conf_name
     lines = [
@@ -1749,17 +1749,15 @@ def _vpn_install_cmd(conf_name):
         'if not exist "%WG%" set "WG=%ProgramFiles(x86)%\\WireGuard\\wireguard.exe"',
         'if exist "%WG%" goto wg_ready',
         '',
-        'if "%RC%"=="1602" (',
-        '  echo MSI returned 1602: install was cancelled or the product is already present.',
-        ') else (',
-        '  echo MSI install failed ^(code %RC%^).',
-        ')',
+        'echo MSI install failed ^(code %RC%^).',
         'echo Log: %TEMP%\\wireguard-install.log',
-        'echo Try running this file as administrator.',
         'pause',
         'exit /b 1',
         '',
         ':wg_ready',
+        'echo Removing old service tunnel, if any...',
+        '"%WG%" /uninstalltunnelservice TUNNELNAME >nul 2>&1',
+        '',
         'echo Registering configuration...',
         'powershell -NoProfile -ExecutionPolicy Bypass -File "%HERE%import.ps1" "%HERE%CONFNAME" TUNNELNAME',
         'if errorlevel 1 (',
@@ -1768,23 +1766,11 @@ def _vpn_install_cmd(conf_name):
         '  exit /b 1',
         ')',
         '',
-        'echo Importing tunnel configuration...',
-        '"%WG%" /installtunnelservice "%HERE%CONFNAME"',
-        'set "RC=%ERRORLEVEL%"',
-        'if not "%RC%"=="0" (',
-        '  echo Tunnel import failed ^(code %RC%^).',
-        '  pause',
-        '  exit /b 1',
-        ')',
-        '',
-        'echo Starting tunnel...',
-        'net start "WireGuardTunnel$TUNNELNAME" >nul 2>&1',
         'del "%HERE%CONFNAME" >nul 2>&1',
-        '',
         'echo Opening WireGuard...',
         'start "" "%WG%"',
         'echo.',
-        'echo Done. Tunnel TUNNELNAME is installed and started.',
+        'echo Done. Tunnel "TUNNELNAME" is in the list - turn it on with the switch.',
         'pause',
     ]
     text = ('\r\n'.join(lines)
@@ -1794,36 +1780,35 @@ def _vpn_install_cmd(conf_name):
 
 
 def _vpn_install_readme(username):
-    return (
+    """README.txt для пакета: краткая инструкция на русском."""
+    text = (
         '\u041f\u0430\u043a\u0435\u0442 \u00ab1\u0421 + WireGuard\u00bb \u0434\u043b\u044f {user}\r\n'
         '\r\n'
         '\u0427\u0442\u043e \u0432\u043d\u0443\u0442\u0440\u0438:\r\n'
         '  wireguard-amd64-1.1.1.msi  \u2014 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0449\u0438\u043a WireGuard (64-\u0431\u0438\u0442)\r\n'
         '  wireguard-x86-1.1.1.msi    \u2014 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0449\u0438\u043a WireGuard (32-\u0431\u0438\u0442)\r\n'
         '  <\u0438\u043c\u044f>-wireguard.conf      \u2014 \u0432\u0430\u0448\u0430 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u044c\u043d\u0430\u044f \u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044f\r\n'
-        '  install.cmd                \u2014 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442 WireGuard \u0438 \u0438\u043c\u043f\u043e\u0440\u0442\u0438\u0440\u0443\u0435\u0442 \u0442\u0443\u043d\u043d\u0435\u043b\u044c\r\n'
+        '  install.cmd                \u2014 \u0443\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442 WireGuard \u0438 \u0434\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u0442 \u0442\u0443\u043d\u043d\u0435\u043b\u044c \u0432 \u0441\u043f\u0438\u0441\u043e\u043a\r\n'
+        '  import.ps1                 \u2014 \u0441\u043b\u0443\u0436\u0435\u0431\u043d\u044b\u0439 \u0441\u043a\u0440\u0438\u043f\u0442 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438\r\n'
         '\r\n'
         '\u041a\u0430\u043a \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c (Windows):\r\n'
         '  1. \u0420\u0430\u0441\u043f\u0430\u043a\u0443\u0439\u0442\u0435 \u0430\u0440\u0445\u0438\u0432 \u0432 \u043b\u044e\u0431\u0443\u044e \u043f\u0430\u043f\u043a\u0443.\r\n'
         '  2. \u041d\u0430\u0436\u043c\u0438\u0442\u0435 install.cmd \u043f\u0440\u0430\u0432\u043e\u0439 \u043a\u043d\u043e\u043f\u043a\u043e\u0439 \u2192 \u00ab\u0417\u0430\u043f\u0443\u0441\u043a \u043e\u0442 \u0438\u043c\u0435\u043d\u0438 \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430\u00bb.\r\n'
-        '  3. \u0414\u043e\u0436\u0434\u0438\u0442\u0435\u0441\u044c \u043d\u0430\u0434\u043f\u0438\u0441\u0438 Done \u0438 \u0432\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0442\u0443\u043d\u043d\u0435\u043b\u044c \u0432 WireGuard.\r\n'
-        '\r\n'
-        '\u0412\u0440\u0443\u0447\u043d\u0443\u044e:\r\n'
-        '  \u2022 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c MSI;\r\n'
-        '  \u2022 \u043e\u0442\u043a\u0440\u044b\u0442\u044c WireGuard \u2192 \u00ab\u0418\u043c\u043f\u043e\u0440\u0442 \u0442\u0443\u043d\u043d\u0435\u043b\u044f \u0438\u0437 \u0444\u0430\u0439\u043b\u0430\u00bb \u2192 \u0432\u044b\u0431\u0440\u0430\u0442\u044c .conf;\r\n'
-        '  \u2022 \u0432\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0442\u0443\u043d\u043d\u0435\u043b\u044c.\r\n'
+        '  3. \u0414\u043e\u0436\u0434\u0438\u0442\u0435\u0441\u044c \u043d\u0430\u0434\u043f\u0438\u0441\u0438 Done \u2014 \u0442\u0443\u043d\u043d\u0435\u043b\u044c \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0432 \u0441\u043f\u0438\u0441\u043a\u0435 WireGuard.\r\n'
+        '  4. \u0412\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0435\u0433\u043e \u043f\u0435\u0440\u0435\u043a\u043b\u044e\u0447\u0430\u0442\u0435\u043b\u0435\u043c \u0432 WireGuard.\r\n'
         '\r\n'
         '\u0412\u0430\u0436\u043d\u043e:\r\n'
         '  \u2022 \u0444\u0430\u0439\u043b .conf \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u0442 \u0432\u0430\u0448 \u043f\u0440\u0438\u0432\u0430\u0442\u043d\u044b\u0439 \u043a\u043b\u044e\u0447 \u2014 \u043d\u0438\u043a\u043e\u043c\u0443 \u043d\u0435 \u043f\u0435\u0440\u0435\u0434\u0430\u0432\u0430\u0439\u0442\u0435;\r\n'
-        '  \u2022 install.cmd \u0443\u0434\u0430\u043b\u044f\u0435\u0442 .conf \u043f\u043e\u0441\u043b\u0435 \u0438\u043c\u043f\u043e\u0440\u0442\u0430;\r\n'
+        '  \u2022 install.cmd \u0443\u0434\u0430\u043b\u044f\u0435\u0442 .conf \u043f\u043e\u0441\u043b\u0435 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438;\r\n'
         '  \u2022 \u0442\u0443\u043d\u043d\u0435\u043b\u044c \u043d\u0443\u0436\u0435\u043d \u043f\u0440\u0438 \u043a\u0430\u0436\u0434\u043e\u043c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438 \u043a 1\u0421.\r\n'
         '\r\n'
         '\u0415\u0441\u043b\u0438 Windows \u0431\u043b\u043e\u043a\u0438\u0440\u0443\u0435\u0442 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0443 \u0438\u0437 \u0430\u0440\u0445\u0438\u0432\u0430:\r\n'
-        '  \u2022 \u043f\u0440\u0430\u0432\u043e\u0439 \u043a\u043d\u043e\u043f\u043a\u043e\u0439 \u043f\u043e ZIP \u2192 \u0421\u0432\u043e\u0439\u0441\u0442\u0432\u0430 \u2192 \u00ab\u0420\u0430\u0437\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u0442\u044c\u00bb (\u0434\u043e \u0440\u0430\u0441\u043f\u0430\u043a\u043e\u0432\u043a\u0438);\r\n'
+        '  \u2022 \u043f\u0440\u0430\u0432\u043e\u0439 \u043a\u043d\u043e\u043f\u043a\u043e\u0439 \u043f\u043e ZIP \u2192 \u0421\u0432\u043e\u0439\u0441\u0442\u0432\u0430 \u2192 \u00ab\u0420\u0430\u0437\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u0442\u044c\u00bb;\r\n'
         '  \u2022 \u0438\u043b\u0438 PowerShell: Unblock-File .\\\u0438\u043c\u044f.zip\r\n'
         '\r\n'
-        '\u041b\u043e\u0433 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0438 (\u0435\u0441\u043b\u0438 \u0447\u0442\u043e-\u0442\u043e \u043f\u043e\u0448\u043b\u043e \u043d\u0435 \u0442\u0430\u043a): %TEMP%\\wireguard-install.log\r\n'
-    ).replace('{user}', username)
+        '\u041b\u043e\u0433 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0438: %TEMP%\\wireguard-install.log\r\n'
+    )
+    return text.replace('{user}', username)
 
 
 @app.route('/vpn/installer')
