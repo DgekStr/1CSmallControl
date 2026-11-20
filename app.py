@@ -1690,19 +1690,61 @@ def vpn_config_download():
 
 
 def _vpn_install_cmd(conf_name):
-    """install.cmd: тихая установка WireGuard и импорт туннеля. CRLF + cp866 для cmd."""
+    """install.cmd: установка WireGuard и импорт туннеля.
+
+    Важно: msiexec — GUI-приложение, поэтому запускаем через `start /wait`,
+    иначе cmd не ждёт установку и errorlevel приходит «мусорный» (это и давало
+    ложное «MSI install failed»). Коды 3010 (нужна перезагрузка) и 1638
+    (уже установлено) считаем успехом.
+    """
     lines = [
         '@echo off',
-        'setlocal',
+        'setlocal EnableExtensions',
         'set "HERE=%~dp0"',
+        '',
+        'net session >nul 2>&1',
+        'if errorlevel 1 (',
+        '  echo Requesting administrator rights...',
+        "  powershell -NoProfile -Command \"Start-Process -FilePath '%~f0' -Verb RunAs\" >nul 2>&1",
+        '  exit /b',
+        ')',
+        '',
         'if /i "%PROCESSOR_ARCHITECTURE%"=="x86" (set "MSI=wireguard-x86-1.1.1.msi") else (set "MSI=wireguard-amd64-1.1.1.msi")',
         'if not exist "%HERE%%MSI%" set "MSI=wireguard-amd64-1.1.1.msi"',
+        '',
         'echo Installing WireGuard...',
-        'msiexec /i "%HERE%%MSI%" /qn /norestart',
-        'if errorlevel 1 (echo MSI install failed & pause & exit /b 1)',
+        'start /wait "" msiexec /i "%HERE%%MSI%" /passive /norestart /l*v "%TEMP%\\wireguard-install.log"',
+        'set "RC=%ERRORLEVEL%"',
+        'echo MSI exit code: %RC%',
+        'if "%RC%"=="0" goto wg_installed',
+        'if "%RC%"=="3010" goto wg_installed',
+        'if "%RC%"=="1638" goto wg_installed',
+        'echo.',
+        'echo MSI install failed ^(code %RC%^).',
+        'echo Log: %TEMP%\\wireguard-install.log',
+        'echo Try running this file as administrator.',
+        'pause',
+        'exit /b 1',
+        '',
+        ':wg_installed',
+        'set "WG=%ProgramFiles%\\WireGuard\\wireguard.exe"',
+        'if not exist "%WG%" set "WG=%ProgramFiles(x86)%\\WireGuard\\wireguard.exe"',
+        'if not exist "%WG%" (',
+        '  echo WireGuard executable not found after install.',
+        '  echo See log: %TEMP%\\wireguard-install.log',
+        '  pause',
+        '  exit /b 1',
+        ')',
+        '',
         'echo Importing tunnel configuration...',
-        '"%ProgramFiles%\\WireGuard\\wireguard.exe" /installtunnelservice "%HERE%CONFNAME"',
-        'if errorlevel 1 (echo Tunnel import failed & pause & exit /b 1)',
+        '"%WG%" /installtunnelservice "%HERE%CONFNAME"',
+        'set "RC=%ERRORLEVEL%"',
+        'if not "%RC%"=="0" (',
+        '  echo Tunnel import failed ^(code %RC%^).',
+        '  pause',
+        '  exit /b 1',
+        ')',
+        '',
         'del "%HERE%CONFNAME" >nul 2>&1',
         'echo.',
         'echo Done. Open WireGuard and turn the tunnel on.',
@@ -1736,6 +1778,12 @@ def _vpn_install_readme(username):
         '  \u2022 \u0444\u0430\u0439\u043b .conf \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u0442 \u0432\u0430\u0448 \u043f\u0440\u0438\u0432\u0430\u0442\u043d\u044b\u0439 \u043a\u043b\u044e\u0447 \u2014 \u043d\u0438\u043a\u043e\u043c\u0443 \u043d\u0435 \u043f\u0435\u0440\u0435\u0434\u0430\u0432\u0430\u0439\u0442\u0435;\r\n'
         '  \u2022 install.cmd \u0443\u0434\u0430\u043b\u044f\u0435\u0442 .conf \u043f\u043e\u0441\u043b\u0435 \u0438\u043c\u043f\u043e\u0440\u0442\u0430;\r\n'
         '  \u2022 \u0442\u0443\u043d\u043d\u0435\u043b\u044c \u043d\u0443\u0436\u0435\u043d \u043f\u0440\u0438 \u043a\u0430\u0436\u0434\u043e\u043c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438 \u043a 1\u0421.\r\n'
+        '\r\n'
+        '\u0415\u0441\u043b\u0438 Windows \u0431\u043b\u043e\u043a\u0438\u0440\u0443\u0435\u0442 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0443 \u0438\u0437 \u0430\u0440\u0445\u0438\u0432\u0430:\r\n'
+        '  \u2022 \u043f\u0440\u0430\u0432\u043e\u0439 \u043a\u043d\u043e\u043f\u043a\u043e\u0439 \u043f\u043e ZIP \u2192 \u0421\u0432\u043e\u0439\u0441\u0442\u0432\u0430 \u2192 \u00ab\u0420\u0430\u0437\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u0442\u044c\u00bb (\u0434\u043e \u0440\u0430\u0441\u043f\u0430\u043a\u043e\u0432\u043a\u0438);\r\n'
+        '  \u2022 \u0438\u043b\u0438 PowerShell: Unblock-File .\\\u0438\u043c\u044f.zip\r\n'
+        '\r\n'
+        '\u041b\u043e\u0433 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0438 (\u0435\u0441\u043b\u0438 \u0447\u0442\u043e-\u0442\u043e \u043f\u043e\u0448\u043b\u043e \u043d\u0435 \u0442\u0430\u043a): %TEMP%\\wireguard-install.log\r\n'
     ) % username
 
 
