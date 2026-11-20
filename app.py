@@ -1692,10 +1692,9 @@ def vpn_config_download():
 def _vpn_install_cmd(conf_name):
     """install.cmd: установка WireGuard и импорт туннеля.
 
-    Важно: msiexec — GUI-приложение, поэтому запускаем через `start /wait`,
-    иначе cmd не ждёт установку и errorlevel приходит «мусорный» (это и давало
-    ложное «MSI install failed»). Коды 3010 (нужна перезагрузка) и 1638
-    (уже установлено) считаем успехом.
+    Если WireGuard уже установлен — MSI не запускаем: повторная установка через
+    msiexec запускает LaunchApplicationAndAbort и возвращает 1602 («отменено»),
+    что раньше выглядело как ошибка. Также ждём msiexec через `start /wait`.
     """
     lines = [
         '@echo off',
@@ -1709,6 +1708,13 @@ def _vpn_install_cmd(conf_name):
         '  exit /b',
         ')',
         '',
+        'set "WG=%ProgramFiles%\\WireGuard\\wireguard.exe"',
+        'if not exist "%WG%" set "WG=%ProgramFiles(x86)%\\WireGuard\\wireguard.exe"',
+        'if exist "%WG%" (',
+        '  echo WireGuard is already installed - skipping MSI.',
+        '  goto wg_ready',
+        ')',
+        '',
         'if /i "%PROCESSOR_ARCHITECTURE%"=="x86" (set "MSI=wireguard-x86-1.1.1.msi") else (set "MSI=wireguard-amd64-1.1.1.msi")',
         'if not exist "%HERE%%MSI%" set "MSI=wireguard-amd64-1.1.1.msi"',
         '',
@@ -1716,26 +1722,22 @@ def _vpn_install_cmd(conf_name):
         'start /wait "" msiexec /i "%HERE%%MSI%" /passive /norestart /l*v "%TEMP%\\wireguard-install.log"',
         'set "RC=%ERRORLEVEL%"',
         'echo MSI exit code: %RC%',
-        'if "%RC%"=="0" goto wg_installed',
-        'if "%RC%"=="3010" goto wg_installed',
-        'if "%RC%"=="1638" goto wg_installed',
-        'echo.',
-        'echo MSI install failed ^(code %RC%^).',
+        '',
+        'set "WG=%ProgramFiles%\\WireGuard\\wireguard.exe"',
+        'if not exist "%WG%" set "WG=%ProgramFiles(x86)%\\WireGuard\\wireguard.exe"',
+        'if exist "%WG%" goto wg_ready',
+        '',
+        'if "%RC%"=="1602" (',
+        '  echo MSI returned 1602: install was cancelled or the product is already present.',
+        ') else (',
+        '  echo MSI install failed ^(code %RC%^).',
+        ')',
         'echo Log: %TEMP%\\wireguard-install.log',
         'echo Try running this file as administrator.',
         'pause',
         'exit /b 1',
         '',
-        ':wg_installed',
-        'set "WG=%ProgramFiles%\\WireGuard\\wireguard.exe"',
-        'if not exist "%WG%" set "WG=%ProgramFiles(x86)%\\WireGuard\\wireguard.exe"',
-        'if not exist "%WG%" (',
-        '  echo WireGuard executable not found after install.',
-        '  echo See log: %TEMP%\\wireguard-install.log',
-        '  pause',
-        '  exit /b 1',
-        ')',
-        '',
+        ':wg_ready',
         'echo Importing tunnel configuration...',
         '"%WG%" /installtunnelservice "%HERE%CONFNAME"',
         'set "RC=%ERRORLEVEL%"',
