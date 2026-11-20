@@ -2782,7 +2782,7 @@ def admin_settings_vpn():
 
     # AllowedIPs в WireGuard — только IP или подсеть: имя там работать не будет
     if not re.fullmatch(r'(\d{1,3}\.){3}\d{1,3}/\d{1,2}(,\s*(\d{1,3}\.){3}\d{1,3}/\d{1,2})*', allowed):
-        flash('Маршрут VPN должен быть IP-подсетью (например 192.168.0.5/32). '
+        flash('Маршрут VPN должен быть IP-подсетью (например 10.8.0.0/24). '
               'Имя сервера здесь не поддерживается самим WireGuard.')
         return redirect(url_for('admin_settings'))
 
