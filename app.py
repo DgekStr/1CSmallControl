@@ -1689,6 +1689,26 @@ def vpn_config_download():
     return resp
 
 
+def _vpn_import_ps1():
+    """import.ps1: кладёт конфиг в хранилище WireGuard как .conf.dpapi.
+
+    `wireguard.exe /installtunnelservice` создаёт службу, но НЕ добавляет туннель
+    в список GUI (GUI читает Data\\Configurations\\<имя>.conf.dpapi).
+    Формат: DPAPI, LocalMachine, без entropy.
+    """
+    return """param([Parameter(Mandatory=$true)][string]$ConfPath, [Parameter(Mandatory=$true)][string]$Name)
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Security
+$conf = [IO.File]::ReadAllText($ConfPath, [Text.Encoding]::UTF8)
+$enc = [Security.Cryptography.ProtectedData]::Protect([Text.Encoding]::UTF8.GetBytes($conf), $null, 'LocalMachine')
+$dir = Join-Path $env:ProgramFiles 'WireGuard\\Data\\Configurations'
+if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+$target = Join-Path $dir ($Name + '.conf.dpapi')
+[IO.File]::WriteAllBytes($target, $enc)
+Write-Output ('Config registered: ' + $target)
+"""
+
+
 def _vpn_install_cmd(conf_name):
     """install.cmd: установка WireGuard, импорт и запуск туннеля.
 
@@ -1740,6 +1760,14 @@ def _vpn_install_cmd(conf_name):
         'exit /b 1',
         '',
         ':wg_ready',
+        'echo Registering configuration...',
+        'powershell -NoProfile -ExecutionPolicy Bypass -File "%HERE%import.ps1" "%HERE%CONFNAME" TUNNELNAME',
+        'if errorlevel 1 (',
+        '  echo Failed to register configuration.',
+        '  pause',
+        '  exit /b 1',
+        ')',
+        '',
         'echo Importing tunnel configuration...',
         '"%WG%" /installtunnelservice "%HERE%CONFNAME"',
         'set "RC=%ERRORLEVEL%"',
@@ -1817,6 +1845,7 @@ def vpn_installer():
                 z.write(path, msi)
         z.writestr(conf_name, row['vpn_config'])
         z.writestr('install.cmd', _vpn_install_cmd(conf_name))
+        z.writestr('import.ps1', _vpn_import_ps1())
         z.writestr('README.txt', _vpn_install_readme(username))
     data = buf.getvalue()
 
