@@ -1692,16 +1692,45 @@ def vpn_config_download():
 def _vpn_import_ps1():
     """import.ps1: кладёт конфиг в хранилище WireGuard как .conf.dpapi.
 
-    `wireguard.exe /installtunnelservice` создаёт службу, но НЕ добавляет туннель
-    в список GUI (GUI читает Data\\Configurations\\<имя>.conf.dpapi).
-    Формат: DPAPI, LocalMachine, без entropy.
+    `wireguard.exe /installtunnelservice` создаёт службу, но не добавляет туннель
+    в список GUI. GUI читает Data\\Configurations\\<имя>.conf.dpapi, причём
+    **имя туннеля хранится в описании DPAPI-блока** — если описание пустое,
+    GUI показывает туннель, но при подключении падает с
+    «input name does not match the stored name».
     """
-    return """param([Parameter(Mandatory=$true)][string]$ConfPath, [Parameter(Mandatory=$true)][string]$Name)
+    return r"""param([Parameter(Mandatory=$true)][string]$ConfPath, [Parameter(Mandatory=$true)][string]$Name)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Security
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class WgDpapi {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DATA_BLOB { public int cbData; public IntPtr pbData; }
+    [DllImport("crypt32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+    static extern bool CryptProtectData(ref DATA_BLOB pDataIn, string szDataDescr, IntPtr pOptionalEntropy,
+        IntPtr pvReserved, IntPtr pPromptStruct, int dwFlags, ref DATA_BLOB pDataOut);
+    [DllImport("kernel32.dll")]
+    static extern IntPtr LocalFree(IntPtr hMem);
+    public static byte[] Protect(byte[] data, string description) {
+        var inBlob = new DATA_BLOB();
+        inBlob.pbData = Marshal.AllocHGlobal(data.Length);
+        inBlob.cbData = data.Length;
+        Marshal.Copy(data, 0, inBlob.pbData, data.Length);
+        var outBlob = new DATA_BLOB();
+        bool ok = CryptProtectData(ref inBlob, description, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0x1, ref outBlob);
+        Marshal.FreeHGlobal(inBlob.pbData);
+        if (!ok) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        var result = new byte[outBlob.cbData];
+        Marshal.Copy(outBlob.pbData, result, 0, outBlob.cbData);
+        LocalFree(outBlob.pbData);
+        return result;
+    }
+}
+"@ -Language CSharp
 $conf = [IO.File]::ReadAllText($ConfPath, [Text.Encoding]::UTF8)
-$enc = [Security.Cryptography.ProtectedData]::Protect([Text.Encoding]::UTF8.GetBytes($conf), $null, 'LocalMachine')
-$dir = Join-Path $env:ProgramFiles 'WireGuard\\Data\\Configurations'
+$enc = [WgDpapi]::Protect([Text.Encoding]::UTF8.GetBytes($conf), $Name)
+$dir = [IO.Path]::Combine($env:ProgramFiles, 'WireGuard', 'Data', 'Configurations')
 if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
 $target = Join-Path $dir ($Name + '.conf.dpapi')
 [IO.File]::WriteAllBytes($target, $enc)
