@@ -1690,12 +1690,14 @@ def vpn_config_download():
 
 
 def _vpn_install_cmd(conf_name):
-    """install.cmd: установка WireGuard и импорт туннеля.
+    """install.cmd: установка WireGuard, импорт и запуск туннеля.
 
-    Если WireGuard уже установлен — MSI не запускаем: повторная установка через
-    msiexec запускает LaunchApplicationAndAbort и возвращает 1602 («отменено»),
-    что раньше выглядело как ошибка. Также ждём msiexec через `start /wait`.
+    - если WireGuard уже стоит, MSI не трогаем (иначе 1602 от LaunchApplicationAndAbort);
+    - msiexec запускаем через `start /wait` и с DO_NOT_LAUNCH=1, чтобы GUI не открылся
+      раньше импорта (иначе список туннелей пустой до перезапуска);
+    - после импорта запускаем службу туннеля и только потом показываем GUI.
     """
+    tunnel = conf_name[:-5] if conf_name.endswith('.conf') else conf_name
     lines = [
         '@echo off',
         'setlocal EnableExtensions',
@@ -1719,7 +1721,7 @@ def _vpn_install_cmd(conf_name):
         'if not exist "%HERE%%MSI%" set "MSI=wireguard-amd64-1.1.1.msi"',
         '',
         'echo Installing WireGuard...',
-        'start /wait "" msiexec /i "%HERE%%MSI%" /passive /norestart /l*v "%TEMP%\\wireguard-install.log"',
+        'start /wait "" msiexec /i "%HERE%%MSI%" /passive /norestart DO_NOT_LAUNCH=1 /l*v "%TEMP%\\wireguard-install.log"',
         'set "RC=%ERRORLEVEL%"',
         'echo MSI exit code: %RC%',
         '',
@@ -1747,12 +1749,19 @@ def _vpn_install_cmd(conf_name):
         '  exit /b 1',
         ')',
         '',
+        'echo Starting tunnel...',
+        'net start "WireGuardTunnel$TUNNELNAME" >nul 2>&1',
         'del "%HERE%CONFNAME" >nul 2>&1',
+        '',
+        'echo Opening WireGuard...',
+        'start "" "%WG%"',
         'echo.',
-        'echo Done. Open WireGuard and turn the tunnel on.',
+        'echo Done. Tunnel TUNNELNAME is installed and started.',
         'pause',
     ]
-    text = '\r\n'.join(lines).replace('CONFNAME', conf_name) + '\r\n'
+    text = ('\r\n'.join(lines)
+            .replace('CONFNAME', conf_name)
+            .replace('TUNNELNAME', tunnel)) + '\r\n'
     return text.encode('cp866', 'replace')
 
 
