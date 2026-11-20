@@ -54,3 +54,4 @@ soft/*.dmg
 _db/
 *.dt
 soft/
+docs/Server/plan-access.log
