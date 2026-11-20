@@ -1718,7 +1718,7 @@ public static class WgDpapi {
         inBlob.cbData = data.Length;
         Marshal.Copy(data, 0, inBlob.pbData, data.Length);
         var outBlob = new DATA_BLOB();
-        bool ok = CryptProtectData(ref inBlob, description, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0x1, ref outBlob);
+        bool ok = CryptProtectData(ref inBlob, description, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0x5, ref outBlob);
         Marshal.FreeHGlobal(inBlob.pbData);
         if (!ok) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
         var result = new byte[outBlob.cbData];
