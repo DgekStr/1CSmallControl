@@ -3316,6 +3316,12 @@ def help_page():
     return render_template('help.html')
 
 
+@app.route('/presentation')
+def presentation():
+    """Клиентская презентация сервиса (публичная, можно делиться ссылкой)."""
+    return render_template('presentation.html')
+
+
 @app.route('/sandbox/pending')
 @login_required
 def sandbox_pending():

@@ -65,6 +65,11 @@
 
           <p class="muted">Выберите базу, чтобы открыть её в браузере</p>
         </div>
+        <div class="heading-actions">
+          <a class="button" href="{{ url_for('presentation') }}" target="_blank" rel="noopener" title="Краткая презентация сервиса: как начать, перенос, клиенты, песочница">
+            <i data-lucide="presentation"></i> Презентация
+          </a>
+        </div>
       </div>
       {% if bases %}
       <div class="base-grid">
