@@ -23,7 +23,7 @@
   <main class="login-main">
     <div class="login-heading">
       <span class="eyebrow">ДОСТУП К БАЗАМ 1С</span>
-      <h1>Ваши базы — в одном окне.</h1>
+      <h1>Ваша 1С — в обычном браузере</h1>
     </div>
     <form method="post" class="login-form">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -31,7 +31,12 @@
       <h2>Вход в портал</h2>
       <label>Логин<input name="username" autocomplete="username" required autofocus placeholder="логин" maxlength="32"></label>
       <label>Пароль<span class="password-input"><input name="password" type="password" autocomplete="current-password" required placeholder="Введите пароль"><button class="icon-button" type="button" id="reveal-password" title="Показать пароль" aria-label="Показать пароль"><i data-lucide="eye"></i></button></span></label>
-      <button type="submit" class="button primary login-submit">Войти <i data-lucide="arrow-right"></i></button>
+      <div class="login-actions">
+          <button type="submit" class="button primary login-submit">Войти <i data-lucide="arrow-right"></i></button>
+          <a class="button login-presentation" href="{{ url_for('presentation') }}" target="_blank" rel="noopener">
+            <i data-lucide="presentation"></i>Презентация
+          </a>
+        </div>
       <div class="login-secure"><i data-lucide="shield-check"></i>Защищённая сессия портала</div>
       <a class="login-qr-link" href="{{ url_for('qr_login_page') }}">
         <i data-lucide="qr-code"></i>Вход по QR-коду (без пароля)
