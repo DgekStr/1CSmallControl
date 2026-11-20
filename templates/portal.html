@@ -437,9 +437,14 @@
         сканированием QR-кода — запросите QR у администратора.</p>
     </div>
 
-    <a class="button primary" href="{{ url_for('vpn_config_download') }}">
-      <i data-lucide="download"></i>Скачать конфигурацию
-    </a>
+    <div class="vpn-card-actions">
+      <a class="button primary" href="{{ url_for('vpn_installer') }}">
+        <i data-lucide="package"></i>Установщик с конфигурацией
+      </a>
+      <a class="button" href="{{ url_for('vpn_config_download') }}">
+        <i data-lucide="download"></i>Только конфигурация
+      </a>
+    </div>
   </section>
   {% endif %}
 

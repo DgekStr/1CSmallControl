@@ -3,10 +3,12 @@
 
 import hashlib
 import hmac
+import io
 import http.client
 import base64
 import json
 import urllib.request
+import zipfile
 from urllib.parse import quote
 import os
 import re
@@ -1683,6 +1685,86 @@ def vpn_config_download():
     resp = make_response(row['vpn_config'])
     resp.headers['Content-Type'] = 'text/plain; charset=utf-8'
     resp.headers['Content-Disposition'] = 'attachment; filename="%s-wireguard.conf"' % row['username']
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
+def _vpn_install_cmd(conf_name):
+    """install.cmd: тихая установка WireGuard и импорт туннеля. CRLF + cp866 для cmd."""
+    lines = [
+        '@echo off',
+        'setlocal',
+        'set "HERE=%~dp0"',
+        'if /i "%PROCESSOR_ARCHITECTURE%"=="x86" (set "MSI=wireguard-x86-1.1.1.msi") else (set "MSI=wireguard-amd64-1.1.1.msi")',
+        'if not exist "%HERE%%MSI%" set "MSI=wireguard-amd64-1.1.1.msi"',
+        'echo Installing WireGuard...',
+        'msiexec /i "%HERE%%MSI%" /qn /norestart',
+        'if errorlevel 1 (echo MSI install failed & pause & exit /b 1)',
+        'echo Importing tunnel configuration...',
+        '"%ProgramFiles%\\WireGuard\\wireguard.exe" /installtunnelservice "%HERE%CONFNAME"',
+        'if errorlevel 1 (echo Tunnel import failed & pause & exit /b 1)',
+        'del "%HERE%CONFNAME" >nul 2>&1',
+        'echo.',
+        'echo Done. Open WireGuard and turn the tunnel on.',
+        'pause',
+    ]
+    text = '\r\n'.join(lines).replace('CONFNAME', conf_name) + '\r\n'
+    return text.encode('cp866', 'replace')
+
+
+def _vpn_install_readme(username):
+    return (
+        '\u041f\u0430\u043a\u0435\u0442 \u00ab1\u0421 + WireGuard\u00bb \u0434\u043b\u044f %s\r\n'
+        '\r\n'
+        '\u0427\u0442\u043e \u0432\u043d\u0443\u0442\u0440\u0438:\r\n'
+        '  wireguard-amd64-1.1.1.msi  \u2014 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0449\u0438\u043a WireGuard (64-\u0431\u0438\u0442)\r\n'
+        '  wireguard-x86-1.1.1.msi    \u2014 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0449\u0438\u043a WireGuard (32-\u0431\u0438\u0442)\r\n'
+        '  <\u0438\u043c\u044f>-wireguard.conf      \u2014 \u0432\u0430\u0448\u0430 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u044c\u043d\u0430\u044f \u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044f\r\n'
+        '  install.cmd                \u2014 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442 WireGuard \u0438 \u0438\u043c\u043f\u043e\u0440\u0442\u0438\u0440\u0443\u0435\u0442 \u0442\u0443\u043d\u043d\u0435\u043b\u044c\r\n'
+        '\r\n'
+        '\u041a\u0430\u043a \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c (Windows):\r\n'
+        '  1. \u0420\u0430\u0441\u043f\u0430\u043a\u0443\u0439\u0442\u0435 \u0430\u0440\u0445\u0438\u0432 \u0432 \u043b\u044e\u0431\u0443\u044e \u043f\u0430\u043f\u043a\u0443.\r\n'
+        '  2. \u041d\u0430\u0436\u043c\u0438\u0442\u0435 install.cmd \u043f\u0440\u0430\u0432\u043e\u0439 \u043a\u043d\u043e\u043f\u043a\u043e\u0439 \u2192 \u00ab\u0417\u0430\u043f\u0443\u0441\u043a \u043e\u0442 \u0438\u043c\u0435\u043d\u0438 \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430\u00bb.\r\n'
+        '  3. \u0414\u043e\u0436\u0434\u0438\u0442\u0435\u0441\u044c \u043d\u0430\u0434\u043f\u0438\u0441\u0438 Done \u0438 \u0432\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0442\u0443\u043d\u043d\u0435\u043b\u044c \u0432 WireGuard.\r\n'
+        '\r\n'
+        '\u0412\u0440\u0443\u0447\u043d\u0443\u044e:\r\n'
+        '  \u2022 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c MSI;\r\n'
+        '  \u2022 \u043e\u0442\u043a\u0440\u044b\u0442\u044c WireGuard \u2192 \u00ab\u0418\u043c\u043f\u043e\u0440\u0442 \u0442\u0443\u043d\u043d\u0435\u043b\u044f \u0438\u0437 \u0444\u0430\u0439\u043b\u0430\u00bb \u2192 \u0432\u044b\u0431\u0440\u0430\u0442\u044c .conf;\r\n'
+        '  \u2022 \u0432\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0442\u0443\u043d\u043d\u0435\u043b\u044c.\r\n'
+        '\r\n'
+        '\u0412\u0430\u0436\u043d\u043e:\r\n'
+        '  \u2022 \u0444\u0430\u0439\u043b .conf \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u0442 \u0432\u0430\u0448 \u043f\u0440\u0438\u0432\u0430\u0442\u043d\u044b\u0439 \u043a\u043b\u044e\u0447 \u2014 \u043d\u0438\u043a\u043e\u043c\u0443 \u043d\u0435 \u043f\u0435\u0440\u0435\u0434\u0430\u0432\u0430\u0439\u0442\u0435;\r\n'
+        '  \u2022 install.cmd \u0443\u0434\u0430\u043b\u044f\u0435\u0442 .conf \u043f\u043e\u0441\u043b\u0435 \u0438\u043c\u043f\u043e\u0440\u0442\u0430;\r\n'
+        '  \u2022 \u0442\u0443\u043d\u043d\u0435\u043b\u044c \u043d\u0443\u0436\u0435\u043d \u043f\u0440\u0438 \u043a\u0430\u0436\u0434\u043e\u043c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438 \u043a 1\u0421.\r\n'
+    ) % username
+
+
+@app.route('/vpn/installer')
+@login_required
+def vpn_installer():
+    """ZIP \u0434\u043b\u044f \u043a\u043b\u0438\u0435\u043d\u0442\u0430: MSI WireGuard + \u0435\u0433\u043e .conf + install.cmd + README."""
+    row = db().execute("SELECT username, vpn_enabled, vpn_config FROM users WHERE id = ?",
+                       (session['uid'],)).fetchone()
+    if not row or not row['vpn_enabled'] or not row['vpn_config']:
+        abort(404)
+    username = re.sub(r'[^\w\-]+', '_', (row['username'] or 'client'))[:40] or 'client'
+    conf_name = '%s-wireguard.conf' % username
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for msi in ('wireguard-amd64-1.1.1.msi', 'wireguard-x86-1.1.1.msi'):
+            path = os.path.join(SOFT_DIR, 'wireguard', msi)
+            if os.path.exists(path):
+                z.write(path, msi)
+        z.writestr(conf_name, row['vpn_config'])
+        z.writestr('install.cmd', _vpn_install_cmd(conf_name))
+        z.writestr('README.txt', _vpn_install_readme(username))
+    data = buf.getvalue()
+
+    audit('vpn_installer', username)
+    resp = make_response(data)
+    resp.headers['Content-Type'] = 'application/zip'
+    resp.headers['Content-Disposition'] = 'attachment; filename="%s-1c-vpn.zip"' % username
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 
