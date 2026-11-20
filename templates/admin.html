@@ -461,9 +461,9 @@
           </div>
 
           <label class="field">Маршрут внутри туннеля (AllowedIPs)
-            <input name="vpn_allowed" value="{{ settings.vpn_allowed }}" placeholder="192.168.0.5/32">
+            <input name="vpn_allowed" value="{{ settings.vpn_allowed }}" placeholder="10.8.0.0/24">
           </label>
-          <p class="muted small">Только IP или подсеть: <span class="mono">192.168.0.5/32</span>,
+          <p class="muted small">Только IP или подсеть: <span class="mono">10.8.0.0/24</span>,
             <span class="mono">192.168.0.0/24</span>. Имя сервера здесь не работает — WireGuard
             маршрутизирует по IP, конфигурация с именем не импортируется.</p>
 
@@ -929,7 +929,7 @@
         <label class="field">Файл конфигурации WireGuard (.conf)
           <input type="file" name="vpn_config" accept=".conf,text/plain">
         </label>
-        <p class="muted small">Из файла берутся только ключи (PrivateKey, PublicKey, PresharedKey) и адрес. Маршрут, MTU, Endpoint и keepalive подставляются правильные: только 192.168.0.5.</p>
+        <p class="muted small">Из файла берутся только ключи (PrivateKey, PublicKey, PresharedKey) и адрес. Маршрут, MTU, Endpoint и keepalive подставляются правильные: только 10.8.0.0/24.</p>
         <p class="muted small">Текущий файл: <span id="vpn-state">не загружен</span></p>
         <div class="field-row">
           <a class="button" id="vpn-panel-link" href="https://192.168.0.39:9443/wireguard" target="_blank" rel="noopener">

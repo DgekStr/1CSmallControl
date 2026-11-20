@@ -1548,7 +1548,7 @@ def user_update(uid):
                 saved = _wg_save_file(row['username'], cfg)
                 audit('vpn_config', '%s%s' % (row['username'], ' → ' + saved if saved else ''))
                 flash('Конфигурация собрана: ключи из файла, маршрут только на '
-                      + (_setting_get('vpn_allowed') or '192.168.0.5/32'))
+                      + (_setting_get('vpn_allowed') or '10.8.0.0/24'))
 
         db().execute("UPDATE users SET full_name = ?, organization = ?, vpn_enabled = ?, vpn_config = ? "
                      "WHERE id = ?", (name, org, vpn_on, cfg, uid))
@@ -1627,7 +1627,7 @@ def _wg_build_config(text):
         mtu=_setting_get('vpn_mtu') or '1380',
         pub=pub,
         psk=('\nPresharedKey = %s' % psk) if psk else '',
-        allowed=_setting_get('vpn_allowed') or '192.168.0.5/32',
+        allowed=_setting_get('vpn_allowed') or '10.8.0.0/24',
         endpoint=_setting_get('vpn_endpoint') or '1c.dgek.ru:51820',
         keepalive=_setting_get('vpn_keepalive') or '15',
     )
@@ -2549,7 +2549,7 @@ DEFAULT_SETTINGS = {
     'backup_user': '',
     'backup_pass': '',
     'vpn_endpoint': '1c.dgek.ru:51820',
-    'vpn_allowed': '192.168.0.5/32',
+    'vpn_allowed': '10.8.0.0/24',
     'vpn_mtu': '1380',
     'vpn_keepalive': '15',
     'ic_server_name': 'srv.1c.dgek.ru',
