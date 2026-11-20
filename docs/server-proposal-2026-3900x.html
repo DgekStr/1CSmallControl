@@ -79,7 +79,7 @@
   <div class="callout">
     <b>Сравнение с плановой сборкой:</b> вместо i7-10700K (8/16, LGA1200) ставим <b>Ryzen 9 3900X</b> (12/24) —
     он уже есть, быстрее в многопоточных задачах и не требует покупки процессора, платы и памяти.
-    Покупаем только диски под базы 1С, адаптер и, желательно, ещё 32 ГБ памяти.
+    Видеокарта и кулер уже приобретены. Покупаем только диски под базы 1С, адаптер и, желательно, ещё 32 ГБ памяти.
   </div>
 
   <h2>1. Текущее состояние (эталон)</h2>
@@ -128,6 +128,8 @@
     <tr><td class="b">Системный диск</td><td>Patriot Burst 480 ГБ (SATA)</td><td>Proxmox + ISO + снапшоты</td><td><span class="tag have">есть</span></td></tr>
     <tr><td class="b">Архив</td><td>HDD 1 ТБ</td><td>вторая копия бэкапов</td><td><span class="tag have">есть</span></td></tr>
     <tr><td class="b">Блок питания</td><td>850 Вт</td><td>запас ×2 к расчётным ~350 Вт</td><td><span class="tag have">есть</span></td></tr>
+    <tr><td class="b">Видеокарта</td><td>NVIDIA GT 710 (PCIe)</td><td>нужна для установки Proxmox</td><td><span class="tag have">есть</span></td></tr>
+    <tr><td class="b">Кулер</td><td>DeepCool AK400 (или Wraith Prism)</td><td>охлаждение 105 Вт</td><td><span class="tag have">есть</span></td></tr>
   </table>
 
   <h2>4. Что докупаем — точные модели</h2>
@@ -161,26 +163,11 @@
       <td class="num">8 000–12 000</td>
       <td><span class="tag rec">желательно</span></td>
     </tr>
-    <tr>
-      <td class="b">Видеокарта</td>
-      <td>любая простая: <b>NVIDIA GT 710</b> или б/у PCIe</td>
-      <td>у 3900X нет видео — нужна для установки Proxmox</td>
-      <td class="num">1 500–3 000</td>
-      <td><span class="tag opt">разово</span></td>
-    </tr>
-    <tr>
-      <td class="b">Кулер</td>
-      <td>если 3900X в версии OEM — <b>DeepCool AK400</b></td>
-      <td>охлаждение 105 Вт; в box-версии Wraith Prism в комплекте</td>
-      <td class="num">2 500–3 500</td>
-      <td><span class="tag opt">проверить</span></td>
-    </tr>
   </table>
 
   <div class="budget">
-    <div><div class="k">Обязательный минимум<br>(без памяти)</div><div class="v">24 000–31 000 ₽</div></div>
-    <div><div class="k">С памятью 64 ГБ</div><div class="v">32 000–43 000 ₽</div></div>
-    <div><div class="k">С видеокартой и кулером</div><div class="v warn">36 000–49 000 ₽</div></div>
+    <div><div class="k">Обязательный минимум<br>(диски + адаптер)</div><div class="v">24 000–31 000 ₽</div></div>
+    <div><div class="k">С памятью 64 ГБ (желательно)</div><div class="v">32 000–43 000 ₽</div></div>
   </div>
 
   <div class="note">
@@ -243,7 +230,7 @@
     <tr><th>Параметр</th><th>Значение</th><th>Комментарий</th></tr>
     <tr><td class="b">БП</td><td>850 Вт (есть)</td><td>запас ×2 к расчётным ~350 Вт</td></tr>
     <tr><td class="b">Потребление</td><td>~150–250 Вт под нагрузкой</td><td>3900X 105 Вт + 4 диска</td></tr>
-    <tr><td class="b">Охлаждение</td><td>Wraith Prism / DeepCool AK400</td><td>105 Вт снимается штатно</td></tr>
+    <tr><td class="b">Охлаждение</td><td>Wraith Prism / DeepCool AK400 (есть)</td><td>105 Вт снимается штатно</td></tr>
     <tr><td class="b">ИБП</td><td>желателен</td><td>защита от пропадания питания</td></tr>
   </table>
 
@@ -285,7 +272,7 @@
   <ul>
     <li><b>Обязательно:</b> NVMe 970 EVO Plus 1 ТБ (под базы), второй NVMe 1 ТБ (под клон), адаптер GLOTRENDS PA19.</li>
     <li><b>Желательно:</b> +32 ГБ (G.Skill Ripjaws V F4-3200C16D-32GVK) — доводим до 64 ГБ.</li>
-    <li><b>Разово:</b> видеокарта для установки Proxmox; кулер — если 3900X OEM.</li>
+    <li><b>Видеокарта и кулер:</b> уже приобретены — докупать не нужно.</li>
     <li><b>Проверить:</b> BIOS B450 (XMP/3200 или 2933), memtest на 4×16 ГБ, SMART дисков.</li>
     <li><b>Не трогаем:</b> pve, pve2, pve3 — работают как раньше; новый узел вводим отдельно.</li>
     <li>Окно переезда согласовано, бэкап текущей 1С сделан, откат возможен.</li>
@@ -297,7 +284,7 @@
   </div>
 
   <div class="foot">
-    <span>Дата подготовки: 19.11.2026 · план: <code>docs/Server/new-server-plan.md</code></span>
+    <span>Дата подготовки: 20.11.2026 · план: <code>docs/Server/new-server-plan.md</code></span>
     <span>Страница 4 из 4</span>
   </div>
 </section>
