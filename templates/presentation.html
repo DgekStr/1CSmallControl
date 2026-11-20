@@ -6,69 +6,82 @@
 <title>Презентация сервиса 1С — Портал 1С</title>
 <style>
   :root{
-    --ink:#0f172a; --mut:#5b6577; --line:#e4e9f2; --acc:#2f54eb; --acc2:#4f46e5;
-    --soft:#eef2ff; --ok:#15803d; --warn:#b45309; --bg:#f3f5fa;
+    color-scheme: dark;
+    --bg:#080b14; --card:#111624; --soft:#1a2133; --ink2:#eef1fa; --mut:#8993ab;
+    --line:#252b3d; --acc:#a78bfa; --acc2:#22d3ee; --ok:#4dd7a3; --oksoft:#12352a;
+    --chip:#2a3350; --bar:#2a3350; --bar2:#39415c; --mut2:#6b7490;
+    --ink:#eef1fa;
+  }
+  html[data-theme=light]{
+    color-scheme: light;
+    --bg:#f5f6fa; --card:#fff; --soft:#eef0f7; --ink2:#202738; --mut:#647086;
+    --line:#dce0eb; --acc:#7955df; --acc2:#087e96; --ok:#167e5a; --oksoft:#e8f7ee;
+    --chip:#e2e8f0; --bar:#e6eaf4; --bar2:#cbd5e1; --mut2:#94a3b8;
+    --ink:#202738;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink2);
     font:16px/1.55 "Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+  code{font:13px Consolas,monospace;background:var(--soft);border:1px solid var(--line);
+       border-radius:6px;padding:1px 6px;color:var(--ink2)}
   .deck{max-width:1120px;margin:0 auto;padding:22px 16px 90px}
-  .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.2px}
   .mark{width:38px;height:38px;border-radius:11px;background:var(--acc);color:#fff;
         display:grid;place-items:center;font-weight:900;font-size:15px}
-  .bar .right{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mut)}
-  .btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;
-       font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
-  .btn:hover{border-color:#c7d2fe;background:#f8faff}
-  .btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
-  .slide{background:#fff;border:1px solid var(--line);border-radius:22px;padding:30px 34px 26px;
-         box-shadow:0 20px 50px #0f172a12;display:none}
+  .bar .right{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mut);flex-wrap:wrap}
+  .btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 12px;
+       font:inherit;font-size:13px;cursor:pointer;color:var(--ink2)}
+  .btn:hover{border-color:var(--acc);color:var(--acc)}
+  .btn.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  .slide{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:30px 34px 26px;
+         box-shadow:0 20px 50px #00000022;display:none}
   .slide.on{display:block;animation:in .25s ease}
   @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   .eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);font-weight:800}
-  h1{font-size:34px;line-height:1.12;letter-spacing:-.8px;margin:6px 0 10px}
-  h2{font-size:28px;line-height:1.15;letter-spacing:-.6px;margin:6px 0 8px}
+  h1{font-size:34px;line-height:1.12;letter-spacing:-.8px;margin:6px 0 10px;color:var(--ink2)}
+  h2{font-size:28px;line-height:1.15;letter-spacing:-.6px;margin:6px 0 8px;color:var(--ink2)}
   .lead{color:var(--mut);font-size:17px;margin:0 0 18px;max-width:760px}
   .two{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:center}
   .two.rev{grid-template-columns:.95fr 1.05fr}
   ul.bul{margin:0;padding:0;list-style:none}
-  ul.bul li{position:relative;padding-left:30px;margin:0 0 12px;font-size:15.5px}
+  ul.bul li{position:relative;padding-left:30px;margin:0 0 12px;font-size:15.5px;color:var(--ink2)}
   ul.bul li::before{content:"";position:absolute;left:0;top:5px;width:18px;height:18px;border-radius:6px;
     background:var(--soft);border:2px solid var(--acc)}
-  ul.bul li b{font-weight:700}
+  ul.bul li b{font-weight:700;color:var(--ink2)}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
-  .chip{background:var(--soft);color:#1e3a8a;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}
+  .chip{background:var(--soft);color:var(--acc);border:1px solid var(--line);border-radius:999px;
+        padding:6px 12px;font-size:13px;font-weight:700}
   .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0 6px}
-  .card{border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+  .card{border:1px solid var(--line);border-radius:16px;padding:14px 16px;background:var(--card)}
   .card .k{font-size:20px;font-weight:900;color:var(--acc);letter-spacing:-.4px}
   .card .t{font-size:13.5px;color:var(--mut);margin-top:2px}
   .steps{counter-reset:s;margin:14px 0 0;padding:0;list-style:none}
-  .steps li{counter-increment:s;position:relative;padding:0 0 0 52px;margin:0 0 14px;font-size:15.5px}
+  .steps li{counter-increment:s;position:relative;padding:0 0 0 52px;margin:0 0 14px;font-size:15.5px;color:var(--ink2)}
   .steps li::before{content:counter(s);position:absolute;left:0;top:-2px;width:34px;height:34px;border-radius:50%;
     background:var(--acc);color:#fff;font-weight:900;display:grid;place-items:center;font-size:15px}
   .steps li small{display:block;color:var(--mut);font-size:13.5px}
-  table.cmp{width:100%;border-collapse:collapse;margin:14px 0 6px;font-size:14px}
+  table.cmp{width:100%;border-collapse:collapse;margin:14px 0 6px;font-size:14px;color:var(--ink2)}
   table.cmp th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);
     padding:8px 10px;border-bottom:1px solid var(--line)}
-  table.cmp td{padding:10px;border-bottom:1px solid #f1f4f9;vertical-align:top}
+  table.cmp td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
   table.cmp tr:last-child td{border-bottom:none}
   .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:800}
-  .tag.g{background:#e8f7ee;color:#166534}
-  .tag.y{background:#fff7e6;color:#92400e}
-  .tag.b{background:var(--soft);color:#1e3a8a}
-  .note{border-left:3px solid var(--acc);background:#f8faff;border-radius:0 12px 12px 0;padding:12px 16px;
-        color:#334155;font-size:14px;margin:14px 0 0}
+  .tag.g{background:var(--oksoft);color:var(--ok)}
+  .tag.y{background:var(--soft);color:var(--acc2)}
+  .tag.b{background:var(--soft);color:var(--acc)}
+  .note{border-left:3px solid var(--acc);background:var(--soft);border-radius:0 12px 12px 0;padding:12px 16px;
+        color:var(--ink2);font-size:14px;margin:14px 0 0}
   .foot{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);display:flex;
         justify-content:space-between;color:var(--mut);font-size:12.5px;gap:12px;flex-wrap:wrap}
-  .nav{position:fixed;left:0;right:0;bottom:0;background:#ffffffea;backdrop-filter:blur(8px);
-       border-top:1px solid var(--line);padding:10px 16px;display:flex;justify-content:center;gap:14px;align-items:center;z-index:20}
+  .nav{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb, var(--card) 92%, transparent);
+       backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:10px 16px;display:flex;
+       justify-content:center;gap:14px;align-items:center;z-index:20}
   .nav .dots{display:flex;gap:7px}
-  .dot{width:9px;height:9px;border-radius:50%;background:#cbd5e1;border:0;padding:0;cursor:pointer}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--bar2);border:0;padding:0;cursor:pointer}
   .dot.on{background:var(--acc);transform:scale(1.25)}
   .nav .n{font-size:13px;color:var(--mut);min-width:64px;text-align:center}
   .nav .btn{min-width:44px}
-  .kbd{font:12px Consolas,monospace;background:#f1f5f9;border:1px solid var(--line);border-radius:6px;padding:1px 6px}
   svg.art{width:100%;height:auto;display:block}
   @media (max-width:860px){
     .two,.two.rev{grid-template-columns:1fr}
@@ -77,12 +90,20 @@
     .slide{padding:22px 18px}
   }
   @media print{
-    body{background:#fff}
+    body{background:#fff;color:#111}
     .deck{max-width:none;padding:0}
     .nav,.bar{display:none}
     .slide{display:block!important;border:none;box-shadow:none;page-break-after:always;border-radius:0;padding:26px 20px}
   }
 </style>
+<script>
+  try {
+    var m = localStorage.getItem('portal-theme') || 'auto';
+    document.documentElement.dataset.theme = (m === 'auto')
+      ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+      : m;
+  } catch (e) {}
+</script>
 </head>
 <body>
 <div class="deck">
@@ -91,6 +112,9 @@
     <div class="brand"><div class="mark">1С</div> Портал 1С · презентация сервиса</div>
     <div class="right">
       <span>слайд <b id="pos">1</b> / <b id="total">7</b></span>
+      <button class="btn" id="th-dark" title="Тёмная тема">🌙 Тёмная</button>
+      <button class="btn" id="th-light" title="Светлая тема">☀️ Светлая</button>
+      <button class="btn" id="auto" title="Автолистание: 1 минута">⏸ Авто</button>
       <button class="btn" onclick="window.print()">Печать / PDF</button>
     </div>
   </div>
@@ -119,29 +143,29 @@
       <div>
         <svg class="art" viewBox="0 0 420 320" role="img" aria-label="Работа в 1С через браузер">
           <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#eef2ff"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
-          <rect x="30" y="34" width="300" height="196" rx="16" fill="url(#g1)" stroke="#0f172a" stroke-width="5"/>
-          <rect x="30" y="34" width="300" height="34" rx="16" fill="#2f54eb" stroke="#0f172a" stroke-width="5"/>
-          <circle cx="52" cy="51" r="5" fill="#fff"/><circle cx="70" cy="51" r="5" fill="#ffffffaa"/><circle cx="88" cy="51" r="5" fill="#ffffff77"/>
-          <rect x="52" y="88" width="120" height="12" rx="6" fill="#c7d2fe"/>
-          <rect x="52" y="110" width="180" height="10" rx="5" fill="#e2e8f0"/>
-          <rect x="52" y="128" width="150" height="10" rx="5" fill="#e2e8f0"/>
-          <rect x="52" y="160" width="86" height="44" rx="10" fill="#fff" stroke="#0f172a" stroke-width="4"/>
-          <rect x="64" y="172" width="40" height="8" rx="4" fill="#2f54eb"/>
-          <rect x="64" y="186" width="52" height="6" rx="3" fill="#cbd5e1"/>
-          <rect x="152" y="160" width="86" height="44" rx="10" fill="#fff" stroke="#0f172a" stroke-width="4"/>
-          <rect x="164" y="172" width="40" height="8" rx="4" fill="#15803d"/>
-          <rect x="164" y="186" width="52" height="6" rx="3" fill="#cbd5e1"/>
-          <rect x="252" y="160" width="60" height="44" rx="10" fill="#fff" stroke="#0f172a" stroke-width="4"/>
-          <path d="M268 182l7 7 13-14" fill="none" stroke="#15803d" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-          <rect x="120" y="240" width="120" height="10" rx="5" fill="#0f172a"/>
-          <rect x="150" y="258" width="60" height="8" rx="4" fill="#0f172a" opacity=".25"/>
+            <stop offset="0" stop-color="var(--soft)"/><stop offset="1" stop-color="var(--card)"/></linearGradient></defs>
+          <rect x="30" y="34" width="300" height="196" rx="16" fill="url(#g1)" stroke="var(--ink2)" stroke-width="5"/>
+          <rect x="30" y="34" width="300" height="34" rx="16" fill="var(--acc)" stroke="var(--ink2)" stroke-width="5"/>
+          <circle cx="52" cy="51" r="5" fill="var(--card)"/><circle cx="70" cy="51" r="5" fill="#ffffff"/><circle cx="88" cy="51" r="5" fill="#ffffff"/>
+          <rect x="52" y="88" width="120" height="12" rx="6" fill="var(--chip)"/>
+          <rect x="52" y="110" width="180" height="10" rx="5" fill="var(--bar)"/>
+          <rect x="52" y="128" width="150" height="10" rx="5" fill="var(--bar)"/>
+          <rect x="52" y="160" width="86" height="44" rx="10" fill="var(--card)" stroke="var(--ink2)" stroke-width="4"/>
+          <rect x="64" y="172" width="40" height="8" rx="4" fill="var(--acc)"/>
+          <rect x="64" y="186" width="52" height="6" rx="3" fill="var(--bar2)"/>
+          <rect x="152" y="160" width="86" height="44" rx="10" fill="var(--card)" stroke="var(--ink2)" stroke-width="4"/>
+          <rect x="164" y="172" width="40" height="8" rx="4" fill="var(--ok)"/>
+          <rect x="164" y="186" width="52" height="6" rx="3" fill="var(--bar2)"/>
+          <rect x="252" y="160" width="60" height="44" rx="10" fill="var(--card)" stroke="var(--ink2)" stroke-width="4"/>
+          <path d="M268 182l7 7 13-14" fill="none" stroke="var(--ok)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="120" y="240" width="120" height="10" rx="5" fill="var(--ink2)"/>
+          <rect x="150" y="258" width="60" height="8" rx="4" fill="var(--ink2)" opacity=".25"/>
           <g transform="translate(300 196)">
-            <circle cx="52" cy="34" r="26" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <path d="M40 34a12 12 0 1 1 24 0v6" fill="none" stroke="#2f54eb" stroke-width="5" stroke-linecap="round"/>
-            <rect x="38" y="40" width="28" height="20" rx="6" fill="#2f54eb" stroke="#0f172a" stroke-width="4"/>
+            <circle cx="52" cy="34" r="26" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <path d="M40 34a12 12 0 1 1 24 0v6" fill="none" stroke="var(--acc)" stroke-width="5" stroke-linecap="round"/>
+            <rect x="38" y="40" width="28" height="20" rx="6" fill="var(--acc)" stroke="var(--ink2)" stroke-width="4"/>
           </g>
-          <g stroke="#2f54eb" stroke-width="5" stroke-linecap="round">
+          <g stroke="var(--acc)" stroke-width="5" stroke-linecap="round">
             <path d="M344 66l18-18"/><path d="M354 92h22"/><path d="M330 48l-6-20"/>
           </g>
         </svg>
@@ -156,27 +180,27 @@
     <div class="two rev">
       <div>
         <svg class="art" viewBox="0 0 420 320" role="img" aria-label="Доступы и вход">
-          <rect x="46" y="30" width="230" height="140" rx="16" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-          <rect x="66" y="52" width="120" height="10" rx="5" fill="#c7d2fe"/>
-          <rect x="66" y="74" width="190" height="10" rx="5" fill="#e2e8f0"/>
-          <rect x="66" y="92" width="150" height="10" rx="5" fill="#e2e8f0"/>
-          <rect x="66" y="118" width="100" height="30" rx="8" fill="#2f54eb" stroke="#0f172a" stroke-width="4"/>
+          <rect x="46" y="30" width="230" height="140" rx="16" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+          <rect x="66" y="52" width="120" height="10" rx="5" fill="var(--chip)"/>
+          <rect x="66" y="74" width="190" height="10" rx="5" fill="var(--bar)"/>
+          <rect x="66" y="92" width="150" height="10" rx="5" fill="var(--bar)"/>
+          <rect x="66" y="118" width="100" height="30" rx="8" fill="var(--acc)" stroke="var(--ink2)" stroke-width="4"/>
           <path d="M82 133h68" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
           <g transform="translate(236 150)">
-            <rect x="0" y="0" width="150" height="100" rx="16" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <rect x="16" y="20" width="70" height="10" rx="5" fill="#c7d2fe"/>
-            <rect x="16" y="40" width="110" height="9" rx="4" fill="#e2e8f0"/>
-            <rect x="16" y="56" width="90" height="9" rx="4" fill="#e2e8f0"/>
-            <rect x="16" y="74" width="46" height="14" rx="7" fill="#15803d"/>
+            <rect x="0" y="0" width="150" height="100" rx="16" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <rect x="16" y="20" width="70" height="10" rx="5" fill="var(--chip)"/>
+            <rect x="16" y="40" width="110" height="9" rx="4" fill="var(--bar)"/>
+            <rect x="16" y="56" width="90" height="9" rx="4" fill="var(--bar)"/>
+            <rect x="16" y="74" width="46" height="14" rx="7" fill="var(--ok)"/>
           </g>
           <g transform="translate(40 196)">
-            <rect x="0" y="0" width="210" height="52" rx="14" fill="#eef2ff" stroke="#0f172a" stroke-width="4"/>
-            <circle cx="28" cy="26" r="14" fill="#2f54eb"/>
+            <rect x="0" y="0" width="210" height="52" rx="14" fill="var(--soft)" stroke="var(--ink2)" stroke-width="4"/>
+            <circle cx="28" cy="26" r="14" fill="var(--acc)"/>
             <path d="M20 26l5 5 10-11" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            <rect x="54" y="16" width="120" height="9" rx="4" fill="#94a3b8"/>
-            <rect x="54" y="31" width="86" height="7" rx="3" fill="#cbd5e1"/>
+            <rect x="54" y="16" width="120" height="9" rx="4" fill="var(--mut2)"/>
+            <rect x="54" y="31" width="86" height="7" rx="3" fill="var(--bar2)"/>
           </g>
-          <g stroke="#2f54eb" stroke-width="5" stroke-linecap="round">
+          <g stroke="var(--acc)" stroke-width="5" stroke-linecap="round">
             <path d="M300 60l20-20"/><path d="M312 84h22"/>
           </g>
         </svg>
@@ -222,24 +246,24 @@
       </div>
       <div>
         <svg class="art" viewBox="0 0 420 320" role="img" aria-label="Перенос базы и обновление">
-          <rect x="26" y="80" width="120" height="120" rx="16" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-          <rect x="46" y="102" width="80" height="10" rx="5" fill="#c7d2fe"/>
-          <rect x="46" y="122" width="60" height="8" rx="4" fill="#e2e8f0"/>
-          <rect x="46" y="140" width="70" height="8" rx="4" fill="#e2e8f0"/>
-          <path d="M158 140h56" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>
-          <path d="M206 128l14 12-14 12" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-          <rect x="236" y="70" width="150" height="140" rx="16" fill="#eef2ff" stroke="#0f172a" stroke-width="5"/>
-          <rect x="256" y="92" width="90" height="10" rx="5" fill="#2f54eb"/>
-          <rect x="256" y="112" width="110" height="8" rx="4" fill="#c7d2fe"/>
-          <rect x="256" y="130" width="96" height="8" rx="4" fill="#c7d2fe"/>
-          <rect x="256" y="156" width="52" height="30" rx="8" fill="#15803d" stroke="#0f172a" stroke-width="4"/>
+          <rect x="26" y="80" width="120" height="120" rx="16" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+          <rect x="46" y="102" width="80" height="10" rx="5" fill="var(--chip)"/>
+          <rect x="46" y="122" width="60" height="8" rx="4" fill="var(--bar)"/>
+          <rect x="46" y="140" width="70" height="8" rx="4" fill="var(--bar)"/>
+          <path d="M158 140h56" stroke="var(--ink2)" stroke-width="6" stroke-linecap="round"/>
+          <path d="M206 128l14 12-14 12" fill="none" stroke="var(--ink2)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="236" y="70" width="150" height="140" rx="16" fill="var(--soft)" stroke="var(--ink2)" stroke-width="5"/>
+          <rect x="256" y="92" width="90" height="10" rx="5" fill="var(--acc)"/>
+          <rect x="256" y="112" width="110" height="8" rx="4" fill="var(--chip)"/>
+          <rect x="256" y="130" width="96" height="8" rx="4" fill="var(--chip)"/>
+          <rect x="256" y="156" width="52" height="30" rx="8" fill="var(--ok)" stroke="var(--ink2)" stroke-width="4"/>
           <path d="M268 171l6 6 10-11" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
           <g transform="translate(268 214)">
-            <circle cx="30" cy="30" r="28" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <path d="M30 12v18l12 8" fill="none" stroke="#2f54eb" stroke-width="5" stroke-linecap="round"/>
-            <path d="M52 4l8-8M8 4L0-4" stroke="#2f54eb" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="30" cy="30" r="28" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <path d="M30 12v18l12 8" fill="none" stroke="var(--acc)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M52 4l8-8M8 4L0-4" stroke="var(--acc)" stroke-width="4" stroke-linecap="round"/>
           </g>
-          <g stroke="#2f54eb" stroke-width="5" stroke-linecap="round">
+          <g stroke="var(--acc)" stroke-width="5" stroke-linecap="round">
             <path d="M60 40l-10-12"/><path d="M104 34l6-16"/><path d="M150 52l16-8"/>
           </g>
         </svg>
@@ -254,31 +278,31 @@
     <div class="two rev">
       <div>
         <svg class="art" viewBox="0 0 420 320" role="img" aria-label="Веб, тонкий и толстый клиент, VPN">
-          <rect x="26" y="46" width="180" height="112" rx="14" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-          <rect x="26" y="46" width="180" height="26" rx="14" fill="#2f54eb" stroke="#0f172a" stroke-width="5"/>
-          <circle cx="44" cy="59" r="4" fill="#fff"/>
-          <rect x="44" y="88" width="80" height="9" rx="4" fill="#c7d2fe"/>
-          <rect x="44" y="106" width="120" height="8" rx="4" fill="#e2e8f0"/>
-          <rect x="44" y="122" width="96" height="8" rx="4" fill="#e2e8f0"/>
-          <rect x="226" y="30" width="160" height="90" rx="12" fill="#eef2ff" stroke="#0f172a" stroke-width="5"/>
-          <rect x="244" y="48" width="70" height="8" rx="4" fill="#2f54eb"/>
-          <rect x="244" y="64" width="118" height="7" rx="4" fill="#c7d2fe"/>
-          <rect x="244" y="80" width="96" height="7" rx="4" fill="#c7d2fe"/>
-          <rect x="226" y="132" width="160" height="70" rx="12" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-          <rect x="244" y="150" width="60" height="8" rx="4" fill="#15803d"/>
-          <rect x="244" y="166" width="110" height="7" rx="4" fill="#e2e8f0"/>
+          <rect x="26" y="46" width="180" height="112" rx="14" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+          <rect x="26" y="46" width="180" height="26" rx="14" fill="var(--acc)" stroke="var(--ink2)" stroke-width="5"/>
+          <circle cx="44" cy="59" r="4" fill="var(--card)"/>
+          <rect x="44" y="88" width="80" height="9" rx="4" fill="var(--chip)"/>
+          <rect x="44" y="106" width="120" height="8" rx="4" fill="var(--bar)"/>
+          <rect x="44" y="122" width="96" height="8" rx="4" fill="var(--bar)"/>
+          <rect x="226" y="30" width="160" height="90" rx="12" fill="var(--soft)" stroke="var(--ink2)" stroke-width="5"/>
+          <rect x="244" y="48" width="70" height="8" rx="4" fill="var(--acc)"/>
+          <rect x="244" y="64" width="118" height="7" rx="4" fill="var(--chip)"/>
+          <rect x="244" y="80" width="96" height="7" rx="4" fill="var(--chip)"/>
+          <rect x="226" y="132" width="160" height="70" rx="12" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+          <rect x="244" y="150" width="60" height="8" rx="4" fill="var(--ok)"/>
+          <rect x="244" y="166" width="110" height="7" rx="4" fill="var(--bar)"/>
           <g transform="translate(30 200)">
-            <rect x="0" y="0" width="180" height="80" rx="14" fill="#0f172a"/>
-            <path d="M22 40h136" stroke="#2f54eb" stroke-width="6" stroke-linecap="round" stroke-dasharray="10 10"/>
-            <circle cx="22" cy="40" r="10" fill="#2f54eb"/>
-            <circle cx="158" cy="40" r="10" fill="#2f54eb"/>
-            <rect x="56" y="14" width="68" height="12" rx="6" fill="#fff" opacity=".9"/>
-            <rect x="56" y="54" width="68" height="12" rx="6" fill="#fff" opacity=".5"/>
+            <rect x="0" y="0" width="180" height="80" rx="14" fill="var(--ink2)"/>
+            <path d="M22 40h136" stroke="var(--acc)" stroke-width="6" stroke-linecap="round" stroke-dasharray="10 10"/>
+            <circle cx="22" cy="40" r="10" fill="var(--acc)"/>
+            <circle cx="158" cy="40" r="10" fill="var(--acc)"/>
+            <rect x="56" y="14" width="68" height="12" rx="6" fill="var(--card)" opacity=".9"/>
+            <rect x="56" y="54" width="68" height="12" rx="6" fill="var(--card)" opacity=".5"/>
           </g>
           <g transform="translate(250 216)">
-            <rect x="0" y="0" width="100" height="64" rx="12" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <path d="M50 14a16 16 0 0 0-16 16v8h8v-8a8 8 0 0 1 16 0v8h8v-8a16 16 0 0 0-16-16z" fill="#2f54eb"/>
-            <rect x="44" y="34" width="12" height="16" rx="4" fill="#2f54eb"/>
+            <rect x="0" y="0" width="100" height="64" rx="12" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <path d="M50 14a16 16 0 0 0-16 16v8h8v-8a8 8 0 0 1 16 0v8h8v-8a16 16 0 0 0-16-16z" fill="var(--acc)"/>
+            <rect x="44" y="34" width="12" height="16" rx="4" fill="var(--acc)"/>
           </g>
         </svg>
       </div>
@@ -324,33 +348,33 @@
       </div>
       <div>
         <svg class="art" viewBox="0 0 420 320" role="img" aria-label="Песочница — копия базы">
-          <rect x="40" y="36" width="150" height="104" rx="14" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-          <rect x="58" y="58" width="80" height="9" rx="4" fill="#2f54eb"/>
-          <rect x="58" y="76" width="110" height="8" rx="4" fill="#e2e8f0"/>
-          <rect x="58" y="92" width="90" height="8" rx="4" fill="#e2e8f0"/>
-          <rect x="58" y="112" width="54" height="14" rx="7" fill="#c7d2fe"/>
-          <path d="M196 88h38" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>
-          <path d="M226 76l14 12-14 12" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="40" y="36" width="150" height="104" rx="14" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+          <rect x="58" y="58" width="80" height="9" rx="4" fill="var(--acc)"/>
+          <rect x="58" y="76" width="110" height="8" rx="4" fill="var(--bar)"/>
+          <rect x="58" y="92" width="90" height="8" rx="4" fill="var(--bar)"/>
+          <rect x="58" y="112" width="54" height="14" rx="7" fill="var(--chip)"/>
+          <path d="M196 88h38" stroke="var(--ink2)" stroke-width="6" stroke-linecap="round"/>
+          <path d="M226 76l14 12-14 12" fill="none" stroke="var(--ink2)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
           <g transform="translate(250 34)">
-            <rect x="0" y="0" width="140" height="112" rx="14" fill="#eef2ff" stroke="#0f172a" stroke-width="5"/>
-            <path d="M70 14v18" stroke="#0f172a" stroke-width="6" stroke-linecap="round"/>
-            <circle cx="70" cy="12" r="8" fill="#2f54eb" stroke="#0f172a" stroke-width="4"/>
-            <rect x="18" y="42" width="104" height="8" rx="4" fill="#c7d2fe"/>
-            <rect x="18" y="58" width="80" height="8" rx="4" fill="#c7d2fe"/>
-            <rect x="18" y="80" width="46" height="18" rx="9" fill="#15803d"/>
+            <rect x="0" y="0" width="140" height="112" rx="14" fill="var(--soft)" stroke="var(--ink2)" stroke-width="5"/>
+            <path d="M70 14v18" stroke="var(--ink2)" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="70" cy="12" r="8" fill="var(--acc)" stroke="var(--ink2)" stroke-width="4"/>
+            <rect x="18" y="42" width="104" height="8" rx="4" fill="var(--chip)"/>
+            <rect x="18" y="58" width="80" height="8" rx="4" fill="var(--chip)"/>
+            <rect x="18" y="80" width="46" height="18" rx="9" fill="var(--ok)"/>
           </g>
           <g transform="translate(40 176)">
             <path d="M40 0h60l-18 44v58a10 10 0 0 1-10 10H32a10 10 0 0 1-10-10V44z"
-                  fill="#fff" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/>
-            <path d="M28 74h64" stroke="#2f54eb" stroke-width="6"/>
-            <circle cx="50" cy="94" r="6" fill="#2f54eb"/><circle cx="66" cy="100" r="4" fill="#2f54eb"/>
+                  fill="var(--card)" stroke="var(--ink2)" stroke-width="5" stroke-linejoin="round"/>
+            <path d="M28 74h64" stroke="var(--acc)" stroke-width="6"/>
+            <circle cx="50" cy="94" r="6" fill="var(--acc)"/><circle cx="66" cy="100" r="4" fill="var(--acc)"/>
           </g>
           <g transform="translate(160 190)">
-            <rect x="0" y="0" width="220" height="96" rx="16" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <rect x="18" y="18" width="80" height="9" rx="4" fill="#2f54eb"/>
-            <rect x="18" y="38" width="180" height="7" rx="4" fill="#e2e8f0"/>
-            <rect x="18" y="54" width="150" height="7" rx="4" fill="#e2e8f0"/>
-            <rect x="18" y="72" width="44" height="12" rx="6" fill="#e8f7ee"/>
+            <rect x="0" y="0" width="220" height="96" rx="16" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <rect x="18" y="18" width="80" height="9" rx="4" fill="var(--acc)"/>
+            <rect x="18" y="38" width="180" height="7" rx="4" fill="var(--bar)"/>
+            <rect x="18" y="54" width="150" height="7" rx="4" fill="var(--bar)"/>
+            <rect x="18" y="72" width="44" height="12" rx="6" fill="var(--oksoft)"/>
           </g>
         </svg>
       </div>
@@ -367,31 +391,31 @@
       <div>
         <svg class="art" viewBox="0 0 420 320" role="img" aria-label="ККТ, сканеры, ЭЦП">
           <g transform="translate(30 40)">
-            <rect x="0" y="40" width="110" height="86" rx="12" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <rect x="16" y="58" width="60" height="10" rx="5" fill="#2f54eb"/>
-            <rect x="16" y="78" width="40" height="8" rx="4" fill="#e2e8f0"/>
-            <rect x="16" y="100" width="78" height="10" rx="4" fill="#0f172a" opacity=".15"/>
-            <path d="M10 40l16-24h78l16 24" fill="#eef2ff" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/>
+            <rect x="0" y="40" width="110" height="86" rx="12" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <rect x="16" y="58" width="60" height="10" rx="5" fill="var(--acc)"/>
+            <rect x="16" y="78" width="40" height="8" rx="4" fill="var(--bar)"/>
+            <rect x="16" y="100" width="78" height="10" rx="4" fill="var(--ink2)" opacity=".15"/>
+            <path d="M10 40l16-24h78l16 24" fill="var(--soft)" stroke="var(--ink2)" stroke-width="5" stroke-linejoin="round"/>
           </g>
           <g transform="translate(170 40)">
-            <rect x="0" y="30" width="80" height="96" rx="14" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <path d="M28 42v40" stroke="#0f172a" stroke-width="10" stroke-linecap="round"/>
-            <path d="M40 82l20 28" stroke="#2f54eb" stroke-width="7" stroke-linecap="round"/>
-            <path d="M14 30l6-14h40l6 14" fill="#eef2ff" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/>
+            <rect x="0" y="30" width="80" height="96" rx="14" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <path d="M28 42v40" stroke="var(--ink2)" stroke-width="10" stroke-linecap="round"/>
+            <path d="M40 82l20 28" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/>
+            <path d="M14 30l6-14h40l6 14" fill="var(--soft)" stroke="var(--ink2)" stroke-width="5" stroke-linejoin="round"/>
           </g>
           <g transform="translate(286 30)">
-            <rect x="0" y="10" width="90" height="120" rx="12" fill="#eef2ff" stroke="#0f172a" stroke-width="5"/>
-            <circle cx="45" cy="36" r="14" fill="#2f54eb"/>
-            <rect x="18" y="60" width="54" height="8" rx="4" fill="#c7d2fe"/>
-            <rect x="18" y="76" width="40" height="7" rx="4" fill="#c7d2fe"/>
-            <path d="M30 100l10 10 20-22" fill="none" stroke="#15803d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="0" y="10" width="90" height="120" rx="12" fill="var(--soft)" stroke="var(--ink2)" stroke-width="5"/>
+            <circle cx="45" cy="36" r="14" fill="var(--acc)"/>
+            <rect x="18" y="60" width="54" height="8" rx="4" fill="var(--chip)"/>
+            <rect x="18" y="76" width="40" height="7" rx="4" fill="var(--chip)"/>
+            <path d="M30 100l10 10 20-22" fill="none" stroke="var(--ok)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
           </g>
           <g transform="translate(30 176)">
-            <rect x="0" y="0" width="360" height="86" rx="16" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <rect x="20" y="18" width="120" height="9" rx="4" fill="#2f54eb"/>
-            <rect x="20" y="38" width="300" height="7" rx="4" fill="#e2e8f0"/>
-            <rect x="20" y="54" width="240" height="7" rx="4" fill="#e2e8f0"/>
-            <rect x="20" y="70" width="60" height="8" rx="4" fill="#e8f7ee"/>
+            <rect x="0" y="0" width="360" height="86" rx="16" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <rect x="20" y="18" width="120" height="9" rx="4" fill="var(--acc)"/>
+            <rect x="20" y="38" width="300" height="7" rx="4" fill="var(--bar)"/>
+            <rect x="20" y="54" width="240" height="7" rx="4" fill="var(--bar)"/>
+            <rect x="20" y="70" width="60" height="8" rx="4" fill="var(--oksoft)"/>
           </g>
         </svg>
       </div>
@@ -432,16 +456,16 @@
       </div>
       <div>
         <svg class="art" viewBox="0 0 420 320" role="img" aria-label="Старт работы">
-          <rect x="40" y="60" width="160" height="120" rx="16" fill="#eef2ff" stroke="#0f172a" stroke-width="5"/>
-          <path d="M120 96l30 24-30 24" fill="none" stroke="#2f54eb" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-          <rect x="70" y="206" width="240" height="18" rx="9" fill="#0f172a" opacity=".12"/>
-          <rect x="86" y="234" width="208" height="14" rx="7" fill="#0f172a" opacity=".08"/>
+          <rect x="40" y="60" width="160" height="120" rx="16" fill="var(--soft)" stroke="var(--ink2)" stroke-width="5"/>
+          <path d="M120 96l30 24-30 24" fill="none" stroke="var(--acc)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="70" y="206" width="240" height="18" rx="9" fill="var(--ink2)" opacity=".12"/>
+          <rect x="86" y="234" width="208" height="14" rx="7" fill="var(--ink2)" opacity=".08"/>
           <g transform="translate(232 74)">
-            <circle cx="60" cy="60" r="56" fill="#fff" stroke="#0f172a" stroke-width="5"/>
-            <path d="M60 20v40l26 16" fill="none" stroke="#2f54eb" stroke-width="7" stroke-linecap="round"/>
-            <circle cx="60" cy="60" r="6" fill="#0f172a"/>
+            <circle cx="60" cy="60" r="56" fill="var(--card)" stroke="var(--ink2)" stroke-width="5"/>
+            <path d="M60 20v40l26 16" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round"/>
+            <circle cx="60" cy="60" r="6" fill="var(--ink2)"/>
           </g>
-          <g stroke="#2f54eb" stroke-width="5" stroke-linecap="round">
+          <g stroke="var(--acc)" stroke-width="5" stroke-linecap="round">
             <path d="M330 50l18-18"/><path d="M340 84h22"/><path d="M316 30l-6-18"/>
           </g>
         </svg>
@@ -492,6 +516,45 @@
   });
   var h = parseInt((location.hash || '').replace('#', ''), 10);
   if (h >= 1 && h <= slides.length) go(h - 1);
+
+  // автолистание: 60 секунд на слайд, пауза при ручном управлении и в фоновой вкладке
+  var DELAY = 60000, auto = true, timer = null;
+  var autoBtn = document.getElementById('auto');
+  function schedule(){
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (!auto || document.hidden) return;
+    timer = setTimeout(function(){ go(i + 1); schedule(); }, DELAY);
+  }
+  function paintAuto(){
+    if (!autoBtn) return;
+    autoBtn.textContent = auto ? '\u23f8 \u0410\u0432\u0442\u043e' : '\u25b6 \u0410\u0432\u0442\u043e';
+    autoBtn.classList.toggle('on', auto);
+  }
+  if (autoBtn) {
+    autoBtn.onclick = function(){ auto = !auto; paintAuto(); schedule(); };
+  }
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) { if (timer) clearTimeout(timer); timer = null; } else schedule(); });
+  // ручная навигация сбрасывает таймер
+  var _go = go;
+  go = function(n){ _go(n); schedule(); };
+  paintAuto(); schedule();
+})();
+</script>
+<script>
+(function(){
+  function paint(){
+    var t = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+    document.getElementById('th-light').classList.toggle('on', t === 'light');
+    document.getElementById('th-dark').classList.toggle('on', t === 'dark');
+  }
+  function set(t){
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('portal-theme', t); } catch (e) {}
+    paint();
+  }
+  document.getElementById('th-light').onclick = function(){ set('light'); };
+  document.getElementById('th-dark').onclick = function(){ set('dark'); };
+  paint();
 })();
 </script>
 </body>
