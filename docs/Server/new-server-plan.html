@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>План переезда сервера 1С — этапы, время, контроль, ИИ-агент</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#121b2e; --panel2:#0f1729; --line:#22304a; --line2:#1a2740;
+    --ink:#e8eefc; --mut:#93a4c4; --acc:#6d8bff; --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
+    --chip:#1b2a47;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font:14px/1.55 "Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+  a{color:var(--acc)}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 70px}
+  .head{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:flex-start;
+        border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:22px}
+  h1{font-size:26px;line-height:1.15;margin:0 0 6px;letter-spacing:-.4px}
+  .sub{color:var(--mut);font-size:13px}
+  .meta{text-align:right;font-size:12px;color:var(--mut);line-height:1.6}
+  .meta b{color:var(--ink)}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+  .card .v{font-size:22px;font-weight:800;letter-spacing:-.4px;margin-top:2px}
+  .card .v small{font-size:12px;font-weight:600;color:var(--mut)}
+  h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--acc);
+     margin:30px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
+     padding:9px 10px;border-bottom:1px solid var(--line);font-weight:600}
+  td{padding:10px;border-bottom:1px solid var(--line2);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .num{white-space:nowrap;color:var(--mut);font-variant-numeric:tabular-nums}
+  .b{font-weight:700}
+  .chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+  .c-crit{background:#3b1518;color:#fecaca;border:1px solid #7f1d1d}
+  .c-imp{background:#3b2a0f;color:#fde68a;border:1px solid #92400e}
+  .c-norm{background:#132b23;color:#a7f3d0;border:1px solid #065f46}
+  .a-full{background:#0f2c4d;color:#bfdbfe;border:1px solid #1d4ed8}
+  .a-part{background:#2b2340;color:#ddd6fe;border:1px solid #6d28d9}
+  .a-none{background:#2a1a1a;color:#fecaca;border:1px solid #7f1d1d}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .box h3{margin:0 0 8px;font-size:14px}
+  .box ul{margin:0;padding-left:18px}
+  .box li{margin:0 0 5px;font-size:13px;color:#c7d2e8}
+  .box li b{color:var(--ink)}
+  .bars{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .bar{display:grid;grid-template-columns:210px 1fr 70px;gap:10px;align-items:center;font-size:12.5px}
+  .track{height:16px;background:#0e1728;border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+  .fill{height:100%;border-radius:9px;background:linear-gradient(90deg,#3b5bdb,#6d8bff)}
+  .fill.w{background:linear-gradient(90deg,#b45309,#fbbf24)}
+  .fill.g{background:linear-gradient(90deg,#047857,#34d399)}
+  .foot{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);color:var(--mut);font-size:12px;
+        display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .note{background:#101a2d;border:1px solid var(--line);border-left:3px solid var(--acc);
+        border-radius:0 10px 10px 0;padding:12px 14px;color:#c7d2e8;font-size:13px;margin:10px 0}
+  .note b{color:var(--ink)}
+  .chk{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border:1px solid var(--line2);
+       border-radius:9px;margin:0 0 6px;background:var(--panel2);cursor:pointer}
+  .chk input{margin-top:3px;accent-color:var(--acc)}
+  .chk span{font-size:13px}
+  .chk.done span{color:var(--mut);text-decoration:line-through}
+  .progress{display:flex;align-items:center;gap:12px;margin:6px 0 14px}
+  .progress .t{flex:1;height:10px;background:#0e1728;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+  .progress .f{height:100%;width:0;background:linear-gradient(90deg,#047857,#34d399);transition:width .2s}
+  .progress .n{font-size:12px;color:var(--mut);min-width:90px;text-align:right}
+  @media (max-width:900px){
+    .cards{grid-template-columns:repeat(2,1fr)}
+    .grid2{grid-template-columns:1fr}
+    .bar{grid-template-columns:130px 1fr 56px}
+  }
+  @media print{
+    body{background:#fff;color:#111}
+    .wrap{max-width:none;padding:0}
+    .card,.box,.note,.chk{border-color:#ddd;background:#fff;color:#111}
+    .card .k,.sub,.num,.foot{color:#555}
+    h2{color:#333}
+    .chip{border-color:#999!important}
+    .progress,.bars{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div>
+      <h1>План переезда сервера 1С</h1>
+      <div class="sub">Ryzen 9 3900X + B450 Tomahawk Max · Proxmox VE 8.4 · PostgreSQL · окно выходного дня</div>
+    </div>
+    <div class="meta">
+      <b>Версия:</b> 2.0 · 20.11.2026<br>
+      <b>Статус:</b> согласован, ждём диски<br>
+      <b>Источник:</b> docs/Server/new-server-plan.md
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="k">Этапов</div><div class="v">8 <small>0–7</small></div></div>
+    <div class="card"><div class="k">Работы</div><div class="v">14–20 <small>ч</small></div></div>
+    <div class="card"><div class="k">Тест дома</div><div class="v">2 <small>дня</small></div></div>
+    <div class="card"><div class="k">Простой 1С</div><div class="v">15–40 <small>мин</small></div></div>
+  </div>
+
+  <h2>Этапы: время · контроль · роль ИИ-агента</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:34px">№</th>
+        <th style="width:200px">Этап</th>
+        <th style="width:78px">Время</th>
+        <th style="width:210px">Контроль (важность)</th>
+        <th>ИИ-агент в стеке</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="num b">0</td>
+        <td class="b">Клон боевой ВМ<br><span style="color:var(--mut);font-weight:400">vzdump 213 → restore 913</span></td>
+        <td class="num">2–3 ч</td>
+        <td><span class="chip c-imp">важно</span><br><span style="color:var(--mut);font-size:12px">сверка размеров и запуск клона</span></td>
+        <td><span class="chip a-full">полностью</span><br><span style="color:var(--mut);font-size:12px">агент делает дамп, копирование, restore, проверку БД</span></td>
+      </tr>
+      <tr>
+        <td class="num b">1</td>
+        <td class="b">Проверка железа<br><span style="color:var(--mut);font-weight:400">SMART, memtest, BIOS</span></td>
+        <td class="num">1–2 ч</td>
+        <td><span class="chip c-imp">важно</span><br><span style="color:var(--mut);font-size:12px">нет ошибок SMART, memtest без сбоев</span></td>
+        <td><span class="chip a-part">ассист</span><br><span style="color:var(--mut);font-size:12px">агент запускает тесты и читает отчёт; физика — человек</span></td>
+      </tr>
+      <tr>
+        <td class="num b">2</td>
+        <td class="b">Установка PVE 8.4<br><span style="color:var(--mut);font-weight:400">vmbr0/vmbr1, обновления</span></td>
+        <td class="num">1,5–2,5 ч</td>
+        <td><span class="chip c-crit">критично</span><br><span style="color:var(--mut);font-size:12px">версия 8.4, сеть, доступ по SSH</span></td>
+        <td><span class="chip a-part">ассист</span><br><span style="color:var(--mut);font-size:12px">ISO и консоль — человек; сеть и пакеты — агент</span></td>
+      </tr>
+      <tr>
+        <td class="num b">3</td>
+        <td class="b">Тест дома<br><span style="color:var(--mut);font-weight:400">1С, БД, портал, бэкапы, лицензии</span></td>
+        <td class="num">4–6 ч<br><span style="color:var(--mut);font-size:11px">2 дня календарно</span></td>
+        <td><span class="chip c-crit">критично</span><br><span style="color:var(--mut);font-size:12px">гейт G1: вход, отчёты, 5 сеансов</span></td>
+        <td><span class="chip a-full">полностью</span><br><span style="color:var(--mut);font-size:12px">агент поднимает сервисы, гоняет чек-лист, сравнивает конфигурации; ключ HASP — человек</span></td>
+      </tr>
+      <tr>
+        <td class="num b">4</td>
+        <td class="b">Переезд в серверную<br><span style="color:var(--mut);font-weight:400">транспорт, монтаж, сеть</span></td>
+        <td class="num">2–3 ч</td>
+        <td><span class="chip c-imp">важно</span><br><span style="color:var(--mut);font-size:12px">связь с кластером, коросинк</span></td>
+        <td><span class="chip a-none">нет</span><br><span style="color:var(--mut);font-size:12px">физическая работа; агент готовит конфиг заранее</span></td>
+      </tr>
+      <tr>
+        <td class="num b">5</td>
+        <td class="b">Ввод в кластер<br><span style="color:var(--mut);font-weight:400">pvecm add, кворум</span></td>
+        <td class="num">0,5–1 ч</td>
+        <td><span class="chip c-crit">критично</span><br><span style="color:var(--mut);font-size:12px">гейт G2: 4 узла, Quorate: Yes</span></td>
+        <td><span class="chip a-full">полностью</span><br><span style="color:var(--mut);font-size:12px">агент выполняет join и проверки; подтверждение — человек</span></td>
+      </tr>
+      <tr>
+        <td class="num b">6</td>
+        <td class="b">Миграция ВМ 213<br><span style="color:var(--mut);font-weight:400">--with-local-disks</span></td>
+        <td class="num">40–60 мин<br><span style="color:var(--mut);font-size:11px">простой 15–40 мин</span></td>
+        <td><span class="chip c-crit">критично</span><br><span style="color:var(--mut);font-size:12px">гейт G3: ВМ запущена, 1С и портал 200</span></td>
+        <td><span class="chip a-full">полностью</span><br><span style="color:var(--mut);font-size:12px">shutdown → migrate → start → мониторинг; окно подтверждает человек</span></td>
+      </tr>
+      <tr>
+        <td class="num b">7</td>
+        <td class="b">Проверка и откат<br><span style="color:var(--mut);font-weight:400">снапшот, чек-лист, ключи</span></td>
+        <td class="num">1–2 ч</td>
+        <td><span class="chip c-imp">важно</span><br><span style="color:var(--mut);font-size:12px">гейт G4: бэкап восстановлен, лицензии видны</span></td>
+        <td><span class="chip a-full">полностью</span><br><span style="color:var(--mut);font-size:12px">агент собирает метрики, отчёт, проверяет публикации</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Длительность этапов</h2>
+  <div class="bars">
+    <div class="bar"><span>0 · клон ВМ</span><div class="track"><div class="fill" style="width:50%"></div></div><span class="num">2–3 ч</span></div>
+    <div class="bar"><span>1 · железо</span><div class="track"><div class="fill" style="width:33%"></div></div><span class="num">1–2 ч</span></div>
+    <div class="bar"><span>2 · Proxmox</span><div class="track"><div class="fill" style="width:42%"></div></div><span class="num">1,5–2,5 ч</span></div>
+    <div class="bar"><span>3 · тест дома</span><div class="track"><div class="fill g" style="width:100%"></div></div><span class="num">4–6 ч</span></div>
+    <div class="bar"><span>4 · переезд</span><div class="track"><div class="fill w" style="width:50%"></div></div><span class="num">2–3 ч</span></div>
+    <div class="bar"><span>5 · кластер</span><div class="track"><div class="fill" style="width:17%"></div></div><span class="num">0,5–1 ч</span></div>
+    <div class="bar"><span>6 · миграция</span><div class="track"><div class="fill w" style="width:17%"></div></div><span class="num">40–60 мин</span></div>
+    <div class="bar"><span>7 · проверка</span><div class="track"><div class="fill" style="width:33%"></div></div><span class="num">1–2 ч</span></div>
+  </div>
+
+  <h2>Гейты контроля (что нельзя пропускать)</h2>
+  <div class="grid2">
+    <div class="box">
+      <h3>G1 · после теста дома</h3>
+      <ul>
+        <li>Вход в <b>dgek_db</b> и открытие 2–3 форм</li>
+        <li>Отчёт (ОСВ) строится, данные на месте</li>
+        <li><b>5 одновременных сеансов</b> без ошибок лицензий</li>
+        <li>Бэкап создан и <b>восстановлен</b> на тестовую БД</li>
+        <li>Обновление конфигурации прогнано (или проверено, что не падает)</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>G2–G4 · переезд и кластер</h3>
+      <ul>
+        <li><b>G2:</b> <code>pvecm status</code> — 4 узла, <b>Quorate: Yes</b></li>
+        <li><b>G3:</b> ВМ 213 запущена, <code>/WEB/dgek_db/</code> = 200, портал жив</li>
+        <li><b>G4:</b> лицензии видны, сеансы входят, ночной бэкап проходит</li>
+        <li>Старая ВМ выключена, конфликт IP <code>.5</code> исключён</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>ИИ-агент в стеке работ</h2>
+  <div class="grid2">
+    <div class="box">
+      <h3>Что агент делает сам</h3>
+      <ul>
+        <li><b>Этапы 0, 3, 5, 6, 7</b> — команды Proxmox/SSH, восстановление, join, миграция, проверки</li>
+        <li>Сбор метрик: CPU, IOPS, время отклика форм, SMART</li>
+        <li>Прогон чек-листов и сравнение конфигураций до/после</li>
+        <li>Отчёт по каждому гейту (в чат; Mattermost — по команде)</li>
+        <li>Контроль бэкапов и тестовое восстановление</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Где нужен человек</h3>
+      <ul>
+        <li>Установка Proxmox с ISO (консоль/IPMI)</li>
+        <li>Физический переезд, монтаж, кабели</li>
+        <li>Подключение ключей HASP (USB/сеть)</li>
+        <li>Разрешение на <b>необратимые шаги</b>: остановка боевой ВМ, вывод узлов</li>
+        <li>Согласование окна и приёмка результата</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Правила работы агента:</b> без отдельного разрешения не выполнять необратимые шаги (стирание дисков,
+    вывод узлов из кластера, остановка боевой ВМ 213). Все команды логируются, после каждого этапа — короткий
+    отчёт и контрольная точка у человека. При отказе на гейте — откат на предыдущее состояние (снапшот/дам).
+  </div>
+
+  <h2>Чек-лист готовности (интерактивный)</h2>
+  <div class="progress"><div class="t"><div class="f" id="pf"></div></div><div class="n" id="pn">0 / 0</div></div>
+  <div id="chk"></div>
+
+  <div class="foot">
+    <span>План переезда сервера 1С · v2.0 · 20.11.2026</span>
+    <span>Источники: new-server-plan.md · server-proposal «_финал»</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  var items = [
+    "Куплены NVMe 970 EVO Plus ×2 и адаптер PA19",
+    "Память 32 ГБ (или расширена до 64 ГБ)",
+    "Собран тестовый сегмент 192.168.0.0/24 (vmbr1 + коммутатор)",
+    "Клон ВМ 213 (ID 913) восстановлен и открывается",
+    "Ключ HASP подключён, лицензии видны внутри клона",
+    "srv1cv8 запускается (проверена серверная лицензия)",
+    "Прогнаны бэкап и восстановление",
+    "Проверены 5 одновременных сеансов",
+    "Согласовано окно переезда",
+    "Снапшот/дамп боевой ВМ 213 перед миграцией"
+  ];
+  var box = document.getElementById("chk");
+  var pf = document.getElementById("pf");
+  var pn = document.getElementById("pn");
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem("srv_plan_chk") || "{}"); } catch(e) { saved = {}; }
+  function upd(){
+    var done = 0;
+    items.forEach(function(_, i){ if (saved[i]) done++; });
+    pf.style.width = (items.length ? done / items.length * 100 : 0) + "%";
+    pn.textContent = done + " / " + items.length;
+  }
+  items.forEach(function(text, i){
+    var lab = document.createElement("label");
+    lab.className = "chk" + (saved[i] ? " done" : "");
+    var cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = !!saved[i];
+    cb.addEventListener("change", function(){
+      saved[i] = cb.checked;
+      lab.className = "chk" + (cb.checked ? " done" : "");
+      try { localStorage.setItem("srv_plan_chk", JSON.stringify(saved)); } catch(e) {}
+      upd();
+    });
+    var sp = document.createElement("span");
+    sp.textContent = text;
+    lab.appendChild(cb); lab.appendChild(sp);
+    box.appendChild(lab);
+  });
+  upd();
+})();
+</script>
+</body>
+</html>
